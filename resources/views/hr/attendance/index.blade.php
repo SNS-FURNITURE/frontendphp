@@ -6,12 +6,22 @@
 @php
     $prev = \DateTimeImmutable::createFromFormat('Y-m', $period)?->modify('-1 month')->format('Y-m') ?: $period;
     $next = \DateTimeImmutable::createFromFormat('Y-m', $period)?->modify('+1 month')->format('Y-m') ?: $period;
+    $statuses = ['present', 'late', 'half_day', 'absent', 'leave', 'holiday'];
+    $statusLabels = [
+        'present' => 'Present',
+        'late' => 'Late',
+        'half_day' => 'Half-day',
+        'absent' => 'Absent',
+        'leave' => 'Leave',
+        'holiday' => 'Holiday',
+        'clear' => 'Not marked',
+    ];
 @endphp
 
 <div class="page-head">
     <div>
         <h1 class="display-font">Attendance Management</h1>
-        <p class="muted" style="margin:0.35rem 0 0">Mark today · Sundays are OFF · feeds payroll present days</p>
+        <p class="muted" style="margin:0.35rem 0 0">Click today’s cell to set status · Sundays are OFF · feeds payroll</p>
     </div>
     <div class="toolbar">
         @if ($canEdit)
@@ -39,7 +49,7 @@
 </div>
 
 <div class="note-box">
-    Note: You can only mark attendance for TODAY ({{ \Illuminate\Support\Carbon::parse($today)->format('n/j/Y') }}). Sundays are non-working days.
+    Click a highlighted Today cell to change attendance. You can only mark TODAY ({{ \Illuminate\Support\Carbon::parse($today)->format('n/j/Y') }}). Sundays stay OFF.
 </div>
 
 <div class="filter-bar">
@@ -49,6 +59,11 @@
     <form method="GET" style="margin:0">
         <input type="month" name="period" value="{{ $period }}" onchange="this.form.submit()" style="margin:0">
     </form>
+    @if (str_starts_with($today, $period))
+        <button class="btn ghost" type="button" id="att-jump-today">Jump to today</button>
+    @else
+        <a class="btn ghost" href="{{ route('hr.attendance', ['period' => substr($today, 0, 7)]) }}">Jump to today</a>
+    @endif
 </div>
 
 <div class="legend">
@@ -61,18 +76,18 @@
     <span><i class="dot" style="background:#9ca3af"></i> Sunday (Off)</span>
 </div>
 
-<div class="att-scroll" style="margin-bottom:1rem">
+<div class="att-scroll" id="att-scroll" style="margin-bottom:1rem">
     <table class="data att-grid">
         <thead>
         <tr>
-            <th style="min-width:180px">Employee</th>
+            <th>Employee</th>
             @for ($d = 1; $d <= $daysInMonth; $d++)
                 @php
                     $date = sprintf('%04d-%02d-%02d', $year, $month, $d);
                     $dow = (int) (new DateTimeImmutable($date))->format('w');
                     $isToday = $date === $today;
                 @endphp
-                <th class="{{ $isToday ? 'today' : '' }}">{{ $d }}{{ $isToday ? ' Today' : ($dow === 0 ? ' OFF' : '') }}</th>
+                <th class="{{ $isToday ? 'today' : '' }}" @if ($isToday) data-today-col @endif>{{ $d }}{{ $isToday ? ' Today' : ($dow === 0 ? ' OFF' : '') }}</th>
             @endfor
         </tr>
         </thead>
@@ -103,27 +118,44 @@
                         $am = $marks->get($emp->id.'|'.$date.'|morning')?->first();
                         $pm = $marks->get($emp->id.'|'.$date.'|afternoon')?->first();
                         $status = $am?->status ?: $pm?->status;
+                        $isToday = $date === $today;
+                        $label = $status ? ($statusLabels[$status] ?? str_replace('_', '-', $status)) : 'Not marked';
                     @endphp
-                    <td style="font-size:0.72rem;min-width:72px">
+                    <td class="att-cell-wrap {{ $isToday ? 'today-col' : '' }}" @if ($isToday) data-today-col @endif
+                        @if ($canEdit && $isToday && $dow !== 0)
+                            x-data="{ open: false }"
+                        @endif
+                    >
                         @if ($dow === 0)
-                            <span class="muted">OFF</span>
-                        @elseif ($canEdit && $date === $today)
-                            <form method="POST" action="{{ route('hr.attendance.mark') }}" style="margin:0">
-                                @csrf
-                                <input type="hidden" name="employee_id" value="{{ $emp->id }}">
-                                <input type="hidden" name="date" value="{{ $date }}">
-                                <input type="hidden" name="session" value="morning">
-                                <select name="status" onchange="this.form.submit()" style="margin:0;padding:0.25rem;font-size:0.7rem">
-                                    <option value="clear">Not marked</option>
-                                    @foreach (['present','late','half_day','absent','leave','holiday'] as $st)
-                                        <option value="{{ $st }}" @selected($status === $st)>{{ str_replace('_', '-', $st) }}</option>
-                                    @endforeach
-                                </select>
-                            </form>
-                        @elseif ($status)
-                            <span class="status-{{ $status }}">{{ str_replace('_', '-', $status) }}</span>
+                            <button type="button" class="att-cell is-readonly" disabled>OFF</button>
+                        @elseif ($canEdit && $isToday)
+                            <button type="button" class="att-cell is-editable {{ $status ? 'status-'.$status : '' }}" @click="open = !open" aria-haspopup="true" :aria-expanded="open">
+                                {{ $label }}
+                            </button>
+                            <div class="att-menu" x-show="open" x-cloak @click.outside="open = false" style="display:none" x-bind:style="open ? 'display:block' : 'display:none'">
+                                @foreach ($statuses as $st)
+                                    <form method="POST" action="{{ route('hr.attendance.mark') }}">
+                                        @csrf
+                                        <input type="hidden" name="employee_id" value="{{ $emp->id }}">
+                                        <input type="hidden" name="date" value="{{ $date }}">
+                                        <input type="hidden" name="session" value="morning">
+                                        <input type="hidden" name="status" value="{{ $st }}">
+                                        <button type="submit" class="att-menu-item status-{{ $st }}">{{ $statusLabels[$st] }}</button>
+                                    </form>
+                                @endforeach
+                                <form method="POST" action="{{ route('hr.attendance.mark') }}">
+                                    @csrf
+                                    <input type="hidden" name="employee_id" value="{{ $emp->id }}">
+                                    <input type="hidden" name="date" value="{{ $date }}">
+                                    <input type="hidden" name="session" value="morning">
+                                    <input type="hidden" name="status" value="clear">
+                                    <button type="submit" class="att-menu-item">Clear</button>
+                                </form>
+                            </div>
                         @else
-                            <span class="muted">Not marked</span>
+                            <button type="button" class="att-cell is-readonly {{ $status ? 'status-'.$status : '' }}" disabled>
+                                {{ $label }}
+                            </button>
                         @endif
                     </td>
                 @endfor
@@ -172,3 +204,25 @@
     @endif
 </div>
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    function scrollAttendanceToToday() {
+        var scroller = document.getElementById('att-scroll');
+        if (!scroller) return;
+        var target = scroller.querySelector('[data-today-col]');
+        if (!target) return;
+        var left = target.offsetLeft - Math.max(160, scroller.clientWidth * 0.35);
+        scroller.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+    }
+    document.addEventListener('DOMContentLoaded', function () {
+        requestAnimationFrame(function () {
+            setTimeout(scrollAttendanceToToday, 50);
+        });
+        var jump = document.getElementById('att-jump-today');
+        if (jump) jump.addEventListener('click', scrollAttendanceToToday);
+    });
+})();
+</script>
+@endpush

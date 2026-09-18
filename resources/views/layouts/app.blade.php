@@ -251,9 +251,42 @@
         .legend { display: flex; flex-wrap: wrap; gap: 0.75rem 1rem; margin: 0.75rem 0 1rem; }
         .legend span { display: inline-flex; align-items: center; gap: 0.35rem; color: var(--muted); font-size: 0.8rem; }
         .dot { width: 8px; height: 8px; border-radius: 999px; display: inline-block; }
-        .att-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 16px; background: var(--panel); }
-        .att-grid { min-width: 960px; }
+        .att-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 16px; background: var(--panel); scroll-behavior: smooth; }
+        .att-grid { min-width: 960px; border-collapse: separate; border-spacing: 0; }
+        .att-grid th, .att-grid td { vertical-align: middle; }
+        .att-grid th:first-child, .att-grid td:first-child {
+            position: sticky; left: 0; z-index: 3; background: var(--panel);
+            box-shadow: 4px 0 10px rgba(0,0,0,0.12); min-width: 180px;
+        }
+        .att-grid thead th:first-child { z-index: 4; }
         .att-grid th.today { background: color-mix(in srgb, #3b82f6 28%, transparent); color: #93c5fd; }
+        .att-grid td.today-col { background: color-mix(in srgb, #3b82f6 10%, transparent); }
+        .att-cell-wrap { position: relative; min-width: 78px; padding: 0.35rem !important; }
+        .att-cell {
+            width: 100%; min-height: 42px; border-radius: 10px; border: 1px solid var(--border);
+            background: var(--panel-2); color: var(--text); cursor: pointer; font-size: 0.7rem;
+            font-weight: 700; text-transform: capitalize; padding: 0.35rem 0.3rem; line-height: 1.2;
+        }
+        .att-cell:hover { border-color: var(--accent); }
+        .att-cell.is-editable { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lime) 35%, transparent); }
+        .att-cell.is-readonly { cursor: default; opacity: 0.85; }
+        .att-cell.status-present { background: color-mix(in srgb, #86efac 22%, transparent); color: #86efac; border-color: color-mix(in srgb, #86efac 40%, transparent); }
+        .att-cell.status-absent { background: color-mix(in srgb, #fca5a5 22%, transparent); color: #fca5a5; border-color: color-mix(in srgb, #fca5a5 40%, transparent); }
+        .att-cell.status-late { background: color-mix(in srgb, #fdba74 22%, transparent); color: #fdba74; border-color: color-mix(in srgb, #fdba74 40%, transparent); }
+        .att-cell.status-half_day { background: color-mix(in srgb, #fde047 22%, transparent); color: #fde047; border-color: color-mix(in srgb, #fde047 40%, transparent); }
+        .att-cell.status-leave { background: color-mix(in srgb, #93c5fd 22%, transparent); color: #93c5fd; border-color: color-mix(in srgb, #93c5fd 40%, transparent); }
+        .att-cell.status-holiday { background: color-mix(in srgb, #c4b5fd 22%, transparent); color: #c4b5fd; border-color: color-mix(in srgb, #c4b5fd 40%, transparent); }
+        .att-menu {
+            position: absolute; z-index: 20; top: calc(100% - 2px); left: 50%; transform: translateX(-50%);
+            min-width: 128px; padding: 0.35rem; border-radius: 12px; border: 1px solid var(--border);
+            background: var(--panel-2); box-shadow: var(--shadow);
+        }
+        .att-menu button, .att-menu .att-menu-item {
+            display: block; width: 100%; text-align: left; border: 0; background: transparent;
+            color: var(--text); padding: 0.4rem 0.55rem; border-radius: 8px; cursor: pointer;
+            font-size: 0.75rem; font-weight: 600;
+        }
+        .att-menu button:hover, .att-menu .att-menu-item:hover { background: var(--nav-hover); }
         .status-present { color: #86efac; }
         .status-absent { color: #fca5a5; }
         .status-late { color: #fdba74; }
