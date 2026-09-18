@@ -82,8 +82,8 @@
         @endif
         <form method="POST" action="{{ route('login') }}">
             @csrf
-            <label for="email">Email or Username</label>
-            <input id="email" name="email" type="text" value="{{ old('email') }}" placeholder="@finance or finance@sns.com" autocomplete="username" required>
+            <label for="email">Username/Email</label>
+            <input id="email" name="email" type="text" value="{{ old('email') }}" autocomplete="username" required>
             <label for="password">Password</label>
             <input id="password" name="password" type="password" autocomplete="current-password" required>
             <label class="remember">
