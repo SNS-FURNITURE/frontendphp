@@ -33,7 +33,30 @@
             width:100%; height:44px; border-radius:12px; border:1px solid #452F804d;
             padding:0 0.8rem; margin-bottom:0.9rem; box-sizing:border-box;
         }
-        button {
+        .password-field { position:relative; margin-bottom:0.9rem; }
+        .password-field input {
+            margin-bottom:0;
+            padding-right:4.4rem;
+        }
+        .password-toggle {
+            position:absolute;
+            right:0.45rem;
+            top:50%;
+            transform:translateY(-50%);
+            width:auto;
+            height:32px;
+            padding:0 0.65rem;
+            border:0;
+            border-radius:8px;
+            background:transparent;
+            color:#452F80;
+            font-size:0.78rem;
+            font-weight:700;
+            cursor:pointer;
+            font-family: system-ui, sans-serif;
+        }
+        .password-toggle:hover { background:#452F8012; }
+        button[type=submit] {
             width:100%; height:44px; border:0; border-radius:12px;
             background:#E13B30; color:#fff; font-weight:700; cursor:pointer;
         }
@@ -85,7 +108,10 @@
             <label for="email">Username/Email</label>
             <input id="email" name="email" type="text" value="{{ old('email') }}" autocomplete="username" required>
             <label for="password">Password</label>
-            <input id="password" name="password" type="password" autocomplete="current-password" required>
+            <div class="password-field">
+                <input id="password" name="password" type="password" autocomplete="current-password" required>
+                <button type="button" class="password-toggle" id="toggle-password" aria-label="Show password" aria-pressed="false">Show</button>
+            </div>
             <label class="remember">
                 <input type="checkbox" name="remember_me" value="1" @checked(old('remember_me'))>
                 Remember me
@@ -94,5 +120,20 @@
         </form>
     </div>
 </div>
+<script>
+(function () {
+    var input = document.getElementById('password');
+    var btn = document.getElementById('toggle-password');
+    if (!input || !btn) return;
+    btn.addEventListener('click', function () {
+        var showing = input.type === 'text';
+        input.type = showing ? 'password' : 'text';
+        btn.textContent = showing ? 'Show' : 'Hide';
+        btn.setAttribute('aria-pressed', showing ? 'false' : 'true');
+        btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+        input.focus();
+    });
+})();
+</script>
 </body>
 </html>

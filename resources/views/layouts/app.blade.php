@@ -148,10 +148,53 @@
             .grid-2 { grid-template-columns: 1fr; }
         }
         @media print {
-            .sidebar, .topbar, .no-print { display: none !important; }
+            .sidebar, .topbar, .no-print, .logout-modal { display: none !important; }
             .content { padding: 0; }
             body { background: #fff; color: #111; }
         }
+        .logout-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            background: rgba(8, 6, 20, 0.72);
+            backdrop-filter: blur(4px);
+        }
+        .logout-modal.is-open { display: flex; }
+        .logout-dialog {
+            width: 100%;
+            max-width: 380px;
+            background: #1a1634;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 1.5rem;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+            animation: logout-pop 0.18s ease-out;
+        }
+        @keyframes logout-pop {
+            from { opacity: 0; transform: translateY(8px) scale(0.98); }
+            to { opacity: 1; transform: none; }
+        }
+        .logout-dialog h3 {
+            margin: 0 0 0.4rem;
+            font-size: 1.2rem;
+            color: #fff;
+        }
+        .logout-dialog p {
+            margin: 0 0 1.25rem;
+            color: var(--muted);
+            font-size: 0.92rem;
+            line-height: 1.45;
+        }
+        .logout-actions {
+            display: flex;
+            gap: 0.65rem;
+            justify-content: flex-end;
+        }
+        .logout-actions .btn { min-width: 96px; }
     </style>
     @stack('styles')
 </head>
@@ -184,10 +227,7 @@
         <div class="nav-section">Settings</div>
         <a class="nav-link {{ request()->routeIs('profile.*') ? 'active' : '' }}" href="{{ route('profile.edit') }}">My Profile</a>
         <div class="sidebar-foot">
-            <form method="POST" action="{{ route('logout') }}">
-                @csrf
-                <button class="btn ghost" type="submit" style="width:100%" onclick="return confirm('Are you sure you want to sign out?')">Sign out</button>
-            </form>
+            <button class="btn ghost" type="button" style="width:100%" data-logout-open>Sign out</button>
         </div>
     </aside>
     <div class="main">
@@ -195,10 +235,7 @@
             <div class="topbar-user">{{ '@'.$username }} {{ auth()->user()->full_name }}</div>
             <div class="topbar-actions">
                 <span class="role-badge">{{ $roleLabel }}</span>
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-                    <button class="btn ghost" type="submit" onclick="return confirm('Are you sure you want to sign out?')">Logout</button>
-                </form>
+                <button class="btn ghost" type="button" data-logout-open>Logout</button>
             </div>
         </header>
         <div class="content @yield('content_class')">
@@ -218,6 +255,21 @@
         </div>
     </div>
 </div>
+
+<div class="logout-modal no-print" id="logout-modal" role="dialog" aria-modal="true" aria-labelledby="logout-title" hidden>
+    <div class="logout-dialog">
+        <h3 id="logout-title">Sign out?</h3>
+        <p>You will need to sign in again to access invoices and payments.</p>
+        <div class="logout-actions">
+            <button type="button" class="btn ghost" data-logout-cancel>Cancel</button>
+            <form method="POST" action="{{ route('logout') }}" style="margin:0">
+                @csrf
+                <button type="submit" class="btn danger">Sign out</button>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 (function () {
     var IDLE_MS = 30 * 60 * 1000;
@@ -232,6 +284,31 @@
         document.addEventListener(ev, reset, { passive: true });
     });
     reset();
+
+    var modal = document.getElementById('logout-modal');
+    if (!modal) return;
+    function openLogout() {
+        modal.hidden = false;
+        modal.classList.add('is-open');
+        var cancel = modal.querySelector('[data-logout-cancel]');
+        if (cancel) cancel.focus();
+    }
+    function closeLogout() {
+        modal.classList.remove('is-open');
+        modal.hidden = true;
+    }
+    document.querySelectorAll('[data-logout-open]').forEach(function (btn) {
+        btn.addEventListener('click', openLogout);
+    });
+    modal.querySelectorAll('[data-logout-cancel]').forEach(function (btn) {
+        btn.addEventListener('click', closeLogout);
+    });
+    modal.addEventListener('click', function (e) {
+        if (e.target === modal) closeLogout();
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && modal.classList.contains('is-open')) closeLogout();
+    });
 })();
 </script>
 @else
