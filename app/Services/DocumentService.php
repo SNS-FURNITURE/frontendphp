@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Invoice;
 use App\Models\SalesOrder;
 use App\Models\User;
-use Barryvdh\DomPDF\Facade\Pdf;
 
 class DocumentService
 {
@@ -249,11 +248,51 @@ class DocumentService
 
     public function renderPdf(array $snapshot): string
     {
-        return Pdf::loadHTML($this->renderHtml($snapshot, true))
-            ->setPaper('a4', 'portrait')
-            ->setOption('isRemoteEnabled', true)
-            ->setOption('defaultFont', 'DejaVu Sans')
-            ->output();
+        $script = base_path('tools/invoice-pdf/render.mjs');
+        $nodeModules = base_path('tools/invoice-pdf/node_modules/pdfkit');
+
+        if (is_file($script) && is_dir($nodeModules)) {
+            try {
+                return $this->renderPdfViaNode($snapshot, $script);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        return app(InvoicePdfRenderer::class)->render($snapshot);
+    }
+
+    private function renderPdfViaNode(array $snapshot, string $script): string
+    {
+        $descriptors = [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ];
+
+        $cmd = ['node', $script];
+        $process = proc_open($cmd, $descriptors, $pipes, base_path('tools/invoice-pdf'), null, [
+            'bypass_shell' => true,
+        ]);
+
+        if (! is_resource($process)) {
+            throw new \RuntimeException('Failed to start invoice PDF renderer');
+        }
+
+        fwrite($pipes[0], json_encode($snapshot, JSON_THROW_ON_ERROR));
+        fclose($pipes[0]);
+
+        $stdout = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        $stderr = stream_get_contents($pipes[2]);
+        fclose($pipes[2]);
+
+        $code = proc_close($process);
+        if ($code !== 0 || $stdout === false || $stdout === '') {
+            throw new \RuntimeException('Invoice PDF renderer failed: '.$stderr);
+        }
+
+        return $stdout;
     }
 
     public function formatDisplayDate(string $iso): string
