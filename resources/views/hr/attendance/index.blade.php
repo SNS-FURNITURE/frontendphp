@@ -85,8 +85,8 @@
             <tr>
                 <td>
                     <div class="emp-row">
-                        @if ($emp->photo_url)
-                            <img class="avatar" src="{{ $emp->photo_url }}" alt="">
+                        @if ($emp->resolvePublicUrl($emp->photo_url))
+                            <img class="avatar" src="{{ $emp->resolvePublicUrl($emp->photo_url) }}" alt="">
                         @else
                             <span class="avatar">{{ $initials ?: 'E' }}</span>
                         @endif

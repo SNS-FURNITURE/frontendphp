@@ -9,7 +9,9 @@ use App\Services\AuditService;
 use App\Services\Payroll\EthiopiaPayrollCalculator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class EmployeeWebController extends Controller
@@ -39,6 +41,7 @@ class EmployeeWebController extends Controller
             'employee' => $employee,
             'detail' => $detail,
             'salary' => $this->salaryPreview($employee),
+            'canEdit' => auth()->user()->canEditHr(),
         ]);
     }
 
@@ -75,12 +78,12 @@ class EmployeeWebController extends Controller
             'emergency_contact_name' => ['nullable', 'string'],
             'emergency_contact_relationship' => ['nullable', 'string'],
             'emergency_contact_phone' => ['nullable', 'string'],
-            'photo_url' => ['nullable', 'string'],
-            'id_image_url' => ['nullable', 'string'],
-            'cv_url' => ['nullable', 'string'],
+            'photo' => ['nullable', 'image', 'max:5120'],
+            'id_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:8192'],
+            'cv' => ['nullable', 'file', 'mimes:pdf,doc,docx,jpg,jpeg,png', 'max:10240'],
         ]);
 
-        $employee = DB::transaction(function () use ($validated) {
+        $employee = DB::transaction(function () use ($request, $validated) {
             $party = Party::query()->create([
                 'party_type' => 'employee',
                 'name' => $validated['name'],
@@ -90,7 +93,7 @@ class EmployeeWebController extends Controller
                 'approval_status' => 'approved',
             ]);
 
-            return Employee::query()->create([
+            $employee = Employee::query()->create([
                 'party_id' => $party->id,
                 'employee_no' => 'EMP-'.substr((string) (int) (microtime(true) * 1000), -4),
                 'job_title' => $validated['job_title'] ?? null,
@@ -104,11 +107,12 @@ class EmployeeWebController extends Controller
                 'emergency_contact_name' => $validated['emergency_contact_name'] ?? null,
                 'emergency_contact_relationship' => $validated['emergency_contact_relationship'] ?? null,
                 'emergency_contact_phone' => $validated['emergency_contact_phone'] ?? null,
-                'photo_url' => $validated['photo_url'] ?? null,
-                'id_image_url' => $validated['id_image_url'] ?? null,
-                'cv_url' => $validated['cv_url'] ?? null,
                 'employment_status' => 'ACTIVE',
             ]);
+
+            $employee->forceFill($this->storeUploadedDocuments($request, (int) $employee->id))->save();
+
+            return $employee->fresh();
         });
 
         $this->audit->log(auth()->user(), 'employee', (int) $employee->id, 'CREATE_EMPLOYEE', [
@@ -118,6 +122,63 @@ class EmployeeWebController extends Controller
         return redirect()
             ->route('hr.employees.show', $employee->id)
             ->with('status', 'Employee registered');
+    }
+
+    public function updateDocuments(Request $request, int $id): RedirectResponse
+    {
+        abort_unless(auth()->user()?->canEditHr(), 403);
+
+        $employee = Employee::query()->findOrFail($id);
+
+        $request->validate([
+            'photo' => ['nullable', 'image', 'max:5120'],
+            'id_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:8192'],
+            'cv' => ['nullable', 'file', 'mimes:pdf,doc,docx,jpg,jpeg,png', 'max:10240'],
+        ]);
+
+        if (! $request->hasFile('photo') && ! $request->hasFile('id_image') && ! $request->hasFile('cv')) {
+            return back()->withErrors(['photo' => 'Choose at least one file to upload']);
+        }
+
+        $paths = $this->storeUploadedDocuments($request, (int) $employee->id, $employee);
+        $employee->forceFill($paths)->save();
+
+        $this->audit->log(auth()->user(), 'employee', (int) $employee->id, 'UPDATE_EMPLOYEE_FILES', [
+            'fields' => array_keys($paths),
+        ], $request);
+
+        return back()->with('status', 'Files uploaded');
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function storeUploadedDocuments(Request $request, int $employeeId, ?Employee $existing = null): array
+    {
+        $dir = 'employees/'.$employeeId;
+        $updates = [];
+
+        foreach ([
+            'photo' => 'photo_url',
+            'id_image' => 'id_image_url',
+            'cv' => 'cv_url',
+        ] as $input => $column) {
+            if (! $request->hasFile($input)) {
+                continue;
+            }
+
+            /** @var UploadedFile $file */
+            $file = $request->file($input);
+            $old = $existing?->{$column};
+            $path = $file->store($dir, 'public');
+            $updates[$column] = $path;
+
+            if (is_string($old) && $old !== '' && ! preg_match('#^https?://#i', $old) && Storage::disk('public')->exists($old)) {
+                Storage::disk('public')->delete($old);
+            }
+        }
+
+        return $updates;
     }
 
     /**

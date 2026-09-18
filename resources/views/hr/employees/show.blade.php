@@ -124,6 +124,27 @@
                     <div class="muted">{{ $detail['photo_url'] ? 'On file' : 'Not uploaded' }}</div>
                 </div>
             </div>
+            @if ($canEdit ?? false)
+                <form method="POST" action="{{ route('hr.employees.documents', $employee->id) }}" enctype="multipart/form-data" style="margin-top:1rem">
+                    @csrf
+                    @method('PATCH')
+                    <div class="grid-3">
+                        <div>
+                            <label>Upload photo</label>
+                            <input type="file" name="photo" accept="image/*">
+                        </div>
+                        <div>
+                            <label>Upload ID card</label>
+                            <input type="file" name="id_image" accept="image/*,application/pdf">
+                        </div>
+                        <div>
+                            <label>Upload CV</label>
+                            <input type="file" name="cv" accept=".pdf,.doc,.docx,image/*">
+                        </div>
+                    </div>
+                    <button class="btn lime" type="submit">Upload from device</button>
+                </form>
+            @endif
         </div>
     </div>
 </div>

@@ -179,6 +179,7 @@ Route::middleware(['auth', EnsureWebInvoiceAccess::class])->group(function () {
     Route::get('/hr/employees', [EmployeeWebController::class, 'index'])->name('hr.employees');
     Route::post('/hr/employees', [EmployeeWebController::class, 'store'])->name('hr.employees.store');
     Route::get('/hr/employees/{id}/pdf', [EmployeeWebController::class, 'pdf'])->name('hr.employees.pdf')->whereNumber('id');
+    Route::patch('/hr/employees/{id}/documents', [EmployeeWebController::class, 'updateDocuments'])->name('hr.employees.documents')->whereNumber('id');
     Route::get('/hr/employees/{id}', [EmployeeWebController::class, 'show'])->name('hr.employees.show')->whereNumber('id');
     Route::get('/hr/attendance', [AttendanceWebController::class, 'index'])->name('hr.attendance');
     Route::post('/hr/attendance', [AttendanceWebController::class, 'mark'])->name('hr.attendance.mark');

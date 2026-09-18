@@ -43,7 +43,7 @@
 @if ($canCreate)
 <div class="card" id="create-emp" style="margin-bottom:1.25rem" @if(!$errors->any()) hidden @endif>
     <h2 style="margin:0 0 1rem;font-size:1.1rem">Register employee</h2>
-    <form method="POST" action="{{ route('hr.employees.store') }}">
+    <form method="POST" action="{{ route('hr.employees.store') }}" enctype="multipart/form-data">
         @csrf
         <div class="grid-2">
             <div><label>Full name</label><input name="name" value="{{ old('name') }}" required minlength="2"></div>
@@ -61,9 +61,18 @@
             <div><label>Emergency contact name</label><input name="emergency_contact_name" value="{{ old('emergency_contact_name') }}"></div>
             <div><label>Emergency relationship</label><input name="emergency_contact_relationship" value="{{ old('emergency_contact_relationship') }}"></div>
             <div><label>Emergency phone</label><input name="emergency_contact_phone" value="{{ old('emergency_contact_phone') }}"></div>
-            <div><label>Photo URL</label><input name="photo_url" value="{{ old('photo_url') }}"></div>
-            <div><label>ID image URL</label><input name="id_image_url" value="{{ old('id_image_url') }}"></div>
-            <div><label>CV URL</label><input name="cv_url" value="{{ old('cv_url') }}"></div>
+            <div>
+                <label>Photo (device)</label>
+                <input type="file" name="photo" accept="image/*">
+            </div>
+            <div>
+                <label>ID card / scan (device)</label>
+                <input type="file" name="id_image" accept="image/*,application/pdf">
+            </div>
+            <div>
+                <label>CV / Resume (device)</label>
+                <input type="file" name="cv" accept=".pdf,.doc,.docx,image/*">
+            </div>
         </div>
         <div class="toolbar">
             <button class="btn lime" type="submit">Save employee</button>
@@ -116,8 +125,8 @@
                 <tr>
                     <td>
                         <div class="emp-row">
-                            @if ($emp->photo_url)
-                                <img class="avatar" src="{{ $emp->photo_url }}" alt="">
+                            @if ($emp->resolvePublicUrl($emp->photo_url))
+                                <img class="avatar" src="{{ $emp->resolvePublicUrl($emp->photo_url) }}" alt="">
                             @else
                                 <span class="avatar">{{ $initials ?: 'E' }}</span>
                             @endif

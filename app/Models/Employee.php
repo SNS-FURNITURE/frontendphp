@@ -119,9 +119,9 @@ class Employee extends Model
             'emergency_contact_name' => $this->emergency_contact_name,
             'emergency_contact_relationship' => $this->emergency_contact_relationship,
             'emergency_contact_phone' => $this->emergency_contact_phone,
-            'photo_url' => $this->photo_url,
-            'id_image_url' => $this->id_image_url,
-            'cv_url' => $this->cv_url,
+            'photo_url' => $this->resolvePublicUrl($this->photo_url),
+            'id_image_url' => $this->resolvePublicUrl($this->id_image_url),
+            'cv_url' => $this->resolvePublicUrl($this->cv_url),
             'bank_name' => $this->bank_name ?: 'Commercial Bank of Ethiopia',
             'bank_account_number' => $this->bank_account_number,
             'monthly_salary' => $this->monthly_salary !== null ? (float) $this->monthly_salary : null,
@@ -133,5 +133,22 @@ class Employee extends Model
                 'approval_status' => $party?->approval_status,
             ],
         ];
+    }
+
+    public function resolvePublicUrl(?string $path): ?string
+    {
+        if ($path === null || $path === '') {
+            return null;
+        }
+
+        if (preg_match('#^https?://#i', $path) === 1) {
+            return $path;
+        }
+
+        if (str_starts_with($path, '/storage/') || str_starts_with($path, 'storage/')) {
+            return asset(ltrim($path, '/'));
+        }
+
+        return asset('storage/'.ltrim($path, '/'));
     }
 }
