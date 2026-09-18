@@ -3,14 +3,19 @@
 use App\Http\Controllers\Web\AdminAuditWebController;
 use App\Http\Controllers\Web\AdminUserWebController;
 use App\Http\Controllers\Web\AllocationWebController;
+use App\Http\Controllers\Web\BomWebController;
 use App\Http\Controllers\Web\CustomerWebController;
+use App\Http\Controllers\Web\DeliveryWebController;
 use App\Http\Controllers\Web\FundingWebController;
 use App\Http\Controllers\Web\InventoryItemWebController;
 use App\Http\Controllers\Web\InventoryMovementWebController;
 use App\Http\Controllers\Web\InventoryStockWebController;
 use App\Http\Controllers\Web\InvoiceWebController;
 use App\Http\Controllers\Web\LoginController;
+use App\Http\Controllers\Web\MaterialRequestWebController;
+use App\Http\Controllers\Web\OutboundWebController;
 use App\Http\Controllers\Web\PaymentWebController;
+use App\Http\Controllers\Web\ProductionOrderWebController;
 use App\Http\Controllers\Web\ProfileWebController;
 use App\Http\Controllers\Web\SalesOrderWebController;
 use App\Http\Controllers\Web\SalesQuotaWebController;
@@ -71,6 +76,29 @@ Route::middleware(['auth', EnsureWebInvoiceAccess::class])->group(function () {
     Route::get('/inventory/low-stock', [InventoryStockWebController::class, 'lowStock'])->name('inventory.low-stock');
     Route::get('/inventory/movements', [InventoryMovementWebController::class, 'index'])->name('inventory.movements');
     Route::post('/inventory/movements', [InventoryMovementWebController::class, 'store'])->name('inventory.movements.store');
+    Route::get('/inventory/outbound', [OutboundWebController::class, 'index'])->name('inventory.outbound');
+    Route::get('/inventory/material-requests', fn () => redirect()->route('material-requests.index'))->name('inventory.material-requests');
+
+    Route::get('/material-requests', [MaterialRequestWebController::class, 'index'])->name('material-requests.index');
+    Route::post('/material-requests', [MaterialRequestWebController::class, 'store'])->name('material-requests.store');
+    Route::patch('/material-requests/{materialRequest}', [MaterialRequestWebController::class, 'update'])->name('material-requests.update');
+
+    Route::get('/production', [ProductionOrderWebController::class, 'index'])->name('production.index');
+    Route::post('/production', [ProductionOrderWebController::class, 'store'])->name('production.store');
+    Route::patch('/production/{order}/status', [ProductionOrderWebController::class, 'updateStatus'])->name('production.status');
+    Route::get('/manufacturing/production-orders', fn () => redirect()->route('production.index'))->name('manufacturing.production-orders');
+
+    Route::get('/manufacturing/boms', [BomWebController::class, 'index'])->name('manufacturing.boms');
+    Route::post('/manufacturing/boms', [BomWebController::class, 'store'])->name('manufacturing.boms.store');
+    Route::patch('/manufacturing/boms/{bom}', [BomWebController::class, 'update'])->name('manufacturing.boms.update');
+    Route::delete('/manufacturing/boms/{bom}', [BomWebController::class, 'destroy'])->name('manufacturing.boms.destroy');
+    Route::post('/manufacturing/boms/{bom}/lines', [BomWebController::class, 'storeLine'])->name('manufacturing.boms.lines.store');
+    Route::patch('/manufacturing/boms/{bom}/lines/{line}', [BomWebController::class, 'updateLine'])->name('manufacturing.boms.lines.update');
+    Route::delete('/manufacturing/boms/{bom}/lines/{line}', [BomWebController::class, 'destroyLine'])->name('manufacturing.boms.lines.destroy');
+
+    Route::get('/production/deliveries', [DeliveryWebController::class, 'index'])->name('production.deliveries');
+    Route::post('/production/deliveries', [DeliveryWebController::class, 'store'])->name('production.deliveries.store');
+    Route::patch('/production/deliveries/{delivery}/status', [DeliveryWebController::class, 'updateStatus'])->name('production.deliveries.status');
 
     Route::get('/sales/customers', [CustomerWebController::class, 'index'])->name('sales.customers');
     Route::post('/sales/customers', [CustomerWebController::class, 'store'])->name('sales.customers.store');

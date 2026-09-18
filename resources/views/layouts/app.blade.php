@@ -243,6 +243,19 @@
             <a class="nav-link {{ request()->routeIs('inventory.stock') ? 'active' : '' }}" href="{{ route('inventory.stock') }}">Stock</a>
             <a class="nav-link {{ request()->routeIs('inventory.low-stock') ? 'active' : '' }}" href="{{ route('inventory.low-stock') }}">Low stock</a>
             <a class="nav-link {{ request()->routeIs('inventory.movements*') ? 'active' : '' }}" href="{{ route('inventory.movements') }}">Movements</a>
+            <a class="nav-link {{ request()->routeIs('material-requests.*') || request()->routeIs('inventory.material-requests') ? 'active' : '' }}" href="{{ route('material-requests.index') }}">Material requests</a>
+            @if (auth()->user()->canViewDeliveries())
+                <a class="nav-link {{ request()->routeIs('inventory.outbound') ? 'active' : '' }}" href="{{ route('inventory.outbound') }}">Outbound</a>
+            @endif
+        @endif
+        @if (auth()->user()->canViewProduction())
+            <div class="nav-section">Production</div>
+            <a class="nav-link {{ request()->routeIs('production.index') || request()->routeIs('manufacturing.production-orders') ? 'active' : '' }}" href="{{ route('production.index') }}">Orders</a>
+            <a class="nav-link {{ request()->routeIs('manufacturing.boms*') ? 'active' : '' }}" href="{{ route('manufacturing.boms') }}">BOMs</a>
+        @endif
+        @if (auth()->user()->canViewDeliveries())
+            <div class="nav-section">Ops</div>
+            <a class="nav-link {{ request()->routeIs('production.deliveries*') ? 'active' : '' }}" href="{{ route('production.deliveries') }}">Deliveries</a>
         @endif
         @if (auth()->user()->isAdmin())
             <div class="nav-section">Admin</div>

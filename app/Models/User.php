@@ -182,6 +182,203 @@ class User extends Authenticatable
             || $this->hasRole('sales_supervisor');
     }
 
+    /** Production / manufacturing boards: production:* or inventory create roles. */
+    public function canViewProduction(): bool
+    {
+        if (! $this->hasInvoiceLaunchRole()) {
+            return false;
+        }
+
+        return $this->hasPermission('production', 'view')
+            || $this->hasPermission('manufacturing', 'view')
+            || $this->canViewInventory();
+    }
+
+    public function canCreateProduction(): bool
+    {
+        if (! $this->canViewProduction() || $this->isAdmin()) {
+            return false;
+        }
+
+        return $this->hasPermission('production', 'create')
+            || $this->hasPermission('manufacturing', 'create')
+            || $this->canCreateInventory();
+    }
+
+    /** Deliveries / outbound: deliveries:*. */
+    public function canViewDeliveries(): bool
+    {
+        if (! $this->hasInvoiceLaunchRole()) {
+            return false;
+        }
+
+        return $this->hasPermission('deliveries', 'view')
+            || $this->isAdmin()
+            || $this->hasRole('company_manager')
+            || $this->hasRole('finance')
+            || $this->hasRole('marketing_manager')
+            || $this->hasRole('advisor')
+            || $this->hasRole('supervisor')
+            || $this->hasRole('sales_supervisor');
+    }
+
+    public function canCreateDeliveries(): bool
+    {
+        if (! $this->canViewDeliveries() || $this->isAdmin()) {
+            return false;
+        }
+
+        return $this->hasPermission('deliveries', 'create')
+            || $this->hasRole('company_manager')
+            || $this->hasRole('marketing_manager')
+            || $this->hasRole('advisor')
+            || $this->hasRole('supervisor')
+            || $this->hasRole('sales_supervisor');
+    }
+
+    /** Inventory outbound count / dispatch — deliveries:approve. PM cannot dispatch. */
+    public function canDispatchDeliveries(): bool
+    {
+        if (! $this->canViewDeliveries() || $this->isAdmin()) {
+            return false;
+        }
+
+        if ($this->hasRole('project_manager')) {
+            return false;
+        }
+
+        return $this->hasPermission('deliveries', 'approve')
+            || $this->hasPermission('deliveries', 'edit')
+            || $this->hasRole('company_manager')
+            || $this->hasRole('finance')
+            || $this->hasRole('supervisor')
+            || $this->hasRole('sales_supervisor');
+    }
+
+    public function canViewDesigns(): bool
+    {
+        return $this->hasInvoiceLaunchRole()
+            && ($this->hasPermission('designs', 'view') || $this->isAdmin() || $this->hasRole('company_manager'));
+    }
+
+    public function canCreateDesigns(): bool
+    {
+        return $this->canViewDesigns() && ! $this->isAdmin()
+            && ($this->hasPermission('designs', 'create') || $this->hasRole('designer'));
+    }
+
+    public function canEditDesigns(): bool
+    {
+        return $this->canViewDesigns() && ! $this->isAdmin()
+            && ($this->hasPermission('designs', 'edit') || $this->hasRole('designer'));
+    }
+
+    public function canViewMachinery(): bool
+    {
+        return $this->hasInvoiceLaunchRole()
+            && ($this->hasPermission('machinery', 'view') || $this->isAdmin() || $this->hasRole('company_manager'));
+    }
+
+    public function canCreateMachinery(): bool
+    {
+        return $this->canViewMachinery() && ! $this->isAdmin()
+            && ($this->hasPermission('machinery', 'create') || $this->hasRole('product_manager'));
+    }
+
+    public function canEditMachinery(): bool
+    {
+        return $this->canViewMachinery() && ! $this->isAdmin()
+            && ($this->hasPermission('machinery', 'edit')
+                || $this->hasRole('product_manager')
+                || $this->hasRole('inventory'));
+    }
+
+    public function canViewProcurement(): bool
+    {
+        return $this->hasInvoiceLaunchRole()
+            && ($this->hasPermission('procurement', 'view') || $this->isAdmin() || $this->hasRole('company_manager'));
+    }
+
+    public function canCreateProcurement(): bool
+    {
+        return $this->canViewProcurement() && ! $this->isAdmin()
+            && ($this->hasPermission('procurement', 'create') || $this->hasRole('procurement_operations'));
+    }
+
+    public function canApproveProcurement(): bool
+    {
+        return $this->hasPermission('procurement', 'approve') || $this->hasRole('company_manager');
+    }
+
+    public function canEditProcurement(): bool
+    {
+        return $this->hasPermission('procurement', 'edit')
+            || $this->hasRole('company_manager')
+            || $this->hasRole('procurement_operations');
+    }
+
+    public function canViewInstallation(): bool
+    {
+        return $this->hasInvoiceLaunchRole()
+            && ($this->hasPermission('installation', 'view')
+                || $this->canViewProcurement()
+                || $this->hasRole('procurement_operations'));
+    }
+
+    public function canEditInstallation(): bool
+    {
+        return $this->hasPermission('installation', 'edit')
+            || $this->hasRole('procurement_operations')
+            || $this->hasRole('company_manager');
+    }
+
+    public function canViewProjects(): bool
+    {
+        return $this->hasInvoiceLaunchRole()
+            && ($this->hasPermission('projects', 'view')
+                || $this->hasPermission('production', 'view')
+                || $this->isAdmin()
+                || $this->hasRole('company_manager')
+                || $this->hasRole('product_manager'));
+    }
+
+    public function canViewTasks(): bool
+    {
+        return $this->hasInvoiceLaunchRole()
+            && ($this->hasPermission('tasks', 'view') || $this->isAdmin() || $this->hasRole('company_manager'));
+    }
+
+    public function canEditTasks(): bool
+    {
+        return $this->hasPermission('tasks', 'edit');
+    }
+
+    public function canPostReport(): bool
+    {
+        return $this->hasInvoiceLaunchRole()
+            && ($this->hasPermission('reports', 'post_report') || $this->isAdmin() || $this->hasRole('company_manager'));
+    }
+
+    public function canViewAllReports(): bool
+    {
+        return $this->isAdmin() || $this->hasRole('company_manager');
+    }
+
+    public function canViewBoards(): bool
+    {
+        return $this->hasInvoiceLaunchRole()
+            && ($this->hasPermission('boards', 'view')
+                || $this->hasPermission('reports', 'post_report')
+                || $this->isAdmin()
+                || $this->hasRole('company_manager'));
+    }
+
+    public function canCreateBoards(): bool
+    {
+        return $this->canViewBoards() && ! $this->isAdmin()
+            && ($this->hasPermission('boards', 'create') || $this->hasRole('company_manager'));
+    }
+
     public function hasPermission(string $module, string $action): bool
     {
         foreach ($this->permissionPairs() as $pair) {

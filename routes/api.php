@@ -2,13 +2,21 @@
 
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BomController;
+use App\Http\Controllers\Api\DeliveryController;
+use App\Http\Controllers\Api\DesignController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\FundingRequestController;
+use App\Http\Controllers\Api\MachineryController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\ItemController;
+use App\Http\Controllers\Api\MaterialRequestController;
+use App\Http\Controllers\Api\OutboundRecordController;
 use App\Http\Controllers\Api\PartyController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\ProcurementController;
+use App\Http\Controllers\Api\ProductionOrderController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\SalesOrderController;
 use App\Http\Controllers\Api\StockLevelController;
@@ -92,4 +100,33 @@ Route::prefix('api/v1')->middleware([VerifyApiCsrf::class])->group(function () {
     Route::get('stock-levels', [StockLevelController::class, 'index'])->middleware($authLaunch);
     Route::get('stock-movements', [StockMovementController::class, 'index'])->middleware($authLaunch);
     Route::post('stock-movements', [StockMovementController::class, 'store'])->middleware($authLaunch);
+
+    // BOM (Express items.ts + line CRUD for Blade)
+    Route::get('boms', [BomController::class, 'index'])->middleware($authLaunch);
+    Route::post('boms', [BomController::class, 'store'])->middleware($authLaunch);
+    Route::get('boms/{id}', [BomController::class, 'show'])->middleware($authLaunch)->whereNumber('id');
+    Route::patch('boms/{id}', [BomController::class, 'update'])->middleware($authLaunch)->whereNumber('id');
+    Route::delete('boms/{id}', [BomController::class, 'destroy'])->middleware($authLaunch)->whereNumber('id');
+    Route::post('boms/{id}/lines', [BomController::class, 'storeLine'])->middleware($authLaunch)->whereNumber('id');
+    Route::patch('boms/{id}/lines/{lineId}', [BomController::class, 'updateLine'])->middleware($authLaunch)->whereNumber('id')->whereNumber('lineId');
+    Route::delete('boms/{id}/lines/{lineId}', [BomController::class, 'destroyLine'])->middleware($authLaunch)->whereNumber('id')->whereNumber('lineId');
+
+    // Production orders
+    Route::get('production-orders', [ProductionOrderController::class, 'index'])->middleware($authLaunch);
+    Route::post('production-orders', [ProductionOrderController::class, 'store'])->middleware($authLaunch);
+    Route::patch('production-orders/{id}/status', [ProductionOrderController::class, 'updateStatus'])->middleware($authLaunch)->whereNumber('id');
+
+    // Deliveries + outbound
+    Route::get('deliveries', [DeliveryController::class, 'index'])->middleware($authLaunch);
+    Route::post('deliveries', [DeliveryController::class, 'store'])->middleware($authLaunch);
+    Route::patch('deliveries/{id}', [DeliveryController::class, 'update'])->middleware($authLaunch)->whereNumber('id');
+    Route::patch('deliveries/{id}/status', [DeliveryController::class, 'updateStatus'])->middleware($authLaunch)->whereNumber('id');
+    Route::get('outbound-records', [OutboundRecordController::class, 'index'])->middleware($authLaunch);
+    Route::get('outbound', [OutboundRecordController::class, 'index'])->middleware($authLaunch);
+    Route::post('outbound-records', [OutboundRecordController::class, 'store'])->middleware($authLaunch);
+
+    // Material requests
+    Route::get('material-requests', [MaterialRequestController::class, 'index'])->middleware($authLaunch);
+    Route::post('material-requests', [MaterialRequestController::class, 'store'])->middleware($authLaunch);
+    Route::patch('material-requests/{id}', [MaterialRequestController::class, 'update'])->middleware($authLaunch)->whereNumber('id');
 });
