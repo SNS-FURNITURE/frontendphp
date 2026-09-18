@@ -38,6 +38,13 @@
             flex-direction: column;
             padding: 1.25rem 0.9rem;
             flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            align-self: flex-start;
+            height: 100vh;
+            max-height: 100vh;
+            overflow-x: hidden;
+            overflow-y: auto;
         }
         .brand-block { padding: 0 0.5rem 1.25rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
         .brand-name { color: #ff6b6b; font-weight: 800; font-size: 1.05rem; }
