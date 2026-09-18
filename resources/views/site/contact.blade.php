@@ -46,6 +46,16 @@
                     @endforeach
                 </ul>
                 <p style="margin-top:1rem"><a href="{{ $site['phone_href'] }}">{{ $site['phone'] }}</a></p>
+                @if (! empty($site['phones']))
+                    <ul class="muted" style="list-style:none;padding:0;margin:0.5rem 0 0">
+                        @foreach ($site['phones'] as $phone)
+                            <li style="margin:0.25rem 0">{{ $phone }}</li>
+                        @endforeach
+                    </ul>
+                @endif
+                @if (! empty($site['email']))
+                    <p style="margin-top:0.75rem"><a href="mailto:{{ $site['email'] }}">{{ $site['email'] }}</a></p>
+                @endif
                 <div style="display:flex;flex-wrap:wrap;gap:0.55rem;margin-top:0.75rem">
                     <a class="btn btn-ghost" href="{{ $site['facebook'] }}" target="_blank" rel="noopener">Facebook page</a>
                     <a class="btn btn-ghost" href="{{ $site['google_reviews'] }}" target="_blank" rel="noopener">Google reviews</a>

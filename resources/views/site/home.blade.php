@@ -1,17 +1,28 @@
 @extends('layouts.marketing')
 
 @section('title', 'SNS Furniture Manufacturing · Addis Ababa')
-@section('meta_description', 'High-quality furniture for modern homes and offices in Addis Ababa — style, comfort, and durability. Showrooms in Kality and Gurd Shola.')
+@section('meta_description', $company['subtitle'].' — '.$company['tagline'].'. Showrooms in Kality and Century Mall, Gurd Shola.')
 
 @section('content')
 <section class="hero">
     <div class="wrap hero-inner">
-        <div class="eyebrow">Furniture manufacturer &amp; retailer · Addis Ababa</div>
-        <h1>{{ $site['short_name'] }}</h1>
-        <p>{{ $site['tagline'] }} — {{ $site['about'] }}</p>
+        <div class="eyebrow">Est. {{ $company['founded'] }} · Addis Ababa, Ethiopia</div>
+        <h1>{{ $company['short_name'] }}</h1>
+        <p>{{ $company['tagline'] }} — {{ $company['subtitle'] }}</p>
         <div class="hero-actions">
             <a class="btn btn-accent" href="{{ route('site.contact') }}">Visit showroom</a>
             <a class="btn btn-ghost" style="border-color:rgba(255,255,255,0.45);color:#fff" href="{{ route('site.products') }}">View products</a>
+        </div>
+    </div>
+</section>
+
+<section class="section" style="padding-bottom:0">
+    <div class="wrap">
+        <div class="stats">
+            <div class="stat"><strong>{{ $company['experience'] }}</strong><span>Manufacturing legacy</span></div>
+            <div class="stat"><strong>{{ $company['employees'] }}</strong><span>Skilled professionals</span></div>
+            <div class="stat"><strong>{{ $company['machines_count'] }}</strong><span>Plant machines</span></div>
+            <div class="stat"><strong>{{ $company['founded'] }}</strong><span>Year established</span></div>
         </div>
     </div>
 </section>
@@ -21,7 +32,7 @@
         <div class="section-head">
             <div>
                 <h2>Featured collections</h2>
-                <p class="muted" style="margin:0.35rem 0 0">Pieces made for living rooms, bedrooms, and workplaces.</p>
+                <p class="muted" style="margin:0.35rem 0 0">Household, office, and institutional furniture from our workshops.</p>
             </div>
             <a class="btn btn-ghost" href="{{ route('site.products') }}">Browse all</a>
         </div>
@@ -38,6 +49,27 @@
                         <a class="btn btn-ghost" style="margin-top:auto;align-self:flex-start" href="{{ route('site.product', $product['slug']) }}">View details</a>
                     </div>
                 </article>
+            @endforeach
+        </div>
+    </div>
+</section>
+
+<section class="section" style="padding-top:0">
+    <div class="wrap">
+        <div class="section-head">
+            <div>
+                <h2>Why SNS</h2>
+                <p class="muted" style="margin:0.35rem 0 0">Strengths from our official company profile.</p>
+            </div>
+            <a class="btn btn-ghost" href="{{ route('site.about') }}">Full profile</a>
+        </div>
+        <div class="strength-grid">
+            @foreach ($company['strengths'] as $strength)
+                <div class="strength-card">
+                    <div class="badge">{{ $strength['badge'] }}</div>
+                    <h3>{{ $strength['title'] }}</h3>
+                    <p class="muted" style="margin:0">{{ $strength['description'] }}</p>
+                </div>
             @endforeach
         </div>
     </div>

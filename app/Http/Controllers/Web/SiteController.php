@@ -15,6 +15,7 @@ class SiteController extends Controller
         return view('site.home', [
             'featured' => SiteCatalog::featured(),
             'site' => config('site'),
+            'company' => config('company'),
         ]);
     }
 
@@ -49,7 +50,10 @@ class SiteController extends Controller
 
     public function about(): View
     {
-        return view('site.about', ['site' => config('site')]);
+        return view('site.about', [
+            'site' => config('site'),
+            'company' => config('company'),
+        ]);
     }
 
     public function contact(): View

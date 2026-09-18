@@ -3,10 +3,17 @@
 return [
     'brand' => 'SNS Furniture Manufacturing',
     'short_name' => 'SNS Furniture',
-    'tagline' => 'Style, comfort, and durability',
-    'about' => 'SNS Furniture is a leading manufacturer and retailer of high-quality furniture, designed to meet the needs of modern homes and offices, with a focus on style, comfort, and durability.',
+    'tagline' => 'Unleashing Potential, Embracing Self-Reliance',
+    'about' => 'Manufacturer and retailer of high-quality household, office, and institutional furniture. Founded in 1992, SNS operates with 90+ professionals and a fully equipped plant 12 km east of Addis Ababa.',
     'phone' => '090 028 2029',
     'phone_href' => 'tel:+251900282029',
+    'phones' => [
+        '+251 118 931 113',
+        '+251 143 960 070',
+        '+251 143 960 071',
+        '090 028 2029',
+    ],
+    'email' => 'snsfurnituremanufacture@gmail.com',
     'facebook' => 'https://www.facebook.com/SNSFurnitureOfficial',
     'google_reviews' => 'https://www.google.com/maps/search/?api=1&query=SNS+Furniture+Manufacturing+Addis+Ababa',
     'rating' => 3.8,
@@ -23,13 +30,13 @@ return [
     'locations' => [
         [
             'name' => 'Kality Showroom',
-            'address' => '3rd Floor, Kality Show Room, Addis Ababa',
+            'address' => '3rd Floor, Kality Showroom Building, Addis Ababa',
             'map_query' => 'Kality Show Room Addis Ababa',
             'map_embed' => 'https://maps.google.com/maps?q=Kality%20Addis%20Ababa%20furniture&t=&z=14&ie=UTF8&iwloc=&output=embed',
         ],
         [
-            'name' => 'Gurd Shola – Century Mall',
-            'address' => 'Gurd Shola – Century Mall, Addis Ababa 1000',
+            'name' => 'Century Mall Showroom',
+            'address' => 'Century Mall, Gurd Shola, Addis Ababa, Ethiopia',
             'map_query' => 'Century Mall Gurd Shola Addis Ababa',
             'map_embed' => 'https://maps.google.com/maps?q=Century%20Mall%20Gurd%20Shola%20Addis%20Ababa&t=&z=14&ie=UTF8&iwloc=&output=embed',
         ],
