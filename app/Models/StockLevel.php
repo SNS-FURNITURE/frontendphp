@@ -1,0 +1,32 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class StockLevel extends Model
+{
+    protected $table = 'stock_levels';
+
+    public const CREATED_AT = null;
+
+    protected $fillable = [
+        'item_id',
+        'warehouse',
+        'quantity_on_hand',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'quantity_on_hand' => 'decimal:2',
+            'updated_at' => 'datetime',
+        ];
+    }
+
+    public function item(): BelongsTo
+    {
+        return $this->belongsTo(Item::class, 'item_id');
+    }
+}
