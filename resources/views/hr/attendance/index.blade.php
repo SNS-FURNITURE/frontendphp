@@ -49,7 +49,7 @@
 </div>
 
 <div class="note-box">
-    HR only: click AM or PM on today to cycle Present → Late → Half-day → Absent → Leave → Holiday → clear. TODAY {{ \Illuminate\Support\Carbon::parse($today)->format('n/j/Y') }}. Sundays stay OFF.
+    HR only: click AM/PM today to cycle status. Saturday afternoon is always Present. TODAY {{ \Illuminate\Support\Carbon::parse($today)->format('n/j/Y') }}. Sundays stay OFF.
 </div>
 
 <div class="filter-bar">
@@ -130,11 +130,14 @@
                             <div class="att-sessions">
                                 @foreach ($sessions as $sessionKey => $sessionMeta)
                                     @php
-                                        $sessionStatus = $sessionMeta['row']?->status;
+                                        $isSaturdayAfternoon = $dow === 6 && $sessionKey === 'afternoon';
+                                        $sessionStatus = $isSaturdayAfternoon
+                                            ? 'present'
+                                            : $sessionMeta['row']?->status;
                                         $sessionLabel = $sessionStatus
                                             ? ($statusLabels[$sessionStatus] ?? str_replace('_', '-', $sessionStatus))
                                             : '—';
-                                        $editable = $canEdit && $isToday;
+                                        $editable = $canEdit && $isToday && ! $isSaturdayAfternoon;
                                         $cycle = [null, 'present', 'late', 'half_day', 'absent', 'leave', 'holiday'];
                                         $cycleIdx = array_search($sessionStatus, $cycle, true);
                                         if ($cycleIdx === false) {
@@ -144,7 +147,7 @@
                                         $nextStatus = $nextRaw === null ? 'clear' : $nextRaw;
                                     @endphp
                                     <div class="att-session">
-                                        <span class="att-session-label">{{ $sessionMeta['label'] }}</span>
+                                        <span class="att-session-label">{{ $sessionMeta['label'] }}{{ $isSaturdayAfternoon ? ' · auto' : '' }}</span>
                                         @if ($editable)
                                             <form method="POST" action="{{ route('hr.attendance.mark') }}" style="margin:0">
                                                 @csrf
@@ -159,7 +162,7 @@
                                                 </button>
                                             </form>
                                         @else
-                                            <button type="button" class="att-cell is-readonly {{ $sessionStatus ? 'status-'.$sessionStatus : '' }}" disabled>
+                                            <button type="button" class="att-cell is-readonly {{ $sessionStatus ? 'status-'.$sessionStatus : '' }}" disabled title="{{ $isSaturdayAfternoon ? 'Saturday afternoon is always Present' : '' }}">
                                                 {{ $sessionLabel }}
                                             </button>
                                         @endif

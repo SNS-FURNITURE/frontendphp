@@ -6,6 +6,7 @@ use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\PayrollLine;
 use App\Models\PayrollRun;
+use App\Services\AttendanceSessionService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
@@ -28,6 +29,8 @@ class PayrollGenerationService
         $workingDays = max(1, $totalDays - $sundays);
         $from = sprintf('%s-01', $period);
         $to = sprintf('%s-%02d', $period, $totalDays);
+
+        app(AttendanceSessionService::class)->ensureSaturdayAfternoonsPresent($from, $to);
 
         $rows = Attendance::query()
             ->whereDate('date', '>=', $from)

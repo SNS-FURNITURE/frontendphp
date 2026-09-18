@@ -7,12 +7,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\AttendanceSubmission;
 use App\Models\Employee;
+use App\Services\AttendanceSessionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class AttendanceWebController extends Controller
 {
+    public function __construct(private AttendanceSessionService $sessions) {}
+
     public function index(Request $request): View
     {
         abort_unless(auth()->user()?->canViewHr(), 403);
@@ -26,6 +29,8 @@ class AttendanceWebController extends Controller
         $daysInMonth = (int) (new \DateTimeImmutable(sprintf('%04d-%02d-01', $year, $month)))->format('t');
         $from = $period.'-01';
         $to = sprintf('%s-%02d', $period, $daysInMonth);
+
+        $this->sessions->ensureSaturdayAfternoonsPresent($from, $to);
 
         $employees = Employee::query()->active()->with('party')->orderBy('id')->get();
         $marks = Attendance::query()
@@ -104,6 +109,14 @@ class AttendanceWebController extends Controller
             return back()->withErrors(['date' => 'You can only mark attendance for TODAY']);
         }
 
+        $session = (string) $request->input('session', 'morning');
+        if ($this->sessions->isSaturdayAfternoon($date, $session)) {
+            $request->merge(['status' => 'present', 'session' => 'afternoon']);
+            $api->store($request);
+
+            return back()->with('status', 'Saturday afternoon is always Present');
+        }
+
         $status = $request->input('status');
         if ($status === 'clear') {
             $api->destroy($request);
@@ -119,6 +132,7 @@ class AttendanceWebController extends Controller
         abort_unless(auth()->user()?->canMarkAttendance(), 403);
         $date = $request->input('date') ?: now()->toDateString();
         $api->holidayAll($request);
+        $this->sessions->ensureSaturdayAfternoonsPresent((string) $date, (string) $date);
 
         return back()->with('status', "Today ({$date}) marked as Holiday for all active employees");
     }
