@@ -78,6 +78,38 @@ class User extends Authenticatable
         );
     }
 
+    /**
+     * Launch roles that may open sales boards (customers, orders, quota).
+     * Admin is observer (view); finance is launch-allowed but not sales.
+     */
+    public function canViewSales(): bool
+    {
+        if (! $this->hasInvoiceLaunchRole()) {
+            return false;
+        }
+
+        return $this->isAdmin()
+            || $this->hasRole('company_manager')
+            || $this->hasRole('marketing_manager')
+            || $this->hasRole('advisor')
+            || $this->hasRole('supervisor')
+            || $this->hasRole('sales_supervisor');
+    }
+
+    public function canCreateSales(): bool
+    {
+        return $this->canViewSales() && ! $this->isAdmin();
+    }
+
+    /** Express party approve: supervisor, sales_supervisor, company_manager (+ advisor alias). */
+    public function canApproveParty(): bool
+    {
+        return $this->hasRole('company_manager')
+            || $this->hasRole('supervisor')
+            || $this->hasRole('sales_supervisor')
+            || $this->hasRole('advisor');
+    }
+
     public function hasPermission(string $module, string $action): bool
     {
         foreach ($this->permissionPairs() as $pair) {

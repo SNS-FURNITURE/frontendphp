@@ -31,9 +31,27 @@ class SalesOrder extends Model
         return $this->belongsTo(Party::class, 'customer_id');
     }
 
+    public function salesRep(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'sales_rep_id');
+    }
+
     public function lines(): HasMany
     {
         return $this->hasMany(SalesOrderLine::class, 'sales_order_id');
+    }
+
+    public function recalculateTotal(): float
+    {
+        $total = (float) SalesOrderLine::query()
+            ->where('sales_order_id', $this->id)
+            ->selectRaw('COALESCE(SUM(quantity * unit_price), 0) as grand_total')
+            ->value('grand_total');
+
+        $this->total_amount = $total;
+        $this->save();
+
+        return $total;
     }
 
     public function invoices(): HasMany

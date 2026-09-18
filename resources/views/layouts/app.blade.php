@@ -225,6 +225,12 @@
         <div class="nav-section">Finance</div>
         <a class="nav-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}" href="{{ route('invoices.index') }}">Invoices</a>
         <a class="nav-link {{ request()->routeIs('payments.*') ? 'active' : '' }}" href="{{ route('payments.index') }}">Payments</a>
+        @if (auth()->user()->canViewSales())
+            <div class="nav-section">Sales</div>
+            <a class="nav-link {{ request()->routeIs('sales.customers*') ? 'active' : '' }}" href="{{ route('sales.customers') }}">Customers</a>
+            <a class="nav-link {{ request()->routeIs('orders.requests*') || request()->routeIs('sales.orders*') ? 'active' : '' }}" href="{{ route('orders.requests') }}">Order requests</a>
+            <a class="nav-link {{ request()->routeIs('sales.quota') ? 'active' : '' }}" href="{{ route('sales.quota') }}">Quota</a>
+        @endif
         @if (auth()->user()->isAdmin())
             <div class="nav-section">Admin</div>
             <a class="nav-link {{ request()->routeIs('admin.users*') ? 'active' : '' }}" href="{{ route('admin.users') }}">Users</a>

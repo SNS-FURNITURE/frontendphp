@@ -5,8 +5,10 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\InvoiceController;
+use App\Http\Controllers\Api\PartyController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\SalesOrderController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Middleware\AuthenticateJwt;
 use App\Http\Middleware\EnsureInvoiceLaunchRole;
@@ -51,4 +53,21 @@ Route::prefix('api/v1')->middleware([VerifyApiCsrf::class])->group(function () {
 
     Route::post('documents/render', [DocumentController::class, 'render'])->middleware($view);
     Route::post('documents/compose', [DocumentController::class, 'compose'])->middleware($create);
+
+    // Parties + sales (Express: auth only; party approve is role-gated in controller)
+    Route::get('parties', [PartyController::class, 'index'])->middleware($authLaunch);
+    Route::post('parties', [PartyController::class, 'store'])->middleware($authLaunch);
+    Route::patch('parties/{id}/approve', [PartyController::class, 'approve'])->middleware($authLaunch)->whereNumber('id');
+
+    $salesRoutes = function () {
+        Route::get('quota', [SalesOrderController::class, 'quota']);
+        Route::get('/', [SalesOrderController::class, 'index']);
+        Route::post('/', [SalesOrderController::class, 'store']);
+        Route::get('{id}', [SalesOrderController::class, 'show'])->whereNumber('id');
+        Route::patch('{id}/status', [SalesOrderController::class, 'updateStatus'])->whereNumber('id');
+        Route::post('{id}/lines', [SalesOrderController::class, 'addLine'])->whereNumber('id');
+    };
+
+    Route::prefix('sales-orders')->middleware($authLaunch)->group($salesRoutes);
+    Route::prefix('sales')->middleware($authLaunch)->group($salesRoutes);
 });
