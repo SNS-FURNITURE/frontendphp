@@ -359,6 +359,124 @@ class User extends Authenticatable
             && ($this->hasPermission('reports', 'post_report') || $this->isAdmin() || $this->hasRole('company_manager'));
     }
 
+    /** HR boards: Express RoleGuard hr:view. */
+    public function canViewHr(): bool
+    {
+        if (! $this->hasInvoiceLaunchRole()) {
+            return false;
+        }
+
+        return $this->hasPermission('hr', 'view')
+            || $this->isAdmin()
+            || $this->hasRole('company_manager')
+            || $this->hasRole('finance')
+            || $this->hasRole('hr');
+    }
+
+    public function canEditHr(): bool
+    {
+        if (! $this->canViewHr() || $this->isAdmin()) {
+            return false;
+        }
+
+        return $this->hasPermission('hr', 'edit')
+            || $this->hasPermission('hr', 'create')
+            || $this->hasRole('hr')
+            || $this->hasRole('company_manager');
+    }
+
+    public function canApproveHr(): bool
+    {
+        return $this->hasPermission('hr', 'approve')
+            || $this->hasRole('company_manager')
+            || $this->hasRole('manager')
+            || $this->hasRole('hr');
+    }
+
+    public function canViewPayroll(): bool
+    {
+        return $this->hasInvoiceLaunchRole()
+            && ($this->hasPermission('finance', 'view')
+                || $this->isAdmin()
+                || $this->hasRole('finance')
+                || $this->hasRole('company_manager'));
+    }
+
+    public function canEditPayroll(): bool
+    {
+        if (! $this->canViewPayroll() || $this->isAdmin()) {
+            return false;
+        }
+
+        return $this->hasPermission('finance', 'edit')
+            || $this->hasPermission('finance', 'create')
+            || $this->hasRole('finance');
+    }
+
+    public function canViewLeads(): bool
+    {
+        if (! $this->hasInvoiceLaunchRole()) {
+            return false;
+        }
+
+        return $this->hasPermission('leads', 'view')
+            || $this->isAdmin()
+            || $this->canViewSales();
+    }
+
+    public function canCreateLeads(): bool
+    {
+        if (! $this->canViewLeads() || $this->isAdmin()) {
+            return false;
+        }
+
+        return $this->hasPermission('leads', 'create') || $this->canCreateSales();
+    }
+
+    public function canVerifyLeads(): bool
+    {
+        return $this->isAdmin()
+            || $this->hasPermission('leads', 'verify')
+            || $this->hasRole('company_manager')
+            || $this->hasRole('marketing_manager')
+            || $this->hasRole('advisor')
+            || $this->hasRole('supervisor')
+            || $this->hasRole('sales_supervisor');
+    }
+
+    public function canViewDeals(): bool
+    {
+        if (! $this->hasInvoiceLaunchRole()) {
+            return false;
+        }
+
+        return $this->hasPermission('deals', 'view')
+            || $this->isAdmin()
+            || $this->canViewSales();
+    }
+
+    public function canCreateDeals(): bool
+    {
+        if (! $this->canViewDeals() || $this->isAdmin()) {
+            return false;
+        }
+
+        return $this->hasPermission('deals', 'create') || $this->canCreateSales();
+    }
+
+    public function canSalesReviewDeal(): bool
+    {
+        return $this->hasRole('admin')
+            || $this->hasRole('supervisor')
+            || $this->hasRole('sales_supervisor')
+            || $this->hasRole('advisor');
+    }
+
+    public function canManagerReviewDeal(): bool
+    {
+        return $this->hasRole('company_manager') || $this->hasRole('manager');
+    }
+
     public function canViewAllReports(): bool
     {
         return $this->isAdmin() || $this->hasRole('company_manager');
