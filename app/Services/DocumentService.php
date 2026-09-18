@@ -106,36 +106,40 @@ class DocumentService
 
     public function blankDraft(?User $user = null, string $docNumber = ''): array
     {
-        return $this->assemble([
+        $doc = $this->assemble([
             'doc_type' => 'PROFORMA',
             'doc_number' => $docNumber,
             'doc_date' => date('Y-m-d'),
             'valid_until' => date('Y-m-d', strtotime('+30 days')),
             'customer' => [
                 'name' => '',
-                'address_line' => 'Addis Ababa, Ethiopia',
+                'address_line' => '',
             ],
             'lines' => [[
                 'line_no' => 1,
                 'name' => '',
                 'description' => '',
-                'uom_code' => 'PCS',
-                'quantity' => '1',
+                'uom_code' => 'pcs',
+                'quantity' => '1.000',
                 'unit_count' => null,
-                'unit_price' => '0',
+                'unit_price' => '0.00',
             ]],
             'discount' => ['type' => 'PERCENT', 'value' => '0'],
             'tax_rate' => '15',
-            'notes' => [''],
+            'notes' => [],
             'prepared_by' => [
                 'name' => $user?->full_name ?? '',
                 'phone' => $user?->phone ?? '',
             ],
             'approved_by' => [
-                'name' => $user?->full_name ?? '',
-                'phone' => $user?->phone ?? '',
+                'name' => '',
+                'phone' => '',
             ],
         ]);
+        // Match Next blankInvoiceDraft: empty customer address until compose.
+        $doc['customer']['address_line'] = '';
+
+        return $doc;
     }
 
     public function snapshotForInvoice(Invoice $invoice, ?User $user = null): array
@@ -235,14 +239,21 @@ class DocumentService
         return null;
     }
 
-    public function renderHtml(array $snapshot): string
+    public function renderHtml(array $snapshot, bool $forPdf = false): string
     {
-        return view('documents.invoice', ['doc' => $snapshot])->render();
+        return view('documents.invoice', [
+            'doc' => $snapshot,
+            'forPdf' => $forPdf,
+        ])->render();
     }
 
     public function renderPdf(array $snapshot): string
     {
-        return Pdf::loadHTML($this->renderHtml($snapshot))->setPaper('a4')->output();
+        return Pdf::loadHTML($this->renderHtml($snapshot, true))
+            ->setPaper('a4', 'portrait')
+            ->setOption('isRemoteEnabled', true)
+            ->setOption('defaultFont', 'DejaVu Sans')
+            ->output();
     }
 
     public function formatDisplayDate(string $iso): string
