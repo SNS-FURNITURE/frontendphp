@@ -138,7 +138,13 @@
         .toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
         @media (max-width: 900px) {
             .shell { flex-direction: column; }
-            .sidebar { width: 100%; }
+            .sidebar {
+                width: 100%;
+                position: static;
+                height: auto;
+                max-height: none;
+                overflow-y: visible;
+            }
             .grid-2 { grid-template-columns: 1fr; }
         }
         @media print {
