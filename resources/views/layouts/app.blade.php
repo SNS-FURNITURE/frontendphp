@@ -222,14 +222,18 @@
                 </div>
             </div>
         </div>
-        <div class="nav-section">Finance</div>
-        <a class="nav-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}" href="{{ route('invoices.index') }}">Invoices</a>
-        <a class="nav-link {{ request()->routeIs('payments.*') ? 'active' : '' }}" href="{{ route('payments.index') }}">Payments</a>
-        @if (auth()->user()->canViewFunding())
-            <a class="nav-link {{ request()->routeIs('funding.*') ? 'active' : '' }}" href="{{ route('funding.index') }}">Funding</a>
-        @endif
-        @if (auth()->user()->canViewAllocations())
-            <a class="nav-link {{ request()->routeIs('finance.allocations') ? 'active' : '' }}" href="{{ route('finance.allocations') }}">Allocations</a>
+        @if (auth()->user()->hasPermission('finance', 'view') || auth()->user()->canViewFunding() || auth()->user()->canViewAllocations())
+            <div class="nav-section">Finance</div>
+            @if (auth()->user()->hasPermission('finance', 'view'))
+                <a class="nav-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}" href="{{ route('invoices.index') }}">Invoices</a>
+                <a class="nav-link {{ request()->routeIs('payments.*') ? 'active' : '' }}" href="{{ route('payments.index') }}">Payments</a>
+            @endif
+            @if (auth()->user()->canViewFunding())
+                <a class="nav-link {{ request()->routeIs('funding.*') ? 'active' : '' }}" href="{{ route('funding.index') }}">Funding</a>
+            @endif
+            @if (auth()->user()->canViewAllocations())
+                <a class="nav-link {{ request()->routeIs('finance.allocations') ? 'active' : '' }}" href="{{ route('finance.allocations') }}">Allocations</a>
+            @endif
         @endif
         @if (auth()->user()->canViewSales())
             <div class="nav-section">Sales</div>

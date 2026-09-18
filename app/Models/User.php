@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Route;
 
 class User extends Authenticatable
 {
@@ -495,6 +496,42 @@ class User extends Authenticatable
     {
         return $this->canViewBoards() && ! $this->isAdmin()
             && ($this->hasPermission('boards', 'create') || $this->hasRole('company_manager'));
+    }
+
+    /**
+     * First workspace screen after login — avoid dumping every role on invoices.
+     */
+    public function preferredHomeRouteName(): string
+    {
+        if ($this->hasPermission('finance', 'view') || $this->isAdmin()) {
+            return 'invoices.index';
+        }
+        if ($this->canViewHr() && Route::has('hr.employees')) {
+            return 'hr.employees';
+        }
+        if ($this->canViewLeads() && Route::has('leads.index')) {
+            return 'leads.index';
+        }
+        if ($this->canViewSales() && Route::has('orders.requests')) {
+            return 'orders.requests';
+        }
+        if ($this->canViewInventory() && Route::has('inventory.items')) {
+            return 'inventory.items';
+        }
+        if ($this->canViewProduction() && Route::has('production.index')) {
+            return 'production.index';
+        }
+        if ($this->canViewProjects() && Route::has('projects.index')) {
+            return 'projects.index';
+        }
+        if ($this->canViewBoards() && Route::has('boards.index')) {
+            return 'boards.index';
+        }
+        if ($this->canViewProcurement() && Route::has('procurement.index')) {
+            return 'procurement.index';
+        }
+
+        return 'profile.edit';
     }
 
     public function hasPermission(string $module, string $action): bool

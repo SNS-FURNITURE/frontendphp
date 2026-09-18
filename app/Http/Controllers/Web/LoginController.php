@@ -15,7 +15,7 @@ class LoginController extends Controller
     public function show(): View|RedirectResponse
     {
         if (auth()->check()) {
-            return redirect()->route('invoices.index');
+            return redirect()->route(auth()->user()->preferredHomeRouteName());
         }
 
         return view('auth.login');
@@ -51,7 +51,7 @@ class LoginController extends Controller
 
         auth()->login($user, $remember);
 
-        return redirect()->intended(route('invoices.index'));
+        return redirect()->intended(route($user->preferredHomeRouteName()));
     }
 
     public function logout(Request $request): RedirectResponse

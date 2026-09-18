@@ -37,14 +37,16 @@ use App\Http\Middleware\EnsureWebInvoiceAccess;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return auth()->check()
-        ? redirect()->route('invoices.index')
-        : redirect()->route('login');
+    if (! auth()->check()) {
+        return redirect()->route('login');
+    }
+
+    return redirect()->route(auth()->user()->preferredHomeRouteName());
 });
 
-Route::get('/workspace', fn () => redirect()->route('invoices.index'))
-    ->middleware('auth')
-    ->name('workspace');
+Route::get('/workspace', function () {
+    return redirect()->route(auth()->user()->preferredHomeRouteName());
+})->middleware('auth')->name('workspace');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'show'])->name('login');
