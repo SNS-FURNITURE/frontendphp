@@ -105,11 +105,11 @@
     <div class="card">
         <h2>Sign in</h2>
         <p style="color:#452F80b3;margin-top:0">Enter your workspace credentials</p>
-        @if (request('loggedOut'))
-            <div class="toast">Signed out successfully. See you soon!</div>
+        @if (session('status'))
+            <div class="toast">{{ session('status') }}</div>
         @endif
-        @if (request('sessionExpired'))
-            <div class="toast warn">Your session expired due to inactivity. Please sign in again.</div>
+        @if (session('warning'))
+            <div class="toast warn">{{ session('warning') }}</div>
         @endif
         @if ($errors->any())
             <div class="error">{{ $errors->first() }}</div>

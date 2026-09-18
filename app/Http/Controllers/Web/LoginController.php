@@ -61,7 +61,7 @@ class LoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('login', ['loggedOut' => 'true']);
+        return redirect()->route('login')->with('status', 'Signed out successfully. See you soon!');
     }
 
     public function idleLogout(Request $request): RedirectResponse
@@ -70,6 +70,6 @@ class LoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('login', ['sessionExpired' => 'true']);
+        return redirect()->route('login')->with('warning', 'Your session expired due to inactivity. Please sign in again.');
     }
 }

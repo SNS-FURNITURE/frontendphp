@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use Illuminate\Auth\Middleware\Authenticate;
 use Tests\TestCase;
 
 class LoginAndErrorPagesTest extends TestCase
@@ -30,5 +31,18 @@ class LoginAndErrorPagesTest extends TestCase
         $response = $this->get('/workspace');
 
         $response->assertRedirect('/login');
+    }
+
+    public function test_logout_redirects_to_clean_login_url(): void
+    {
+        $response = $this
+            ->withoutMiddleware([
+                Authenticate::class,
+            ])
+            ->post('/logout');
+
+        $response->assertRedirect('/login');
+        $response->assertSessionHas('status');
+        $this->assertSame(url('/login'), $response->headers->get('Location'));
     }
 }
