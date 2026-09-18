@@ -21,7 +21,7 @@
 <div class="page-head">
     <div>
         <h1 class="display-font">Attendance Management</h1>
-        <p class="muted" style="margin:0.35rem 0 0">AM + PM sessions · click today’s cell to set each · Sundays OFF</p>
+        <p class="muted" style="margin:0.35rem 0 0">HR marks AM + PM · click to cycle status · Sundays OFF</p>
     </div>
     <div class="toolbar">
         @if ($canEdit)
@@ -49,7 +49,7 @@
 </div>
 
 <div class="note-box">
-    Click AM or PM on today’s column to set each session. You can only mark TODAY ({{ \Illuminate\Support\Carbon::parse($today)->format('n/j/Y') }}). Sundays stay OFF.
+    HR only: click AM or PM on today to cycle Present → Late → Half-day → Absent → Leave → Holiday → clear. TODAY {{ \Illuminate\Support\Carbon::parse($today)->format('n/j/Y') }}. Sundays stay OFF.
 </div>
 
 <div class="filter-bar">
@@ -135,38 +135,29 @@
                                             ? ($statusLabels[$sessionStatus] ?? str_replace('_', '-', $sessionStatus))
                                             : '—';
                                         $editable = $canEdit && $isToday;
+                                        $cycle = [null, 'present', 'late', 'half_day', 'absent', 'leave', 'holiday'];
+                                        $cycleIdx = array_search($sessionStatus, $cycle, true);
+                                        if ($cycleIdx === false) {
+                                            $cycleIdx = 0;
+                                        }
+                                        $nextRaw = $cycle[($cycleIdx + 1) % count($cycle)];
+                                        $nextStatus = $nextRaw === null ? 'clear' : $nextRaw;
                                     @endphp
-                                    <div class="att-session" @if ($editable) x-data="{ open: false }" @endif>
+                                    <div class="att-session">
                                         <span class="att-session-label">{{ $sessionMeta['label'] }}</span>
                                         @if ($editable)
-                                            <button type="button"
-                                                class="att-cell is-editable {{ $sessionStatus ? 'status-'.$sessionStatus : '' }}"
-                                                @click="open = !open"
-                                                aria-haspopup="true"
-                                                :aria-expanded="open"
-                                                title="{{ $sessionMeta['label'] }} — click to set">
-                                                {{ $sessionLabel }}
-                                            </button>
-                                            <div class="att-menu" x-cloak x-show="open" @click.outside="open = false" style="display:none" x-bind:style="open ? 'display:block' : 'display:none'">
-                                                @foreach ($statuses as $st)
-                                                    <form method="POST" action="{{ route('hr.attendance.mark') }}">
-                                                        @csrf
-                                                        <input type="hidden" name="employee_id" value="{{ $emp->id }}">
-                                                        <input type="hidden" name="date" value="{{ $date }}">
-                                                        <input type="hidden" name="session" value="{{ $sessionKey }}">
-                                                        <input type="hidden" name="status" value="{{ $st }}">
-                                                        <button type="submit" class="att-menu-item status-{{ $st }}">{{ $statusLabels[$st] }}</button>
-                                                    </form>
-                                                @endforeach
-                                                <form method="POST" action="{{ route('hr.attendance.mark') }}">
-                                                    @csrf
-                                                    <input type="hidden" name="employee_id" value="{{ $emp->id }}">
-                                                    <input type="hidden" name="date" value="{{ $date }}">
-                                                    <input type="hidden" name="session" value="{{ $sessionKey }}">
-                                                    <input type="hidden" name="status" value="clear">
-                                                    <button type="submit" class="att-menu-item">Clear</button>
-                                                </form>
-                                            </div>
+                                            <form method="POST" action="{{ route('hr.attendance.mark') }}" style="margin:0">
+                                                @csrf
+                                                <input type="hidden" name="employee_id" value="{{ $emp->id }}">
+                                                <input type="hidden" name="date" value="{{ $date }}">
+                                                <input type="hidden" name="session" value="{{ $sessionKey }}">
+                                                <input type="hidden" name="status" value="{{ $nextStatus }}">
+                                                <button type="submit"
+                                                    class="att-cell is-editable {{ $sessionStatus ? 'status-'.$sessionStatus : '' }}"
+                                                    title="{{ $sessionMeta['label'] }} — click to change">
+                                                    {{ $sessionLabel }}
+                                                </button>
+                                            </form>
                                         @else
                                             <button type="button" class="att-cell is-readonly {{ $sessionStatus ? 'status-'.$sessionStatus : '' }}" disabled>
                                                 {{ $sessionLabel }}

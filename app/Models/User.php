@@ -386,6 +386,16 @@ class User extends Authenticatable
             || $this->hasRole('company_manager');
     }
 
+    /** Daily AM/PM marking — HR role only (managers approve submissions). */
+    public function canMarkAttendance(): bool
+    {
+        if (! $this->hasInvoiceLaunchRole() || $this->isAdmin()) {
+            return false;
+        }
+
+        return $this->hasRole('hr');
+    }
+
     public function canApproveHr(): bool
     {
         return $this->hasPermission('hr', 'approve')

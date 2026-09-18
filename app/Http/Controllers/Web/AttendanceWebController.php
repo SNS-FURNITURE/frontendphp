@@ -90,14 +90,14 @@ class AttendanceWebController extends Controller
             'sundays' => $sundays,
             'workingDays' => max(0, $daysInMonth - $sundays),
             'periodLabel' => \DateTimeImmutable::createFromFormat('Y-m', $period)?->format('F Y') ?: $period,
-            'canEdit' => auth()->user()->canEditHr(),
+            'canEdit' => auth()->user()->canMarkAttendance(),
             'canApprove' => auth()->user()->hasRole('company_manager') || auth()->user()->hasRole('manager'),
         ]);
     }
 
     public function mark(Request $request, ApiAttendanceController $api): RedirectResponse
     {
-        abort_unless(auth()->user()?->canEditHr(), 403);
+        abort_unless(auth()->user()?->canMarkAttendance(), 403);
 
         $date = (string) $request->input('date');
         if ($date !== now()->toDateString()) {
@@ -116,7 +116,7 @@ class AttendanceWebController extends Controller
 
     public function holidayAll(Request $request, ApiAttendanceController $api): RedirectResponse
     {
-        abort_unless(auth()->user()?->canEditHr(), 403);
+        abort_unless(auth()->user()?->canMarkAttendance(), 403);
         $date = $request->input('date') ?: now()->toDateString();
         $api->holidayAll($request);
 
@@ -125,7 +125,7 @@ class AttendanceWebController extends Controller
 
     public function compile(Request $request, ApiAttendanceController $api): RedirectResponse
     {
-        abort_unless(auth()->user()?->canEditHr(), 403);
+        abort_unless(auth()->user()?->canMarkAttendance(), 403);
         $response = $api->submissionsStore($request);
         $payload = $response->getData(true);
 
