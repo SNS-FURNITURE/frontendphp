@@ -171,7 +171,7 @@
         <div class="nav-section">Settings</div>
         <a class="nav-link {{ request()->routeIs('profile.*') ? 'active' : '' }}" href="{{ route('profile.edit') }}">My Profile</a>
         <div class="sidebar-foot">
-            <form method="POST" action="{{ route('logout') }}">
+            <form method="POST" action="{{ route('logout') }}" onsubmit="return confirm('Are you sure you want to sign out?')">
                 @csrf
                 <button class="btn ghost" type="submit" style="width:100%">Sign out</button>
             </form>
@@ -182,7 +182,7 @@
             <div class="topbar-user">{{ '@'.$username }} {{ auth()->user()->full_name }}</div>
             <div class="topbar-actions">
                 <span class="role-badge">{{ $roleLabel }}</span>
-                <form method="POST" action="{{ route('logout') }}">
+                <form method="POST" action="{{ route('logout') }}" onsubmit="return confirm('Are you sure you want to sign out?')">
                     @csrf
                     <button class="btn ghost" type="submit">Logout</button>
                 </form>
