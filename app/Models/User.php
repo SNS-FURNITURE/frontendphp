@@ -110,6 +110,78 @@ class User extends Authenticatable
             || $this->hasRole('advisor');
     }
 
+    /** Funding board: company manager requests; finance/admin can observe. */
+    public function canViewFunding(): bool
+    {
+        if (! $this->hasInvoiceLaunchRole()) {
+            return false;
+        }
+
+        return $this->hasPermission('funding', 'view')
+            || $this->isAdmin()
+            || $this->hasRole('company_manager')
+            || $this->hasRole('finance');
+    }
+
+    public function canCreateFunding(): bool
+    {
+        if (! $this->canViewFunding() || $this->isAdmin()) {
+            return false;
+        }
+
+        return $this->hasPermission('funding', 'create')
+            || $this->hasRole('company_manager');
+    }
+
+    public function canApproveFunding(): bool
+    {
+        return $this->hasPermission('funding', 'approve')
+            || $this->hasRole('finance');
+    }
+
+    public function canEditFunding(): bool
+    {
+        return $this->hasPermission('funding', 'edit')
+            || $this->hasRole('company_manager');
+    }
+
+    /** Allocations read-only: finance:view (Express RoleGuard). */
+    public function canViewAllocations(): bool
+    {
+        return $this->hasInvoiceLaunchRole() && $this->hasPermission('finance', 'view');
+    }
+
+    /** Inventory boards: Express API is auth+launch; UI uses inventory:*. */
+    public function canViewInventory(): bool
+    {
+        if (! $this->hasInvoiceLaunchRole()) {
+            return false;
+        }
+
+        return $this->hasPermission('inventory', 'view')
+            || $this->isAdmin()
+            || $this->hasRole('company_manager')
+            || $this->hasRole('finance')
+            || $this->hasRole('marketing_manager')
+            || $this->hasRole('advisor')
+            || $this->hasRole('supervisor')
+            || $this->hasRole('sales_supervisor');
+    }
+
+    public function canCreateInventory(): bool
+    {
+        if (! $this->canViewInventory() || $this->isAdmin()) {
+            return false;
+        }
+
+        return $this->hasPermission('inventory', 'create')
+            || $this->hasRole('company_manager')
+            || $this->hasRole('marketing_manager')
+            || $this->hasRole('advisor')
+            || $this->hasRole('supervisor')
+            || $this->hasRole('sales_supervisor');
+    }
+
     public function hasPermission(string $module, string $action): bool
     {
         foreach ($this->permissionPairs() as $pair) {

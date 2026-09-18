@@ -3,12 +3,16 @@
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DocumentController;
+use App\Http\Controllers\Api\FundingRequestController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\InvoiceController;
+use App\Http\Controllers\Api\ItemController;
 use App\Http\Controllers\Api\PartyController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\SalesOrderController;
+use App\Http\Controllers\Api\StockLevelController;
+use App\Http\Controllers\Api\StockMovementController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Middleware\AuthenticateJwt;
 use App\Http\Middleware\EnsureInvoiceLaunchRole;
@@ -70,4 +74,22 @@ Route::prefix('api/v1')->middleware([VerifyApiCsrf::class])->group(function () {
 
     Route::prefix('sales-orders')->middleware($authLaunch)->group($salesRoutes);
     Route::prefix('sales')->middleware($authLaunch)->group($salesRoutes);
+
+    // Funding (Express: auth+launch only; mounted at /funding and /funding-requests)
+    $fundingRoutes = function () {
+        Route::get('/', [FundingRequestController::class, 'index']);
+        Route::post('/', [FundingRequestController::class, 'store']);
+        Route::patch('{id}', [FundingRequestController::class, 'update'])->whereNumber('id');
+    };
+    Route::prefix('funding')->middleware($authLaunch)->group($fundingRoutes);
+    Route::prefix('funding-requests')->middleware($authLaunch)->group($fundingRoutes);
+
+    // Inventory (Express: auth+launch only)
+    Route::get('items', [ItemController::class, 'index'])->middleware($authLaunch);
+    Route::post('items', [ItemController::class, 'store'])->middleware($authLaunch);
+    Route::get('items/low-stock', [ItemController::class, 'lowStock'])->middleware($authLaunch);
+    Route::get('items/{id}/stock', [ItemController::class, 'stock'])->middleware($authLaunch)->whereNumber('id');
+    Route::get('stock-levels', [StockLevelController::class, 'index'])->middleware($authLaunch);
+    Route::get('stock-movements', [StockMovementController::class, 'index'])->middleware($authLaunch);
+    Route::post('stock-movements', [StockMovementController::class, 'store'])->middleware($authLaunch);
 });

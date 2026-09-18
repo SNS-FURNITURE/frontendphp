@@ -2,7 +2,12 @@
 
 use App\Http\Controllers\Web\AdminAuditWebController;
 use App\Http\Controllers\Web\AdminUserWebController;
+use App\Http\Controllers\Web\AllocationWebController;
 use App\Http\Controllers\Web\CustomerWebController;
+use App\Http\Controllers\Web\FundingWebController;
+use App\Http\Controllers\Web\InventoryItemWebController;
+use App\Http\Controllers\Web\InventoryMovementWebController;
+use App\Http\Controllers\Web\InventoryStockWebController;
 use App\Http\Controllers\Web\InvoiceWebController;
 use App\Http\Controllers\Web\LoginController;
 use App\Http\Controllers\Web\PaymentWebController;
@@ -53,6 +58,19 @@ Route::middleware(['auth', EnsureWebInvoiceAccess::class])->group(function () {
 
     Route::get('/finance/payments', [PaymentWebController::class, 'index'])->name('payments.index');
     Route::post('/finance/payments', [PaymentWebController::class, 'store'])->name('payments.store');
+
+    Route::get('/finance/allocations', [AllocationWebController::class, 'index'])->name('finance.allocations');
+
+    Route::get('/funding', [FundingWebController::class, 'index'])->name('funding.index');
+    Route::post('/funding', [FundingWebController::class, 'store'])->name('funding.store');
+    Route::patch('/funding/{funding}/status', [FundingWebController::class, 'updateStatus'])->name('funding.status');
+
+    Route::get('/inventory/items', [InventoryItemWebController::class, 'index'])->name('inventory.items');
+    Route::post('/inventory/items', [InventoryItemWebController::class, 'store'])->name('inventory.items.store');
+    Route::get('/inventory/stock', [InventoryStockWebController::class, 'index'])->name('inventory.stock');
+    Route::get('/inventory/low-stock', [InventoryStockWebController::class, 'lowStock'])->name('inventory.low-stock');
+    Route::get('/inventory/movements', [InventoryMovementWebController::class, 'index'])->name('inventory.movements');
+    Route::post('/inventory/movements', [InventoryMovementWebController::class, 'store'])->name('inventory.movements.store');
 
     Route::get('/sales/customers', [CustomerWebController::class, 'index'])->name('sales.customers');
     Route::post('/sales/customers', [CustomerWebController::class, 'store'])->name('sales.customers.store');

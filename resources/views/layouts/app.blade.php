@@ -225,11 +225,24 @@
         <div class="nav-section">Finance</div>
         <a class="nav-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}" href="{{ route('invoices.index') }}">Invoices</a>
         <a class="nav-link {{ request()->routeIs('payments.*') ? 'active' : '' }}" href="{{ route('payments.index') }}">Payments</a>
+        @if (auth()->user()->canViewFunding())
+            <a class="nav-link {{ request()->routeIs('funding.*') ? 'active' : '' }}" href="{{ route('funding.index') }}">Funding</a>
+        @endif
+        @if (auth()->user()->canViewAllocations())
+            <a class="nav-link {{ request()->routeIs('finance.allocations') ? 'active' : '' }}" href="{{ route('finance.allocations') }}">Allocations</a>
+        @endif
         @if (auth()->user()->canViewSales())
             <div class="nav-section">Sales</div>
             <a class="nav-link {{ request()->routeIs('sales.customers*') ? 'active' : '' }}" href="{{ route('sales.customers') }}">Customers</a>
             <a class="nav-link {{ request()->routeIs('orders.requests*') || request()->routeIs('sales.orders*') ? 'active' : '' }}" href="{{ route('orders.requests') }}">Order requests</a>
             <a class="nav-link {{ request()->routeIs('sales.quota') ? 'active' : '' }}" href="{{ route('sales.quota') }}">Quota</a>
+        @endif
+        @if (auth()->user()->canViewInventory())
+            <div class="nav-section">Inventory</div>
+            <a class="nav-link {{ request()->routeIs('inventory.items*') ? 'active' : '' }}" href="{{ route('inventory.items') }}">Items</a>
+            <a class="nav-link {{ request()->routeIs('inventory.stock') ? 'active' : '' }}" href="{{ route('inventory.stock') }}">Stock</a>
+            <a class="nav-link {{ request()->routeIs('inventory.low-stock') ? 'active' : '' }}" href="{{ route('inventory.low-stock') }}">Low stock</a>
+            <a class="nav-link {{ request()->routeIs('inventory.movements*') ? 'active' : '' }}" href="{{ route('inventory.movements') }}">Movements</a>
         @endif
         @if (auth()->user()->isAdmin())
             <div class="nav-section">Admin</div>
