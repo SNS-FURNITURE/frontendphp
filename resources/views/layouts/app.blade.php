@@ -163,7 +163,8 @@
             background: rgba(8, 6, 20, 0.72);
             backdrop-filter: blur(4px);
         }
-        .logout-modal.is-open { display: flex; }
+        .logout-modal.is-open { display: flex !important; }
+        .logout-modal[hidden] { display: none !important; }
         .logout-dialog {
             width: 100%;
             max-width: 380px;
