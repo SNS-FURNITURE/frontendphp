@@ -43,23 +43,30 @@
             right:0.35rem;
             top:50%;
             transform:translateY(-50%);
-            width:36px;
-            height:36px;
+            width:40px;
+            height:40px;
             padding:0;
             border:0;
-            border-radius:8px;
+            border-radius:10px;
             background:transparent;
             color:#452F80;
             cursor:pointer;
             display:inline-flex;
             align-items:center;
             justify-content:center;
+            line-height:0;
+            font-size:0;
         }
-        .password-toggle:hover { background:#452F8012; }
-        .password-toggle svg { width:20px; height:20px; display:block; }
-        .password-toggle .icon-hide { display:none; }
-        .password-toggle.is-visible .icon-show { display:none; }
-        .password-toggle.is-visible .icon-hide { display:block; }
+        .password-toggle:hover { background:#452F8014; color:#24194D; }
+        .password-toggle svg {
+            width:22px;
+            height:22px;
+            display:block;
+            flex-shrink:0;
+        }
+        .password-toggle .icon-hide { display:none !important; }
+        .password-toggle.is-visible .icon-show { display:none !important; }
+        .password-toggle.is-visible .icon-hide { display:block !important; }
         button[type=submit] {
             width:100%; height:44px; border:0; border-radius:12px;
             background:#E13B30; color:#fff; font-weight:700; cursor:pointer;
@@ -115,15 +122,11 @@
             <div class="password-field">
                 <input id="password" name="password" type="password" autocomplete="current-password" required>
                 <button type="button" class="password-toggle" id="toggle-password" aria-label="Show password" aria-pressed="false" title="Show password">
-                    <svg class="icon-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
+                    <svg class="icon-show" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
                     </svg>
-                    <svg class="icon-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"></path>
-                        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"></path>
-                        <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path>
-                        <line x1="1" y1="1" x2="23" y2="23"></line>
+                    <svg class="icon-hide" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78 3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>
                     </svg>
                 </button>
             </div>
