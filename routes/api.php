@@ -1,26 +1,36 @@
-<?php
+﻿<?php
 
+use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BomController;
+use App\Http\Controllers\Api\BoardController;
+use App\Http\Controllers\Api\DealController;
 use App\Http\Controllers\Api\DeliveryController;
 use App\Http\Controllers\Api\DesignController;
 use App\Http\Controllers\Api\DocumentController;
+use App\Http\Controllers\Api\EmployeeController;
 use App\Http\Controllers\Api\FundingRequestController;
-use App\Http\Controllers\Api\MachineryController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\ItemController;
+use App\Http\Controllers\Api\LeadController;
+use App\Http\Controllers\Api\LeaveController;
+use App\Http\Controllers\Api\MachineryController;
 use App\Http\Controllers\Api\MaterialRequestController;
 use App\Http\Controllers\Api\OutboundRecordController;
 use App\Http\Controllers\Api\PartyController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\PayrollRunController;
 use App\Http\Controllers\Api\ProcurementController;
 use App\Http\Controllers\Api\ProductionOrderController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\ProjectController;
+use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SalesOrderController;
 use App\Http\Controllers\Api\StockLevelController;
 use App\Http\Controllers\Api\StockMovementController;
+use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Middleware\AuthenticateJwt;
 use App\Http\Middleware\EnsureInvoiceLaunchRole;
@@ -38,6 +48,9 @@ Route::prefix('api/v1')->middleware([VerifyApiCsrf::class])->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
         Route::get('me', [AuthController::class, 'me'])->middleware(AuthenticateJwt::class);
     });
+
+    // Public lead intake — outside JWT (Express /leads/public)
+    Route::post('leads/public', [LeadController::class, 'storePublic']);
 
     $authLaunch = [AuthenticateJwt::class, EnsureInvoiceLaunchRole::class];
     $view = [...$authLaunch, 'permission:finance,view'];
@@ -129,4 +142,89 @@ Route::prefix('api/v1')->middleware([VerifyApiCsrf::class])->group(function () {
     Route::get('material-requests', [MaterialRequestController::class, 'index'])->middleware($authLaunch);
     Route::post('material-requests', [MaterialRequestController::class, 'store'])->middleware($authLaunch);
     Route::patch('material-requests/{id}', [MaterialRequestController::class, 'update'])->middleware($authLaunch)->whereNumber('id');
+
+    // HR / attendance / leave / payroll
+    Route::get('employees', [EmployeeController::class, 'index'])->middleware($authLaunch);
+    Route::post('employees', [EmployeeController::class, 'store'])->middleware($authLaunch);
+    Route::get('employees/{id}', [EmployeeController::class, 'show'])->middleware($authLaunch)->whereNumber('id');
+
+    Route::get('attendance', [AttendanceController::class, 'index'])->middleware($authLaunch);
+    Route::post('attendance', [AttendanceController::class, 'store'])->middleware($authLaunch);
+    Route::delete('attendance', [AttendanceController::class, 'destroy'])->middleware($authLaunch);
+    Route::post('attendance/holiday-all', [AttendanceController::class, 'holidayAll'])->middleware($authLaunch);
+    Route::get('attendance/submissions', [AttendanceController::class, 'submissionsIndex'])->middleware($authLaunch);
+    Route::post('attendance/submissions', [AttendanceController::class, 'submissionsStore'])->middleware($authLaunch);
+    Route::patch('attendance/submissions/{id}', [AttendanceController::class, 'submissionsUpdate'])->middleware($authLaunch)->whereNumber('id');
+
+    Route::get('leave', [LeaveController::class, 'index'])->middleware($authLaunch);
+    Route::post('leave', [LeaveController::class, 'store'])->middleware($authLaunch);
+    Route::patch('leave/{id}', [LeaveController::class, 'update'])->middleware($authLaunch)->whereNumber('id');
+
+    Route::get('payroll-runs', [PayrollRunController::class, 'index'])->middleware($authLaunch);
+    Route::post('payroll-runs', [PayrollRunController::class, 'store'])->middleware($authLaunch);
+    Route::get('payroll-runs/{id}', [PayrollRunController::class, 'show'])->middleware($authLaunch)->whereNumber('id');
+    Route::get('payroll-runs/{id}/csv', [PayrollRunController::class, 'csv'])->middleware($authLaunch)->whereNumber('id');
+    Route::patch('payroll-runs/{id}/status', [PayrollRunController::class, 'updateStatus'])->middleware($authLaunch)->whereNumber('id');
+    Route::patch('payroll-runs/{id}/lines/{lineId}', [PayrollRunController::class, 'updateLine'])->middleware($authLaunch)->whereNumber(['id', 'lineId']);
+
+    // Leads + deals
+    Route::get('leads', [LeadController::class, 'index'])->middleware($authLaunch);
+    Route::post('leads', [LeadController::class, 'store'])->middleware($authLaunch);
+    Route::get('leads/{id}', [LeadController::class, 'show'])->middleware($authLaunch)->whereNumber('id');
+    Route::patch('leads/{id}', [LeadController::class, 'update'])->middleware($authLaunch)->whereNumber('id');
+
+    Route::get('deals', [DealController::class, 'index'])->middleware($authLaunch);
+    Route::post('deals', [DealController::class, 'store'])->middleware($authLaunch);
+    Route::get('deals/{id}', [DealController::class, 'show'])->middleware($authLaunch)->whereNumber('id');
+    Route::patch('deals/{id}', [DealController::class, 'update'])->middleware($authLaunch)->whereNumber('id');
+    Route::post('deals/{id}/sales-review', [DealController::class, 'salesReview'])->middleware($authLaunch)->whereNumber('id');
+    Route::post('deals/{id}/manager-review', [DealController::class, 'managerReview'])->middleware($authLaunch)->whereNumber('id');
+
+    // Designs / machinery / procurement (CP12)
+    Route::get('designs', [DesignController::class, 'index'])->middleware($authLaunch);
+    Route::post('designs', [DesignController::class, 'store'])->middleware($authLaunch);
+    Route::get('designs/{id}', [DesignController::class, 'show'])->middleware($authLaunch)->whereNumber('id');
+    Route::patch('designs/{id}', [DesignController::class, 'update'])->middleware($authLaunch)->whereNumber('id');
+
+    Route::get('machinery', [MachineryController::class, 'index'])->middleware($authLaunch);
+    Route::post('machinery', [MachineryController::class, 'store'])->middleware($authLaunch);
+    Route::patch('machinery/{id}/status', [MachineryController::class, 'updateStatus'])->middleware($authLaunch)->whereNumber('id');
+
+    $procurementRoutes = function () {
+        Route::get('research', [ProcurementController::class, 'researchIndex']);
+        Route::post('research', [ProcurementController::class, 'researchStore']);
+        Route::patch('research/{id}', [ProcurementController::class, 'researchUpdate'])->whereNumber('id');
+        Route::get('laborers', [ProcurementController::class, 'laborersIndex']);
+        Route::post('laborers', [ProcurementController::class, 'laborersStore']);
+        Route::patch('laborers/{id}', [ProcurementController::class, 'laborersUpdate'])->whereNumber('id');
+        Route::get('installations', [ProcurementController::class, 'installationsIndex']);
+        Route::post('installations', [ProcurementController::class, 'installationsStore']);
+        Route::patch('installations/{id}', [ProcurementController::class, 'installationsUpdate'])->whereNumber('id');
+    };
+    Route::prefix('procurement')->middleware($authLaunch)->group($procurementRoutes);
+    Route::middleware($authLaunch)->group($procurementRoutes);
+
+    // Projects / tasks / reports / boards (CP13–14)
+    Route::get('projects', [ProjectController::class, 'index'])->middleware($authLaunch);
+    Route::post('projects', [ProjectController::class, 'store'])->middleware($authLaunch);
+    Route::get('projects/{id}/tasks', [ProjectController::class, 'tasks'])->middleware($authLaunch)->whereNumber('id');
+    Route::post('projects/{id}/tasks', [ProjectController::class, 'storeTask'])->middleware($authLaunch)->whereNumber('id');
+    Route::patch('projects/{id}/tasks/{taskId}', [ProjectController::class, 'updateTask'])->middleware($authLaunch)->whereNumber('id')->whereNumber('taskId');
+
+    Route::get('tasks', [TaskController::class, 'index'])->middleware($authLaunch);
+    Route::patch('tasks/{id}', [TaskController::class, 'update'])->middleware($authLaunch)->whereNumber('id');
+
+    Route::get('reports', [ReportController::class, 'index'])->middleware($authLaunch);
+    Route::post('reports', [ReportController::class, 'store'])->middleware($authLaunch);
+    Route::get('reports/{id}', [ReportController::class, 'show'])->middleware($authLaunch)->whereNumber('id');
+
+    Route::get('workspaces', [BoardController::class, 'workspacesIndex'])->middleware($authLaunch);
+    Route::post('workspaces', [BoardController::class, 'workspacesStore'])->middleware($authLaunch);
+    Route::get('boards', [BoardController::class, 'boardsIndex'])->middleware($authLaunch);
+    Route::post('boards', [BoardController::class, 'boardsStore'])->middleware($authLaunch);
+    Route::get('boards/{id}', [BoardController::class, 'boardsShow'])->middleware($authLaunch)->whereNumber('id');
+    Route::post('boards/{id}/groups', [BoardController::class, 'storeGroup'])->middleware($authLaunch)->whereNumber('id');
+    Route::post('boards/{id}/columns', [BoardController::class, 'storeColumn'])->middleware($authLaunch)->whereNumber('id');
+    Route::post('boards/{id}/items', [BoardController::class, 'storeItem'])->middleware($authLaunch)->whereNumber('id');
+    Route::patch('items/{id}/values', [BoardController::class, 'updateItemValues'])->middleware($authLaunch)->whereNumber('id');
 });

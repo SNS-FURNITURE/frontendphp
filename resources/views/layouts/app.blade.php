@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
@@ -256,6 +256,63 @@
         @if (auth()->user()->canViewDeliveries())
             <div class="nav-section">Ops</div>
             <a class="nav-link {{ request()->routeIs('production.deliveries*') ? 'active' : '' }}" href="{{ route('production.deliveries') }}">Deliveries</a>
+        @endif
+        @if (auth()->user()->canViewDesigns() || auth()->user()->canViewMachinery() || auth()->user()->canViewProcurement())
+            <div class="nav-section">Design &amp; make</div>
+            @if (auth()->user()->canViewDesigns())
+                <a class="nav-link {{ request()->routeIs('designs.*') ? 'active' : '' }}" href="{{ route('designs.index') }}">Designs</a>
+            @endif
+            @if (auth()->user()->canViewMachinery())
+                <a class="nav-link {{ request()->routeIs('machinery.*') ? 'active' : '' }}" href="{{ route('machinery.index') }}">Machinery</a>
+            @endif
+            @if (auth()->user()->canViewProcurement())
+                <a class="nav-link {{ request()->routeIs('procurement.*') ? 'active' : '' }}" href="{{ route('procurement.index') }}">Procurement</a>
+            @endif
+        @endif
+        @if (auth()->user()->canViewProjects() || auth()->user()->canViewTasks())
+            <div class="nav-section">Tasks</div>
+            @if (auth()->user()->canViewProjects())
+                <a class="nav-link {{ request()->routeIs('projects.*') ? 'active' : '' }}" href="{{ route('projects.index') }}">Projects</a>
+            @endif
+            @if (auth()->user()->canViewTasks())
+                <a class="nav-link {{ request()->routeIs('tasks.*') ? 'active' : '' }}" href="{{ route('tasks.index') }}">Priority tasks</a>
+            @endif
+        @endif
+        @if (auth()->user()->canPostReport() || auth()->user()->canViewAllReports())
+            <div class="nav-section">Reports</div>
+            @if (auth()->user()->canPostReport())
+                <a class="nav-link {{ request()->routeIs('reports.index') || request()->routeIs('reports.store') ? 'active' : '' }}" href="{{ route('reports.index') }}">Post report</a>
+            @endif
+            @if (auth()->user()->canViewAllReports())
+                <a class="nav-link {{ request()->routeIs('reports.library') ? 'active' : '' }}" href="{{ route('reports.library') }}">All reports</a>
+            @endif
+        @endif
+        @if (auth()->user()->canViewBoards())
+            <div class="nav-section">Boards</div>
+            <a class="nav-link {{ request()->routeIs('boards.*') ? 'active' : '' }}" href="{{ route('boards.index') }}">Work boards</a>
+        @endif
+        @if (method_exists(auth()->user(), 'canViewHr') && auth()->user()->canViewHr() && \Illuminate\Support\Facades\Route::has('hr.employees'))
+            <div class="nav-section">People</div>
+            <a class="nav-link {{ request()->routeIs('hr.employees*') ? 'active' : '' }}" href="{{ route('hr.employees') }}">Employees</a>
+            @if (\Illuminate\Support\Facades\Route::has('hr.attendance'))
+                <a class="nav-link {{ request()->routeIs('hr.attendance*') ? 'active' : '' }}" href="{{ route('hr.attendance') }}">Attendance</a>
+            @endif
+            @if (\Illuminate\Support\Facades\Route::has('hr.leave'))
+                <a class="nav-link {{ request()->routeIs('hr.leave*') ? 'active' : '' }}" href="{{ route('hr.leave') }}">Leave</a>
+            @endif
+            @if (\Illuminate\Support\Facades\Route::has('hr.org-chart'))
+                <a class="nav-link {{ request()->routeIs('hr.org-chart') ? 'active' : '' }}" href="{{ route('hr.org-chart') }}">Org chart</a>
+            @endif
+        @endif
+        @if (method_exists(auth()->user(), 'canViewPayroll') && auth()->user()->canViewPayroll() && \Illuminate\Support\Facades\Route::has('finance.payroll'))
+            <a class="nav-link {{ request()->routeIs('finance.payroll*') ? 'active' : '' }}" href="{{ route('finance.payroll') }}">Payroll</a>
+        @endif
+        @if (method_exists(auth()->user(), 'canViewLeads') && auth()->user()->canViewLeads() && \Illuminate\Support\Facades\Route::has('leads.index'))
+            <div class="nav-section">CRM</div>
+            <a class="nav-link {{ request()->routeIs('leads.*') ? 'active' : '' }}" href="{{ route('leads.index') }}">Leads</a>
+            @if (method_exists(auth()->user(), 'canViewDeals') && auth()->user()->canViewDeals() && \Illuminate\Support\Facades\Route::has('deals.index'))
+                <a class="nav-link {{ request()->routeIs('deals.*') ? 'active' : '' }}" href="{{ route('deals.index') }}">Deals</a>
+            @endif
         @endif
         @if (auth()->user()->isAdmin())
             <div class="nav-section">Admin</div>
