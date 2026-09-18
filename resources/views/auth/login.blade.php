@@ -99,7 +99,7 @@
     <div class="logo"><img src="{{ asset('sns-logo.png') }}" alt="SNS Furniture"></div>
     <div class="eyebrow">Staff Portal</div>
     <h1>SNS Furniture</h1>
-    <a class="back" href="#">← Back to the website</a>
+    <a class="back" href="{{ route('site.home') }}">← Back to the website</a>
 </div>
 <div class="right">
     <div class="card">
