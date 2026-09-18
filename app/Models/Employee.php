@@ -110,7 +110,7 @@ class Employee extends Model
             'department' => $this->department,
             'hire_date' => $this->hire_date?->format('Y-m-d'),
             'date_of_birth' => null,
-            'gender' => 'Male',
+            'gender' => null,
             'city' => 'Addis Ababa',
             'country' => 'Ethiopia',
             'address' => $party?->address,
@@ -122,7 +122,7 @@ class Employee extends Model
             'photo_url' => $this->photo_url,
             'id_image_url' => $this->id_image_url,
             'cv_url' => $this->cv_url,
-            'bank_name' => $this->bank_name ?: 'Dashen Bank',
+            'bank_name' => $this->bank_name ?: 'Commercial Bank of Ethiopia',
             'bank_account_number' => $this->bank_account_number,
             'monthly_salary' => $this->monthly_salary !== null ? (float) $this->monthly_salary : null,
             'party' => [

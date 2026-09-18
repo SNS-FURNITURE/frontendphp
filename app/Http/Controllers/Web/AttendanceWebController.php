@@ -34,8 +34,47 @@ class AttendanceWebController extends Controller
             ->get()
             ->groupBy(fn (Attendance $a) => $a->employee_id.'|'.$a->date?->format('Y-m-d').'|'.$a->session);
 
-        $submissions = AttendanceSubmission::query()->orderByDesc('period')->limit(12)->get();
         $today = now()->toDateString();
+        $todaySummary = [
+            'total' => $employees->count(),
+            'present' => 0,
+            'absent' => 0,
+            'late' => 0,
+            'half_day' => 0,
+            'leave_holiday' => 0,
+            'not_marked' => 0,
+        ];
+
+        foreach ($employees as $emp) {
+            $am = $marks->get($emp->id.'|'.$today.'|morning')?->first();
+            $pm = $marks->get($emp->id.'|'.$today.'|afternoon')?->first();
+            $status = $am?->status ?: $pm?->status;
+            if ($status === null) {
+                $todaySummary['not_marked']++;
+            } elseif (in_array($status, ['leave', 'holiday'], true)) {
+                $todaySummary['leave_holiday']++;
+            } elseif ($status === 'present') {
+                $todaySummary['present']++;
+            } elseif ($status === 'absent') {
+                $todaySummary['absent']++;
+            } elseif ($status === 'late') {
+                $todaySummary['late']++;
+            } elseif ($status === 'half_day') {
+                $todaySummary['half_day']++;
+            } else {
+                $todaySummary['not_marked']++;
+            }
+        }
+
+        $sundays = 0;
+        for ($d = 1; $d <= $daysInMonth; $d++) {
+            $dow = (int) (new \DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, $month, $d)))->format('w');
+            if ($dow === 0) {
+                $sundays++;
+            }
+        }
+
+        $submissions = AttendanceSubmission::query()->with('compiler')->orderByDesc('period')->limit(12)->get();
 
         return view('hr.attendance.index', [
             'period' => $period,
@@ -46,6 +85,10 @@ class AttendanceWebController extends Controller
             'marks' => $marks,
             'submissions' => $submissions,
             'today' => $today,
+            'todaySummary' => $todaySummary,
+            'sundays' => $sundays,
+            'workingDays' => max(0, $daysInMonth - $sundays),
+            'periodLabel' => \DateTimeImmutable::createFromFormat('Y-m', $period)?->format('F Y') ?: $period,
             'canEdit' => auth()->user()->canEditHr(),
             'canApprove' => auth()->user()->hasRole('company_manager') || auth()->user()->hasRole('manager'),
         ]);

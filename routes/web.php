@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 use App\Http\Controllers\Web\AdminAuditWebController;
 use App\Http\Controllers\Web\AdminUserWebController;
@@ -23,8 +23,8 @@ use App\Http\Controllers\Web\MachineryWebController;
 use App\Http\Controllers\Web\MaterialRequestWebController;
 use App\Http\Controllers\Web\OrgChartWebController;
 use App\Http\Controllers\Web\OutboundWebController;
-use App\Http\Controllers\Web\PayrollWebController;
 use App\Http\Controllers\Web\PaymentWebController;
+use App\Http\Controllers\Web\PayrollWebController;
 use App\Http\Controllers\Web\ProcurementWebController;
 use App\Http\Controllers\Web\ProductionOrderWebController;
 use App\Http\Controllers\Web\ProfileWebController;
@@ -178,6 +178,7 @@ Route::middleware(['auth', EnsureWebInvoiceAccess::class])->group(function () {
 
     Route::get('/hr/employees', [EmployeeWebController::class, 'index'])->name('hr.employees');
     Route::post('/hr/employees', [EmployeeWebController::class, 'store'])->name('hr.employees.store');
+    Route::get('/hr/employees/{id}/pdf', [EmployeeWebController::class, 'pdf'])->name('hr.employees.pdf')->whereNumber('id');
     Route::get('/hr/employees/{id}', [EmployeeWebController::class, 'show'])->name('hr.employees.show')->whereNumber('id');
     Route::get('/hr/attendance', [AttendanceWebController::class, 'index'])->name('hr.attendance');
     Route::post('/hr/attendance', [AttendanceWebController::class, 'mark'])->name('hr.attendance.mark');
