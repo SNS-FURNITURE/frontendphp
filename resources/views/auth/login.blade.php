@@ -36,26 +36,30 @@
         .password-field { position:relative; margin-bottom:0.9rem; }
         .password-field input {
             margin-bottom:0;
-            padding-right:4.4rem;
+            padding-right:2.8rem;
         }
         .password-toggle {
             position:absolute;
-            right:0.45rem;
+            right:0.35rem;
             top:50%;
             transform:translateY(-50%);
-            width:auto;
-            height:32px;
-            padding:0 0.65rem;
+            width:36px;
+            height:36px;
+            padding:0;
             border:0;
             border-radius:8px;
             background:transparent;
             color:#452F80;
-            font-size:0.78rem;
-            font-weight:700;
             cursor:pointer;
-            font-family: system-ui, sans-serif;
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
         }
         .password-toggle:hover { background:#452F8012; }
+        .password-toggle svg { width:20px; height:20px; display:block; }
+        .password-toggle .icon-hide { display:none; }
+        .password-toggle.is-visible .icon-show { display:none; }
+        .password-toggle.is-visible .icon-hide { display:block; }
         button[type=submit] {
             width:100%; height:44px; border:0; border-radius:12px;
             background:#E13B30; color:#fff; font-weight:700; cursor:pointer;
@@ -110,7 +114,18 @@
             <label for="password">Password</label>
             <div class="password-field">
                 <input id="password" name="password" type="password" autocomplete="current-password" required>
-                <button type="button" class="password-toggle" id="toggle-password" aria-label="Show password" aria-pressed="false">Show</button>
+                <button type="button" class="password-toggle" id="toggle-password" aria-label="Show password" aria-pressed="false" title="Show password">
+                    <svg class="icon-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    <svg class="icon-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"></path>
+                        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"></path>
+                        <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path>
+                        <line x1="1" y1="1" x2="23" y2="23"></line>
+                    </svg>
+                </button>
             </div>
             <label class="remember">
                 <input type="checkbox" name="remember_me" value="1" @checked(old('remember_me'))>
@@ -128,9 +143,10 @@
     btn.addEventListener('click', function () {
         var showing = input.type === 'text';
         input.type = showing ? 'password' : 'text';
-        btn.textContent = showing ? 'Show' : 'Hide';
+        btn.classList.toggle('is-visible', !showing);
         btn.setAttribute('aria-pressed', showing ? 'false' : 'true');
         btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+        btn.title = showing ? 'Show password' : 'Hide password';
         input.focus();
     });
 })();
