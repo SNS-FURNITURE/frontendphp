@@ -1,13 +1,16 @@
 <?php
 
+use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\UserController;
 use App\Http\Middleware\AuthenticateJwt;
 use App\Http\Middleware\EnsureInvoiceLaunchRole;
+use App\Http\Middleware\RequireAdminRole;
 use App\Http\Middleware\VerifyApiCsrf;
 use Illuminate\Support\Facades\Route;
 
@@ -30,6 +33,10 @@ Route::prefix('api/v1')->middleware([VerifyApiCsrf::class])->group(function () {
     Route::get('profile', [ProfileController::class, 'show'])->middleware($authLaunch);
     Route::patch('profile', [ProfileController::class, 'update'])->middleware($authLaunch);
     Route::patch('profile/password', [ProfileController::class, 'updatePassword'])->middleware($authLaunch);
+
+    Route::get('users', [UserController::class, 'index'])->middleware($authLaunch);
+    Route::post('users', [UserController::class, 'store'])->middleware([...$authLaunch, RequireAdminRole::class]);
+    Route::get('audit-log', [AuditLogController::class, 'index'])->middleware($authLaunch);
 
     Route::get('invoices/next-number', [InvoiceController::class, 'nextNumber'])->middleware($create);
     Route::get('invoices', [InvoiceController::class, 'index'])->middleware($view);

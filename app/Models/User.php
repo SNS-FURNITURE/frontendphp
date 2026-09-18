@@ -67,6 +67,10 @@ class User extends Authenticatable
 
     public function hasInvoiceLaunchRole(): bool
     {
+        if (! config('erp.invoice_launch_enabled', true)) {
+            return true;
+        }
+
         $allowed = array_map('strtolower', config('invoice-launch.roles', []));
 
         return $this->roles->contains(

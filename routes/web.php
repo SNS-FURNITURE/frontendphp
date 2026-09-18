@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Web\AdminAuditWebController;
+use App\Http\Controllers\Web\AdminUserWebController;
 use App\Http\Controllers\Web\InvoiceWebController;
 use App\Http\Controllers\Web\LoginController;
 use App\Http\Controllers\Web\PaymentWebController;
@@ -48,4 +50,8 @@ Route::middleware(['auth', EnsureWebInvoiceAccess::class])->group(function () {
 
     Route::get('/finance/payments', [PaymentWebController::class, 'index'])->name('payments.index');
     Route::post('/finance/payments', [PaymentWebController::class, 'store'])->name('payments.store');
+
+    Route::get('/admin/users', [AdminUserWebController::class, 'index'])->name('admin.users');
+    Route::post('/admin/users', [AdminUserWebController::class, 'store'])->name('admin.users.store');
+    Route::get('/admin/audit-log', [AdminAuditWebController::class, 'index'])->name('admin.audit');
 });
