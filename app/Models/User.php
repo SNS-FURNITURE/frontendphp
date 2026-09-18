@@ -93,19 +93,74 @@ class User extends Authenticatable
     public function permissionPairs(): array
     {
         $rows = [];
+        $seen = [];
 
-        foreach ($this->roles as $role) {
+        $roles = $this->roles->loadMissing('permissions');
+        // Phase 1: advisor / sales_supervisor are supervisor-equivalent (Express rename).
+        $isSupervisorFamily = $this->hasRole('advisor')
+            || $this->hasRole('supervisor')
+            || $this->hasRole('sales_supervisor');
+
+        if ($isSupervisorFamily && ! $this->hasRole('supervisor')) {
+            $supervisor = Role::query()->with('permissions')->where('name', 'supervisor')->first();
+            if ($supervisor) {
+                $roles = $roles->concat([$supervisor]);
+            }
+        }
+
+        foreach ($roles as $role) {
             foreach ($role->permissions as $permission) {
                 if (! (bool) ($permission->pivot->allowed ?? true)) {
                     continue;
                 }
+                $key = $permission->module_key.':'.$permission->action_key;
+                if (isset($seen[$key])) {
+                    continue;
+                }
+                $seen[$key] = true;
                 $rows[] = [
-                    'id' => (int) $permission->pivot->id,
+                    'id' => (int) ($permission->pivot->id ?? 0),
                     'role_id' => (int) $role->id,
                     'module' => (string) $permission->module_key,
                     'action' => (string) $permission->action_key,
                 ];
             }
+        }
+
+        // Local DBs may still have sales_supervisor without finance grants; match Express supervisor map.
+        if ($isSupervisorFamily) {
+            foreach (['view', 'create'] as $action) {
+                $key = 'finance:'.$action;
+                if (isset($seen[$key])) {
+                    continue;
+                }
+                $seen[$key] = true;
+                $perm = Permission::query()
+                    ->where('module_key', 'finance')
+                    ->where('action_key', $action)
+                    ->first();
+                $rows[] = [
+                    'id' => (int) ($perm?->id ?? 0),
+                    'role_id' => 0,
+                    'module' => 'finance',
+                    'action' => $action,
+                ];
+            }
+        }
+
+        // Admin is observer: can view finance surfaces without create/edit grants.
+        if ($this->isAdmin() && ! isset($seen['finance:view'])) {
+            $seen['finance:view'] = true;
+            $perm = Permission::query()
+                ->where('module_key', 'finance')
+                ->where('action_key', 'view')
+                ->first();
+            $rows[] = [
+                'id' => (int) ($perm?->id ?? 0),
+                'role_id' => 0,
+                'module' => 'finance',
+                'action' => 'view',
+            ];
         }
 
         return $rows;

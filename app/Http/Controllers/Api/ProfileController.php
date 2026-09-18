@@ -149,7 +149,7 @@ class ProfileController extends Controller
             );
         }
 
-        if (! Hash::check($current, $user->password_hash)) {
+        if (! app(\App\Services\JwtService::class)->verifyPassword($user, $current)) {
             Cache::put($key, $attempts + 1, now()->addMinutes(15));
 
             return ApiResponse::error('Current password is incorrect', 'INVALID_CREDENTIALS', 401);

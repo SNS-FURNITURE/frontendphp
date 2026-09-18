@@ -6,7 +6,6 @@ use App\Models\User;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Illuminate\Database\QueryException;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 
 class JwtService
@@ -124,7 +123,17 @@ class JwtService
 
     public function verifyPassword(User $user, string $password): bool
     {
-        return Hash::check($password, $user->password_hash);
+        $hash = (string) $user->password_hash;
+        if ($hash === '') {
+            return false;
+        }
+
+        // Express/Node seeds use $2b$ bcrypt; Laravel Hash::check only accepts $2y$.
+        if (str_starts_with($hash, '$2b$')) {
+            $hash = '$2y$'.substr($hash, 4);
+        }
+
+        return password_verify($password, $hash);
     }
 
     public function loadUserWithRbac(int $userId): ?User

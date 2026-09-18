@@ -17,5 +17,6 @@ return [
         'marketing_manager',
         'advisor',
         'supervisor',
+        'sales_supervisor',
     ],
 ];

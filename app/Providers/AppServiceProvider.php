@@ -22,8 +22,8 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::policy(Invoice::class, InvoicePolicy::class);
 
-        Gate::define('finance-view', fn (User $user) => $user->hasPermission('finance', 'view'));
-        Gate::define('finance-create', fn (User $user) => ! $user->isAdmin() && $user->hasPermission('finance', 'create'));
-        Gate::define('finance-edit', fn (User $user) => ! $user->isAdmin() && $user->hasPermission('finance', 'edit'));
+        Gate::define('finance-view', fn (User $user) => $user->hasInvoiceLaunchRole() && $user->hasPermission('finance', 'view'));
+        Gate::define('finance-create', fn (User $user) => ! $user->isAdmin() && $user->hasInvoiceLaunchRole() && $user->hasPermission('finance', 'create'));
+        Gate::define('finance-edit', fn (User $user) => ! $user->isAdmin() && $user->hasInvoiceLaunchRole() && $user->hasPermission('finance', 'edit'));
     }
 }

@@ -103,7 +103,7 @@ class ProfileWebController extends Controller
             return back()->withErrors(['new_password' => 'New password must be different from the current password']);
         }
 
-        if (! Hash::check($current, $user->password_hash)) {
+        if (! app(\App\Services\JwtService::class)->verifyPassword($user, $current)) {
             Cache::put($key, $attempts + 1, now()->addMinutes(15));
 
             return back()->withErrors(['current_password' => 'Current password is incorrect']);

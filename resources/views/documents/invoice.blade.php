@@ -62,7 +62,10 @@
     $prepared = trim(($doc['prepared_by']['name'] ?? '').' '.($doc['prepared_by']['phone'] ?? ''));
     $approved = trim(($doc['approved_by']['name'] ?? '').' '.($doc['approved_by']['phone'] ?? ''));
     $logoPath = public_path('sns-logo.png');
-    $logoSrc = is_file($logoPath) ? 'data:image/png;base64,'.base64_encode(file_get_contents($logoPath)) : '';
+    $logoSrc = '';
+    if (is_file($logoPath) && extension_loaded('gd')) {
+        $logoSrc = 'data:image/png;base64,'.base64_encode(file_get_contents($logoPath));
+    }
 @endphp
 <div class="sheet">
   <table class="header">
