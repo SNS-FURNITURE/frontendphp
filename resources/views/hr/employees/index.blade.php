@@ -36,51 +36,126 @@
         <p class="muted" style="margin:0.35rem 0 0">Roster, salaries, and profile cards for payroll.</p>
     </div>
     @if ($canCreate)
-        <button class="btn lime" type="button" onclick="document.getElementById('create-emp').hidden=false">+ Add Employee</button>
+        <button class="btn lime" type="button" onclick="document.getElementById('create-emp').hidden=false; window.scrollTo({top:0,behavior:'smooth'})">+ Add Employee</button>
     @endif
 </div>
 
 @if ($canCreate)
-<div class="card" id="create-emp" style="margin-bottom:1.25rem" @if(!$errors->any()) hidden @endif>
-    <h2 style="margin:0 0 1rem;font-size:1.1rem">Register employee</h2>
-    <form method="POST" action="{{ route('hr.employees.store') }}" enctype="multipart/form-data">
-        @csrf
-        <div class="grid-2">
-            <div><label>Full name</label><input name="name" value="{{ old('name') }}" required minlength="2"></div>
-            <div><label>Job title / position</label><input name="job_title" value="{{ old('job_title') }}"></div>
-            <div><label>Department</label><input name="department" value="{{ old('department') }}"></div>
-            <div><label>Phone</label><input name="phone" value="{{ old('phone') }}"></div>
-            <div><label>Email</label><input name="email" type="email" value="{{ old('email') }}"></div>
-            <div><label>Hire date</label><input name="hire_date" type="date" value="{{ old('hire_date') }}"></div>
-            <div><label>National ID</label><input name="national_id_number" value="{{ old('national_id_number') }}"></div>
-            <div><label>Monthly salary (ETB)</label><input name="monthly_salary" type="number" step="0.01" min="0" value="{{ old('monthly_salary') }}"></div>
-            <div><label>Bank name</label><input name="bank_name" value="{{ old('bank_name', 'Commercial Bank of Ethiopia') }}"></div>
-            <div><label>Bank account</label><input name="bank_account_number" value="{{ old('bank_account_number') }}"></div>
-            <div><label>Employee account</label><input name="employee_account" value="{{ old('employee_account') }}"></div>
-            <div><label>Address</label><input name="address" value="{{ old('address') }}"></div>
-            <div><label>Emergency contact name</label><input name="emergency_contact_name" value="{{ old('emergency_contact_name') }}"></div>
-            <div><label>Emergency relationship</label><input name="emergency_contact_relationship" value="{{ old('emergency_contact_relationship') }}"></div>
-            <div><label>Emergency phone</label><input name="emergency_contact_phone" value="{{ old('emergency_contact_phone') }}"></div>
-            <div>
-                <label>Photo (device)</label>
-                <input type="file" name="photo" accept="image/*">
-            </div>
-            <div>
-                <label>ID card / scan (device)</label>
-                <input type="file" name="id_image" accept="image/*,application/pdf">
-            </div>
-            <div>
-                <label>CV / Resume (device)</label>
-                <input type="file" name="cv" accept=".pdf,.doc,.docx,image/*">
-            </div>
+<div class="emp-form-panel" id="create-emp" @if(!$errors->any()) hidden @endif x-data="employeeForm()">
+    <div class="emp-form-head">
+        <div>
+            <h2>Add employee</h2>
+            <p class="muted" style="margin:0.35rem 0 0">Create a full profile for payroll, attendance, and documents.</p>
         </div>
-        <div class="toolbar">
-            <button class="btn lime" type="submit">Save employee</button>
-            <button class="btn ghost" type="button" onclick="document.getElementById('create-emp').hidden=true">Cancel</button>
-        </div>
-    </form>
+        <button class="btn ghost" type="button" onclick="document.getElementById('create-emp').hidden=true">Close</button>
+    </div>
+    <div class="emp-form-body">
+        <form method="POST" action="{{ route('hr.employees.store') }}" enctype="multipart/form-data">
+            @csrf
+            <div class="emp-form-layout">
+                <aside class="emp-form-photo">
+                    <div class="preview">
+                        <template x-if="photoUrl">
+                            <img :src="photoUrl" alt="Photo preview">
+                        </template>
+                        <template x-if="!photoUrl">
+                            <span x-text="initials">+</span>
+                        </template>
+                    </div>
+                    <label>Profile photo</label>
+                    <input type="file" name="photo" accept="image/*" @change="onPhoto($event)">
+                    <p class="hint muted" style="margin:0.45rem 0 0;font-size:0.75rem">JPG/PNG up to 5MB</p>
+                </aside>
+
+                <div>
+                    <div class="emp-form-section">
+                        <h3><span class="ico">1</span> Personal information</h3>
+                        <div class="grid-2">
+                            <div><label>Full name *</label><input name="name" value="{{ old('name') }}" required minlength="2" x-model="name" placeholder="e.g. Abrham Wendesen"></div>
+                            <div><label>National ID</label><input name="national_id_number" value="{{ old('national_id_number') }}" placeholder="Government ID number"></div>
+                            <div><label>Phone</label><input name="phone" value="{{ old('phone') }}" placeholder="09…"></div>
+                            <div><label>Email</label><input name="email" type="email" value="{{ old('email') }}" placeholder="name@company.com"></div>
+                            <div style="grid-column:1 / -1"><label>Address</label><input name="address" value="{{ old('address') }}" placeholder="City, subcity, woreda…"></div>
+                        </div>
+                    </div>
+
+                    <div class="emp-form-section">
+                        <h3><span class="ico">2</span> Professional details</h3>
+                        <div class="grid-2">
+                            <div><label>Position / job title</label><input name="job_title" value="{{ old('job_title') }}" placeholder="Worker, Cleaner…"></div>
+                            <div><label>Department</label><input name="department" value="{{ old('department') }}" placeholder="Engineering"></div>
+                            <div><label>Date joined</label><input name="hire_date" type="date" value="{{ old('hire_date', now()->toDateString()) }}"></div>
+                            <div><label>Employee account</label><input name="employee_account" value="{{ old('employee_account') }}" placeholder="Internal account code"></div>
+                        </div>
+                    </div>
+
+                    <div class="emp-form-section">
+                        <h3><span class="ico">$</span> Salary &amp; banking</h3>
+                        <div class="grid-2">
+                            <div><label>Gross monthly salary (ETB)</label><input name="monthly_salary" type="number" step="0.01" min="0" value="{{ old('monthly_salary') }}" placeholder="40000"></div>
+                            <div><label>Bank name</label><input name="bank_name" value="{{ old('bank_name', 'Commercial Bank of Ethiopia') }}"></div>
+                            <div style="grid-column:1 / -1"><label>Bank account number</label><input name="bank_account_number" value="{{ old('bank_account_number') }}" placeholder="Account number"></div>
+                        </div>
+                        <p class="muted" style="margin:0.35rem 0 0;font-size:0.78rem">Tax and net are calculated on payroll using Ethiopia PAYE.</p>
+                    </div>
+
+                    <div class="emp-form-section">
+                        <h3><span class="ico">E</span> Emergency contact</h3>
+                        <div class="grid-2">
+                            <div><label>Contact name</label><input name="emergency_contact_name" value="{{ old('emergency_contact_name') }}"></div>
+                            <div><label>Relationship</label><input name="emergency_contact_relationship" value="{{ old('emergency_contact_relationship') }}" placeholder="Mother, spouse…"></div>
+                            <div><label>Phone</label><input name="emergency_contact_phone" value="{{ old('emergency_contact_phone') }}"></div>
+                        </div>
+                    </div>
+
+                    <div class="emp-form-section">
+                        <h3><span class="ico">D</span> Documents</h3>
+                        <div class="grid-2">
+                            <div class="file-tile">
+                                <strong>ID card / scan</strong>
+                                <span class="hint">Image or PDF · up to 8MB</span>
+                                <input type="file" name="id_image" accept="image/*,application/pdf">
+                            </div>
+                            <div class="file-tile">
+                                <strong>CV / Resume</strong>
+                                <span class="hint">PDF, DOC, DOCX · up to 10MB</span>
+                                <input type="file" name="cv" accept=".pdf,.doc,.docx,image/*">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="emp-form-actions">
+                <button class="btn ghost" type="button" onclick="document.getElementById('create-emp').hidden=true">Cancel</button>
+                <button class="btn lime" type="submit">Save employee</button>
+            </div>
+        </form>
+    </div>
 </div>
 @endif
+
+@push('scripts')
+<script>
+function employeeForm() {
+    return {
+        name: @json(old('name', '')),
+        photoUrl: null,
+        get initials() {
+            const parts = String(this.name || '').trim().split(/\s+/).filter(Boolean).slice(0, 2);
+            if (!parts.length) return '+';
+            return parts.map(p => p.charAt(0).toUpperCase()).join('');
+        },
+        onPhoto(e) {
+            const file = e.target.files && e.target.files[0];
+            if (!file) { this.photoUrl = null; return; }
+            if (this.photoUrl) URL.revokeObjectURL(this.photoUrl);
+            this.photoUrl = URL.createObjectURL(file);
+        }
+    };
+}
+</script>
+@endpush
 
 <form method="GET" class="filter-bar no-print">
     <input type="search" name="q" value="{{ request('q') }}" placeholder="Search by name, position or department...">

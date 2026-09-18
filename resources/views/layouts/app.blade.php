@@ -315,6 +315,62 @@
             font-size: 0.85rem;
         }
         .doc-card .ok-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--lime); display: inline-block; }
+        .emp-form-panel {
+            margin-bottom: 1.25rem;
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            background: var(--panel);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+        .emp-form-head {
+            display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;
+            padding: 1.15rem 1.25rem; border-bottom: 1px solid var(--border);
+            background: linear-gradient(120deg, color-mix(in srgb, var(--lime) 18%, var(--panel)), var(--panel));
+        }
+        .emp-form-head h2 { margin: 0; font-family: Fraunces, Georgia, serif; font-size: 1.45rem; }
+        .emp-form-body { padding: 1.15rem 1.25rem 1.35rem; }
+        .emp-form-layout {
+            display: grid; grid-template-columns: 220px 1fr; gap: 1.25rem; align-items: start;
+        }
+        .emp-form-photo {
+            border: 1px dashed var(--border); border-radius: 18px; padding: 1rem;
+            background: var(--panel-2); text-align: center;
+        }
+        .emp-form-photo .preview {
+            width: 140px; height: 140px; border-radius: 18px; object-fit: cover; margin: 0 auto 0.75rem;
+            background: var(--nav-active); display: flex; align-items: center; justify-content: center;
+            font-size: 2rem; font-weight: 700; color: var(--muted); overflow: hidden;
+        }
+        .emp-form-photo .preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .emp-form-section {
+            border: 1px solid var(--border); border-radius: 16px; padding: 1rem 1.05rem;
+            margin-bottom: 0.9rem; background: var(--panel-2);
+        }
+        .emp-form-section:last-child { margin-bottom: 0; }
+        .emp-form-section h3 {
+            margin: 0 0 0.85rem; display: flex; align-items: center; gap: 0.5rem;
+            font-size: 0.92rem; font-weight: 700;
+        }
+        .emp-form-section h3 .ico {
+            width: 28px; height: 28px; border-radius: 8px;
+            background: color-mix(in srgb, var(--lime) 30%, transparent); color: var(--lime);
+            display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem;
+        }
+        .emp-form-actions {
+            display: flex; justify-content: flex-end; gap: 0.65rem; flex-wrap: wrap;
+            margin-top: 1.1rem; padding-top: 1rem; border-top: 1px solid var(--border);
+        }
+        .file-tile {
+            border: 1px dashed var(--border); border-radius: 14px; padding: 0.85rem;
+            background: var(--panel); min-height: 96px; display: flex; flex-direction: column; gap: 0.35rem;
+        }
+        .file-tile strong { font-size: 0.88rem; }
+        .file-tile .hint { color: var(--muted); font-size: 0.75rem; }
+        .file-tile input[type="file"] { margin: 0.35rem 0 0; font-size: 0.8rem; }
+        @media (max-width: 900px) {
+            .emp-form-layout { grid-template-columns: 1fr; }
+        }
         @media (max-width: 900px) {
             .shell { flex-direction: column; }
             .sidebar {
