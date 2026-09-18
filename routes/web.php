@@ -32,17 +32,34 @@ use App\Http\Controllers\Web\ProjectWebController;
 use App\Http\Controllers\Web\ReportWebController;
 use App\Http\Controllers\Web\SalesOrderWebController;
 use App\Http\Controllers\Web\SalesQuotaWebController;
+use App\Http\Controllers\Web\SiteController;
 use App\Http\Controllers\Web\TaskWebController;
 use App\Http\Middleware\EnsureWebInvoiceAccess;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    if (! auth()->check()) {
-        return redirect()->route('login');
-    }
+/*
+| Public marketing site (snsfurniture.et /)
+| ERP portal entry: /login → /workspace (no links from public nav/footer)
+*/
 
-    return redirect()->route(auth()->user()->preferredHomeRouteName());
-});
+Route::get('/', [SiteController::class, 'home'])->name('site.home');
+Route::get('/products', [SiteController::class, 'products'])->name('site.products');
+Route::get('/products/{slug}', [SiteController::class, 'product'])->name('site.product');
+Route::get('/about', [SiteController::class, 'about'])->name('site.about');
+Route::get('/contact', [SiteController::class, 'contact'])->name('site.contact');
+Route::post('/contact', [SiteController::class, 'contactSubmit'])->name('site.contact.submit');
+
+Route::get('/sitemap.xml', function () {
+    return response()
+        ->view('site.sitemap')
+        ->header('Content-Type', 'application/xml');
+})->name('site.sitemap');
+
+Route::get('/robots.txt', function () {
+    return response()
+        ->view('site.robots')
+        ->header('Content-Type', 'text/plain; charset=UTF-8');
+})->name('site.robots');
 
 Route::get('/workspace', function () {
     return redirect()->route(auth()->user()->preferredHomeRouteName());
@@ -50,7 +67,7 @@ Route::get('/workspace', function () {
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'show'])->name('login');
-    Route::post('/login', [LoginController::class, 'login']);
+    Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:10,1');
 });
 
 Route::post('/logout', [LoginController::class, 'logout'])

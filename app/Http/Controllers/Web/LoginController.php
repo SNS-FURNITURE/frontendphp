@@ -15,7 +15,7 @@ class LoginController extends Controller
     public function show(): View|RedirectResponse
     {
         if (auth()->check()) {
-            return redirect()->route(auth()->user()->preferredHomeRouteName());
+            return redirect()->route('workspace');
         }
 
         return view('auth.login');
@@ -50,8 +50,9 @@ class LoginController extends Controller
         }
 
         auth()->login($user, $remember);
+        $request->session()->regenerate();
 
-        return redirect()->intended(route($user->preferredHomeRouteName()));
+        return redirect()->intended(route('workspace'));
     }
 
     public function logout(Request $request): RedirectResponse

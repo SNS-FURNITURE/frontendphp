@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Sign in · SNS Furniture</title>
+    <title>ERP Sign in · SNS Furniture</title>
     <style>
         body { margin:0; font-family: Georgia, 'Times New Roman', serif; min-height:100vh; display:flex; }
         .left {
