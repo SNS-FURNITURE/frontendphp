@@ -15,7 +15,7 @@ class LoginController extends Controller
     public function show(): View|RedirectResponse
     {
         if (auth()->check()) {
-            return redirect()->route('workspace');
+            return redirect()->route(auth()->user()->preferredHomeRouteName());
         }
 
         return view('auth.login');

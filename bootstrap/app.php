@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\LoadUserRbac;
+use App\Http\Middleware\RequireAdminRole;
 use App\Http\Middleware\RequirePermission;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Application;
@@ -19,8 +20,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'permission' => RequirePermission::class,
-            'admin' => \App\Http\Middleware\RequireAdminRole::class,
+            'admin' => RequireAdminRole::class,
         ]);
+
+        $middleware->redirectGuestsTo(fn () => route('login'));
+        $middleware->redirectUsersTo(fn () => route('workspace'));
 
         $middleware->web(append: [
             LoadUserRbac::class,
