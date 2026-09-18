@@ -48,19 +48,20 @@ class AttendanceWebController extends Controller
         foreach ($employees as $emp) {
             $am = $marks->get($emp->id.'|'.$today.'|morning')?->first();
             $pm = $marks->get($emp->id.'|'.$today.'|afternoon')?->first();
-            $status = $am?->status ?: $pm?->status;
-            if ($status === null) {
+            $statuses = array_values(array_filter([$am?->status, $pm?->status]));
+
+            if ($statuses === []) {
                 $todaySummary['not_marked']++;
-            } elseif (in_array($status, ['leave', 'holiday'], true)) {
+            } elseif (in_array('holiday', $statuses, true) || in_array('leave', $statuses, true)) {
                 $todaySummary['leave_holiday']++;
-            } elseif ($status === 'present') {
-                $todaySummary['present']++;
-            } elseif ($status === 'absent') {
+            } elseif (in_array('absent', $statuses, true) && ! in_array('present', $statuses, true) && ! in_array('late', $statuses, true)) {
                 $todaySummary['absent']++;
-            } elseif ($status === 'late') {
-                $todaySummary['late']++;
-            } elseif ($status === 'half_day') {
+            } elseif (in_array('half_day', $statuses, true) && ! in_array('present', $statuses, true) && ! in_array('late', $statuses, true)) {
                 $todaySummary['half_day']++;
+            } elseif (in_array('late', $statuses, true) && ! in_array('present', $statuses, true)) {
+                $todaySummary['late']++;
+            } elseif (in_array('present', $statuses, true) || in_array('late', $statuses, true)) {
+                $todaySummary['present']++;
             } else {
                 $todaySummary['not_marked']++;
             }

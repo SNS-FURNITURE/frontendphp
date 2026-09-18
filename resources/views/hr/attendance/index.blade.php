@@ -21,7 +21,7 @@
 <div class="page-head">
     <div>
         <h1 class="display-font">Attendance Management</h1>
-        <p class="muted" style="margin:0.35rem 0 0">Click today’s cell to set status · Sundays are OFF · feeds payroll</p>
+        <p class="muted" style="margin:0.35rem 0 0">AM + PM sessions · click today’s cell to set each · Sundays OFF</p>
     </div>
     <div class="toolbar">
         @if ($canEdit)
@@ -49,7 +49,7 @@
 </div>
 
 <div class="note-box">
-    Click a highlighted Today cell to change attendance. You can only mark TODAY ({{ \Illuminate\Support\Carbon::parse($today)->format('n/j/Y') }}). Sundays stay OFF.
+    Click AM or PM on today’s column to set each session. You can only mark TODAY ({{ \Illuminate\Support\Carbon::parse($today)->format('n/j/Y') }}). Sundays stay OFF.
 </div>
 
 <div class="filter-bar">
@@ -117,45 +117,64 @@
                         $dow = (int) (new DateTimeImmutable($date))->format('w');
                         $am = $marks->get($emp->id.'|'.$date.'|morning')?->first();
                         $pm = $marks->get($emp->id.'|'.$date.'|afternoon')?->first();
-                        $status = $am?->status ?: $pm?->status;
                         $isToday = $date === $today;
-                        $label = $status ? ($statusLabels[$status] ?? str_replace('_', '-', $status)) : 'Not marked';
+                        $sessions = [
+                            'morning' => ['label' => 'AM', 'row' => $am],
+                            'afternoon' => ['label' => 'PM', 'row' => $pm],
+                        ];
                     @endphp
-                    <td class="att-cell-wrap {{ $isToday ? 'today-col' : '' }}" @if ($isToday) data-today-col @endif
-                        @if ($canEdit && $isToday && $dow !== 0)
-                            x-data="{ open: false }"
-                        @endif
-                    >
+                    <td class="att-cell-wrap {{ $isToday ? 'today-col' : '' }}" @if ($isToday) data-today-col @endif>
                         @if ($dow === 0)
                             <button type="button" class="att-cell is-readonly" disabled>OFF</button>
-                        @elseif ($canEdit && $isToday)
-                            <button type="button" class="att-cell is-editable {{ $status ? 'status-'.$status : '' }}" @click="open = !open" aria-haspopup="true" :aria-expanded="open">
-                                {{ $label }}
-                            </button>
-                            <div class="att-menu" x-show="open" x-cloak @click.outside="open = false" style="display:none" x-bind:style="open ? 'display:block' : 'display:none'">
-                                @foreach ($statuses as $st)
-                                    <form method="POST" action="{{ route('hr.attendance.mark') }}">
-                                        @csrf
-                                        <input type="hidden" name="employee_id" value="{{ $emp->id }}">
-                                        <input type="hidden" name="date" value="{{ $date }}">
-                                        <input type="hidden" name="session" value="morning">
-                                        <input type="hidden" name="status" value="{{ $st }}">
-                                        <button type="submit" class="att-menu-item status-{{ $st }}">{{ $statusLabels[$st] }}</button>
-                                    </form>
-                                @endforeach
-                                <form method="POST" action="{{ route('hr.attendance.mark') }}">
-                                    @csrf
-                                    <input type="hidden" name="employee_id" value="{{ $emp->id }}">
-                                    <input type="hidden" name="date" value="{{ $date }}">
-                                    <input type="hidden" name="session" value="morning">
-                                    <input type="hidden" name="status" value="clear">
-                                    <button type="submit" class="att-menu-item">Clear</button>
-                                </form>
-                            </div>
                         @else
-                            <button type="button" class="att-cell is-readonly {{ $status ? 'status-'.$status : '' }}" disabled>
-                                {{ $label }}
-                            </button>
+                            <div class="att-sessions">
+                                @foreach ($sessions as $sessionKey => $sessionMeta)
+                                    @php
+                                        $sessionStatus = $sessionMeta['row']?->status;
+                                        $sessionLabel = $sessionStatus
+                                            ? ($statusLabels[$sessionStatus] ?? str_replace('_', '-', $sessionStatus))
+                                            : '—';
+                                        $editable = $canEdit && $isToday;
+                                    @endphp
+                                    <div class="att-session" @if ($editable) x-data="{ open: false }" @endif>
+                                        <span class="att-session-label">{{ $sessionMeta['label'] }}</span>
+                                        @if ($editable)
+                                            <button type="button"
+                                                class="att-cell is-editable {{ $sessionStatus ? 'status-'.$sessionStatus : '' }}"
+                                                @click="open = !open"
+                                                aria-haspopup="true"
+                                                :aria-expanded="open"
+                                                title="{{ $sessionMeta['label'] }} — click to set">
+                                                {{ $sessionLabel }}
+                                            </button>
+                                            <div class="att-menu" x-cloak x-show="open" @click.outside="open = false" style="display:none" x-bind:style="open ? 'display:block' : 'display:none'">
+                                                @foreach ($statuses as $st)
+                                                    <form method="POST" action="{{ route('hr.attendance.mark') }}">
+                                                        @csrf
+                                                        <input type="hidden" name="employee_id" value="{{ $emp->id }}">
+                                                        <input type="hidden" name="date" value="{{ $date }}">
+                                                        <input type="hidden" name="session" value="{{ $sessionKey }}">
+                                                        <input type="hidden" name="status" value="{{ $st }}">
+                                                        <button type="submit" class="att-menu-item status-{{ $st }}">{{ $statusLabels[$st] }}</button>
+                                                    </form>
+                                                @endforeach
+                                                <form method="POST" action="{{ route('hr.attendance.mark') }}">
+                                                    @csrf
+                                                    <input type="hidden" name="employee_id" value="{{ $emp->id }}">
+                                                    <input type="hidden" name="date" value="{{ $date }}">
+                                                    <input type="hidden" name="session" value="{{ $sessionKey }}">
+                                                    <input type="hidden" name="status" value="clear">
+                                                    <button type="submit" class="att-menu-item">Clear</button>
+                                                </form>
+                                            </div>
+                                        @else
+                                            <button type="button" class="att-cell is-readonly {{ $sessionStatus ? 'status-'.$sessionStatus : '' }}" disabled>
+                                                {{ $sessionLabel }}
+                                            </button>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
                         @endif
                     </td>
                 @endfor

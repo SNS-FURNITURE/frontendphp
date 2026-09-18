@@ -261,11 +261,17 @@
         .att-grid thead th:first-child { z-index: 4; }
         .att-grid th.today { background: color-mix(in srgb, #3b82f6 28%, transparent); color: #93c5fd; }
         .att-grid td.today-col { background: color-mix(in srgb, #3b82f6 10%, transparent); }
-        .att-cell-wrap { position: relative; min-width: 78px; padding: 0.35rem !important; }
+        .att-cell-wrap { position: relative; min-width: 92px; padding: 0.35rem !important; }
+        .att-sessions { display: flex; flex-direction: column; gap: 0.28rem; }
+        .att-session { position: relative; }
+        .att-session-label {
+            display: block; font-size: 0.58rem; letter-spacing: 0.06em; text-transform: uppercase;
+            color: var(--muted); margin-bottom: 0.12rem; font-weight: 700;
+        }
         .att-cell {
-            width: 100%; min-height: 42px; border-radius: 10px; border: 1px solid var(--border);
-            background: var(--panel-2); color: var(--text); cursor: pointer; font-size: 0.7rem;
-            font-weight: 700; text-transform: capitalize; padding: 0.35rem 0.3rem; line-height: 1.2;
+            width: 100%; min-height: 32px; border-radius: 8px; border: 1px solid var(--border);
+            background: var(--panel-2); color: var(--text); cursor: pointer; font-size: 0.65rem;
+            font-weight: 700; text-transform: capitalize; padding: 0.28rem 0.25rem; line-height: 1.15;
         }
         .att-cell:hover { border-color: var(--accent); }
         .att-cell.is-editable { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lime) 35%, transparent); }
