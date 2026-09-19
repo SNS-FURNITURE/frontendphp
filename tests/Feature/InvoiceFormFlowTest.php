@@ -40,7 +40,7 @@ class InvoiceFormFlowTest extends TestCase
 
         $view->assertSee('invoice-a4', false);
         $view->assertSee('Edit like Word', false);
-        $view->assertDontSee('Customer name', false);
+        $view->assertDontSee('Fill in the form', false);
     }
 
     public function test_show_invoice_view_uses_word_document(): void
