@@ -23,6 +23,26 @@ class InvoiceFormFlowTest extends TestCase
         $view->assertDontSee('invoice-a4', false);
     }
 
+    public function test_edit_invoice_view_uses_word_editor(): void
+    {
+        $document = app(DocumentService::class)->blankDraft(null, 'INV-EDIT');
+        $invoice = new Invoice([
+            'invoice_number' => 'INV-EDIT',
+            'status' => 'draft',
+            'amount' => 0,
+        ]);
+        $invoice->id = 1;
+
+        $view = $this->view('invoices.edit', [
+            'invoice' => $invoice,
+            'document' => $document,
+        ]);
+
+        $view->assertSee('invoice-a4', false);
+        $view->assertSee('Edit like Word', false);
+        $view->assertDontSee('Customer name', false);
+    }
+
     public function test_show_invoice_view_uses_word_document(): void
     {
         $document = app(DocumentService::class)->blankDraft(null, 'INV-SHOW');
@@ -40,7 +60,7 @@ class InvoiceFormFlowTest extends TestCase
         ]);
 
         $view->assertSee('invoice-a4', false);
-        $view->assertSee('Edit details', false);
+        $view->assertSee('Edit document', false);
         $view->assertSee('Proforma Invoice', false);
     }
 

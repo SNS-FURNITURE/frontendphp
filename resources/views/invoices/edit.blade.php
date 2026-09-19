@@ -1,15 +1,16 @@
 @extends('layouts.app')
 
 @section('title', 'Edit '.$invoice->invoice_number)
+@section('content_class', 'content-wide')
 
 @section('content')
-@include('invoices._form', [
+@include('invoices._editor', [
     'document' => $document,
+    'readOnly' => false,
     'formAction' => route('invoices.update', $invoice),
     'formMethod' => 'PUT',
     'pageTitle' => 'Edit '.$invoice->invoice_number,
-    'pageDescription' => 'Update the invoice details. After you save, the Word-style document refreshes.',
+    'pageDescription' => 'Edit like Word, then save draft or issue.',
     'status' => $invoice->status,
-    'dueDate' => optional($invoice->due_date)->format('Y-m-d'),
 ])
 @endsection
