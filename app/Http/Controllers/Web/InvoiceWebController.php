@@ -177,6 +177,9 @@ class InvoiceWebController extends Controller
         $invoice->amount = $assembled['totals']['grand_total'];
         $invoice->status = $nextStatus;
         $invoice->snapshot_json = $assembled;
+        if ($request->filled('due_date')) {
+            $invoice->due_date = $request->input('due_date');
+        }
         if ($nextStatus === 'issued' && ! $invoice->issued_at) {
             $invoice->issued_at = now();
         }

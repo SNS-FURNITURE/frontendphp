@@ -1,16 +1,14 @@
 @extends('layouts.app')
 
 @section('title', 'Create invoice')
-@section('content_class', 'content-wide')
 
 @section('content')
-@include('invoices._editor', [
+@include('invoices._form', [
     'document' => $document,
-    'readOnly' => false,
     'formAction' => route('invoices.store'),
     'formMethod' => 'POST',
     'pageTitle' => 'Create invoice',
-    'pageDescription' => 'Edit like Word, then save as draft or issue.',
+    'pageDescription' => 'Fill in the form. After you save, the invoice opens as a Word-style document.',
     'salesOrderId' => $salesOrderId,
 ])
 @endsection
