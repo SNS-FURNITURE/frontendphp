@@ -43,6 +43,15 @@
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
             "@php artisan key:generate"
         ],
+        "makemigrations": [
+            "@php artisan makemigrations"
+        ],
+        "migrate": [
+            "@php artisan migrate --force"
+        ],
+        "migrate-seed": [
+            "@php artisan migrate --seed --force"
+        ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
             "@php artisan dev"
