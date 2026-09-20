@@ -44,8 +44,20 @@ class ProfileController extends Controller
             return ApiResponse::error('No profile fields provided to update', 'INVALID_INPUT', 400);
         }
 
-        if ($request->exists('full_name')) {
+        if ($request->exists('full_name') && ! $user->isAdmin()) {
             return ApiResponse::error('Full name cannot be changed. Contact an admin.', 'FULL_NAME_LOCKED', 403);
+        }
+
+        if (array_key_exists('phone', $fields) && ! $user->isAdmin()) {
+            return ApiResponse::error('Phone number cannot be changed. Contact an admin.', 'PHONE_LOCKED', 403);
+        }
+
+        if ($user->isAdmin() && $request->exists('full_name')) {
+            $fullName = trim((string) $request->input('full_name'));
+            if (strlen($fullName) < 2) {
+                return ApiResponse::error('Full name must be at least 2 characters', 'INVALID_INPUT', 400);
+            }
+            $user->full_name = $fullName;
         }
 
         if (array_key_exists('username', $fields)) {
@@ -82,7 +94,7 @@ class ProfileController extends Controller
             $user->email = $email;
         }
 
-        if (array_key_exists('phone', $fields)) {
+        if (array_key_exists('phone', $fields) && $user->isAdmin()) {
             $phone = $fields['phone'];
             $user->phone = ($phone === '' || $phone === null) ? null : (string) $phone;
         }

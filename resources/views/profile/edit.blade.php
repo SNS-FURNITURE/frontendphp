@@ -3,10 +3,17 @@
 @section('title', 'My Profile')
 
 @section('content')
+@php $isAdmin = auth()->user()?->isAdmin(); @endphp
 <div class="page-head">
     <div>
         <h1>My Profile</h1>
-        <p class="muted" style="margin:0.35rem 0 0">Update your contact details and password. Full name is fixed by admin.</p>
+        <p class="muted" style="margin:0.35rem 0 0">
+            @if ($isAdmin)
+                As admin you can update your full name and phone. Other users cannot change those fields.
+            @else
+                Update username, email, and password. Full name and phone are managed by admin only.
+            @endif
+        </p>
     </div>
 </div>
 
@@ -17,14 +24,23 @@
             @csrf
             @method('PATCH')
             <label>Full name</label>
-            <input value="{{ $user->full_name }}" readonly disabled>
-            <p class="muted" style="margin:-0.5rem 0 0.85rem;font-size:.8rem">Set by admin when your account was created — cannot be changed.</p>
+            @if ($isAdmin)
+                <input name="full_name" value="{{ old('full_name', $user->full_name) }}" required minlength="2">
+            @else
+                <input value="{{ $user->full_name }}" readonly disabled>
+                <p class="muted" style="margin:-0.5rem 0 0.85rem;font-size:.8rem">Only an admin can change your full name.</p>
+            @endif
             <label>Username</label>
             <input name="username" value="{{ old('username', $user->username) }}" required>
             <label>Email</label>
             <input type="email" name="email" value="{{ old('email', $user->email) }}" required>
             <label>Phone</label>
-            <input name="phone" value="{{ old('phone', $user->phone) }}">
+            @if ($isAdmin)
+                <input name="phone" value="{{ old('phone', $user->phone) }}">
+            @else
+                <input value="{{ $user->phone }}" readonly disabled>
+                <p class="muted" style="margin:-0.5rem 0 0.85rem;font-size:.8rem">Only an admin can change your phone number.</p>
+            @endif
             <button class="btn" type="submit">Save profile</button>
         </form>
     </div>

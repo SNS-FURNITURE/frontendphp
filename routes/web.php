@@ -202,5 +202,6 @@ Route::middleware(['auth', EnsureWebInvoiceAccess::class])->group(function () {
 
     Route::get('/admin/users', [AdminUserWebController::class, 'index'])->name('admin.users');
     Route::post('/admin/users', [AdminUserWebController::class, 'store'])->name('admin.users.store');
+    Route::patch('/admin/users/{user}', [AdminUserWebController::class, 'update'])->name('admin.users.update');
     Route::get('/admin/audit-log', [AdminAuditWebController::class, 'index'])->name('admin.audit');
 });

@@ -53,32 +53,56 @@
 
 <div class="card">
     <h2 style="margin-top:0;font-size:1.1rem">Existing accounts</h2>
+    <p class="muted" style="margin:0 0 1rem;font-size:.85rem">Only admins can change any user’s full name and phone (including their own).</p>
+    <div class="table-wrap">
     <table class="data">
         <thead>
         <tr>
             <th>Name</th>
+            <th>Phone</th>
             <th>Username</th>
             <th>Company email</th>
             <th>Roles</th>
             <th>Active</th>
-            <th>Created</th>
+            <th></th>
         </tr>
         </thead>
         <tbody>
         @forelse ($users as $user)
             <tr>
-                <td>{{ $user->full_name }}</td>
-                <td>{{ '@'.($user->username ?: '—') }}</td>
-                <td>{{ $user->email }}</td>
-                <td>{{ $user->roles->pluck('name')->join(', ') ?: '—' }}</td>
-                <td>{{ $user->is_active ? 'Yes' : 'No' }}</td>
-                <td>{{ optional($user->created_at)->format('Y-m-d') }}</td>
+                <td colspan="7" style="padding-top:1rem;padding-bottom:1rem">
+                    <form method="POST" action="{{ route('admin.users.update', $user) }}" class="grid-2" style="margin:0;align-items:end">
+                        @csrf
+                        @method('PATCH')
+                        <div>
+                            <label>Full name</label>
+                            <input name="full_name" value="{{ old('full_name', $user->full_name) }}" required minlength="2" style="margin-bottom:0">
+                        </div>
+                        <div>
+                            <label>Phone</label>
+                            <input name="phone" value="{{ old('phone', $user->phone) }}" placeholder="+2519…" style="margin-bottom:0">
+                        </div>
+                        <div>
+                            <label class="muted">Username / email</label>
+                            <input value="{{ '@'.($user->username ?: '—') }} · {{ $user->email }}" readonly disabled style="margin-bottom:0">
+                        </div>
+                        <div class="toolbar" style="justify-content:space-between;width:100%">
+                            <span class="muted" style="font-size:.8rem">
+                                {{ $user->roles->pluck('name')->join(', ') ?: '—' }}
+                                · {{ $user->is_active ? 'Active' : 'Inactive' }}
+                                @if ($user->id === auth()->id()) · you @endif
+                            </span>
+                            <button type="submit" class="btn" style="margin:0">Save name/phone</button>
+                        </div>
+                    </form>
+                </td>
             </tr>
         @empty
-            <tr><td colspan="6" class="muted">No users found.</td></tr>
+            <tr><td colspan="7" class="muted">No users found.</td></tr>
         @endforelse
         </tbody>
     </table>
+    </div>
 </div>
 
 <script>
