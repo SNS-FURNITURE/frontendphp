@@ -60,6 +60,22 @@
             "@php artisan config:clear --ansi @no_additional_args",
             "@php artisan test"
         ],
+        "optimize": [
+            "@php artisan config:cache",
+            "@php artisan route:cache",
+            "@php artisan view:cache",
+            "@php artisan event:cache"
+        ],
+        "optimize-clear": [
+            "@php artisan optimize:clear"
+        ],
+        "deploy": [
+            "Composer\\Config::disableProcessTimeout",
+            "@composer install --no-dev --optimize-autoloader --no-interaction",
+            "@php artisan migrate --force",
+            "@php artisan optimize",
+            "@php artisan storage:link --force"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"

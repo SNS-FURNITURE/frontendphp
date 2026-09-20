@@ -41,16 +41,16 @@ use Illuminate\Support\Facades\Route;
 Route::get('/health', HealthController::class);
 Route::get('/api/v1/health', HealthController::class);
 
-Route::prefix('api/v1')->middleware([VerifyApiCsrf::class])->group(function () {
+Route::prefix('api/v1')->middleware([VerifyApiCsrf::class, 'throttle:api'])->group(function () {
     Route::prefix('auth')->group(function () {
         Route::get('csrf-token', [AuthController::class, 'csrfToken']);
-        Route::post('login', [AuthController::class, 'login']);
+        Route::post('login', [AuthController::class, 'login'])->middleware('throttle:login');
         Route::post('logout', [AuthController::class, 'logout']);
         Route::get('me', [AuthController::class, 'me'])->middleware(AuthenticateJwt::class);
     });
 
     // Public lead intake — outside JWT (Express /leads/public)
-    Route::post('leads/public', [LeadController::class, 'storePublic']);
+    Route::post('leads/public', [LeadController::class, 'storePublic'])->middleware('throttle:public-intake');
 
     $authLaunch = [AuthenticateJwt::class, EnsureInvoiceLaunchRole::class];
     $view = [...$authLaunch, 'permission:finance,view'];
