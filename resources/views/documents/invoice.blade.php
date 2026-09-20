@@ -35,9 +35,9 @@
         ? (($doc['discount']['value'] ?? '0').'% Discount')
         : 'Discount';
     $taxLabel = 'VAT '.($doc['tax']['rate'] ?? '15').'%';
-    $preparedName = trim((string) ($doc['prepared_by']['name'] ?? ''));
+    $preparedName = trim(preg_replace('/\s*\([^)]*\)\s*$/u', '', (string) ($doc['prepared_by']['name'] ?? '')) ?? '');
     $preparedPhone = trim((string) ($doc['prepared_by']['phone'] ?? ''));
-    $approvedName = trim((string) ($doc['approved_by']['name'] ?? ''));
+    $approvedName = trim(preg_replace('/\s*\([^)]*\)\s*$/u', '', (string) ($doc['approved_by']['name'] ?? '')) ?? '');
     $approvedPhone = trim((string) ($doc['approved_by']['phone'] ?? ''));
     $showWords = in_array($doc['doc_type'] ?? '', ['TAX_INVOICE', 'CREDIT_NOTE'], true);
     $forPdf = $forPdf ?? false;
