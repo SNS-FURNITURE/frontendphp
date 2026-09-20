@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Edit '.$invoice->invoice_number)
+@section('title', $invoice->invoice_number)
 @section('content_class', 'content-wide')
 
 @section('content')
@@ -9,8 +9,10 @@
     'readOnly' => false,
     'formAction' => route('invoices.update', $invoice),
     'formMethod' => 'PUT',
-    'pageTitle' => 'Edit '.$invoice->invoice_number,
-    'pageDescription' => 'Edit like Word, then save draft or issue.',
+    'pageTitle' => $invoice->invoice_number,
+    'pageDescription' => 'Autosaves while you edit. Click Save to move it to the invoice list.',
     'status' => $invoice->status,
+    'invoiceId' => $invoice->id,
+    'invoiceStatus' => $invoice->status,
 ])
 @endsection

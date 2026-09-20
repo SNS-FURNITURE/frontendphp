@@ -1,14 +1,14 @@
 @extends('layouts.app')
 
-@section('title', 'Users · SNS Furniture')
+@section('title', 'Users')
 
 @section('content')
 <div class="page-head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap">
     <div>
         <h1>Users</h1>
         <p class="muted" style="margin:.35rem 0 0">
-            Admin only: create ERP login accounts. Username and company email are auto-built from the full name
-            (e.g. <code>abebe.kebede</code> / <code>abebe.kebede@sns.com</code>). Default password is <strong>password123</strong>.
+            Admin only: create ERP login accounts. Username and company email are auto-built from the first name
+            (e.g. <code>abebe</code> / <code>abebe@sns.com</code>). Default password is <strong>password123</strong>.
         </p>
     </div>
     <button class="btn" type="button" onclick="document.getElementById('create-user').hidden=false">Add user account</button>
@@ -88,14 +88,10 @@
     if (!nameInput || !preview) return;
 
     function slugName(name) {
-        const slug = String(name || '')
-            .toLowerCase()
-            .trim()
-            .replace(/[^a-z0-9]+/g, '.')
-            .replace(/^\.+|\.+$/g, '')
-            .replace(/\.+/g, '.')
-            .slice(0, 64) || 'user';
-        return slug.length < 3 ? 'user.' + slug : slug;
+        const first = String(name || '').trim().split(/\s+/)[0] || '';
+        let slug = first.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 64) || 'user';
+        if (slug.length < 3) slug = 'user' + slug;
+        return slug;
     }
 
     function updatePreview() {

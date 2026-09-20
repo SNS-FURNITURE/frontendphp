@@ -118,12 +118,12 @@ class AdminUserWebController extends Controller
 
     private function slugFromFullName(string $fullName): string
     {
-        $slug = strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '.', $fullName) ?? '', '.'));
-        $slug = preg_replace('/\.+/', '.', $slug) ?: 'user';
-        $slug = substr($slug, 0, 64);
+        $firstName = preg_split('/\s+/', trim($fullName), 2)[0] ?? $fullName;
+        $slug = strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '', $firstName) ?? ''));
+        $slug = substr($slug !== '' ? $slug : 'user', 0, 64);
 
         if (strlen($slug) < 3) {
-            $slug = 'user.'.$slug;
+            $slug = 'user'.$slug;
         }
 
         return $slug;

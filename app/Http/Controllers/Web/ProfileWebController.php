@@ -21,12 +21,10 @@ class ProfileWebController extends Controller
         $user = auth()->user();
 
         $validated = $request->validate([
-            'full_name' => ['required', 'string', 'min:2', 'max:255'],
             'username' => ['required', 'string', 'min:3', 'max:64', 'regex:/^[a-z0-9][a-z0-9_-]*$/i'],
             'email' => ['required', 'email'],
             'phone' => ['nullable', 'string', 'max:50'],
         ], [
-            'full_name.min' => 'Full name must be at least 2 characters',
             'username.regex' => 'Username must be 3–64 characters: letters, numbers, underscores, or hyphens',
             'email.email' => 'A valid email address is required',
         ]);
@@ -49,7 +47,7 @@ class ProfileWebController extends Controller
             return back()->withErrors(['email' => 'Email is already in use'])->withInput();
         }
 
-        $user->full_name = $validated['full_name'];
+        // Full name is fixed at account creation by admin — never updated here.
         $user->username = $username;
         $user->email = strtolower($validated['email']);
         $user->phone = $validated['phone'] !== null && $validated['phone'] !== ''

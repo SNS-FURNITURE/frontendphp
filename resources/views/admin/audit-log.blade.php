@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Audit log · SNS Furniture')
+@section('title', 'Audit log')
 
 @section('content')
 <div class="page-head">

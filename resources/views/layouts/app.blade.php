@@ -4,7 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'SNS Furniture')</title>
+    <title>{{ ($__title = trim($__env->yieldContent('title'))) !== '' ? $__title.' · SNS Furniture' : 'SNS Furniture' }}</title>
+    <link rel="icon" type="image/png" href="{{ asset('sns-logo.png') }}">
+    <link rel="shortcut icon" type="image/png" href="{{ asset('sns-logo.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('sns-logo.png') }}">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
     <style>
         :root {
@@ -20,6 +23,7 @@
             --accent: #a78bfa;
         }
         * { box-sizing: border-box; }
+        [x-cloak] { display: none !important; }
         html, body {
             height: 100%;
             margin: 0;
@@ -107,7 +111,7 @@
             overscroll-behavior: contain;
             background: var(--purple-dark);
         }
-        .content-wide { max-width: none; }
+        .content-wide { max-width: none; padding-top: 0; }
         .card {
             background: var(--panel);
             border: 1px solid var(--border);
@@ -132,8 +136,67 @@
         table.data { width: 100%; border-collapse: collapse; }
         table.data th, table.data td { text-align: left; padding: 0.7rem 0.45rem; border-bottom: 1px solid var(--border); font-size: 0.92rem; }
         table.data th { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
-        .flash { background: #14352a; color: #8dffc1; padding: 0.75rem 1rem; border-radius: 10px; margin-bottom: 1rem; border: 1px solid #1f5a44; }
-        .errors { background: #3a1515; color: #ffb4b4; padding: 0.75rem 1rem; border-radius: 10px; margin-bottom: 1rem; border: 1px solid #6b2a2a; }
+        .toast-host {
+            position: fixed;
+            top: 1.25rem;
+            right: 1.25rem;
+            z-index: 12000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+            width: min(22rem, calc(100vw - 2rem));
+            pointer-events: none;
+        }
+        .toast {
+            pointer-events: auto;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.9rem 1rem;
+            border-radius: 12px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(10px);
+            font-size: 0.92rem;
+            line-height: 1.4;
+            animation: toast-in 0.28s ease-out;
+        }
+        .toast-success {
+            background: rgba(20, 53, 42, 0.96);
+            color: #8dffc1;
+            border: 1px solid #1f5a44;
+        }
+        .toast-error {
+            background: rgba(58, 21, 21, 0.96);
+            color: #ffb4b4;
+            border: 1px solid #6b2a2a;
+        }
+        .toast-body { flex: 1; min-width: 0; }
+        .toast-close {
+            flex-shrink: 0;
+            background: transparent;
+            border: 0;
+            color: inherit;
+            opacity: 0.7;
+            cursor: pointer;
+            font-size: 1.1rem;
+            line-height: 1;
+            padding: 0;
+        }
+        .toast-close:hover { opacity: 1; }
+        @keyframes toast-in {
+            from { opacity: 0; transform: translateY(-0.6rem) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @media (max-width: 640px) {
+            .toast-host {
+                top: auto;
+                bottom: 1rem;
+                left: 50%;
+                right: auto;
+                transform: translateX(-50%);
+                width: min(22rem, calc(100vw - 1.5rem));
+            }
+        }
         label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem; color: #d8d2f0; }
         input, select, textarea {
             width: 100%;
@@ -143,6 +206,41 @@
             margin-bottom: 0.85rem;
             background: #0f0d1f;
             color: var(--text);
+        }
+        input[type="date"],
+        input[type="datetime-local"],
+        input[type="time"],
+        input[type="month"],
+        input[type="week"] {
+            color-scheme: dark;
+            min-height: 2.6rem;
+            padding-right: 0.55rem;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator,
+        input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+        input[type="time"]::-webkit-calendar-picker-indicator,
+        input[type="month"]::-webkit-calendar-picker-indicator,
+        input[type="week"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            opacity: 1;
+            width: 1.15rem;
+            height: 1.15rem;
+            padding: 0.2rem;
+            margin-left: 0.35rem;
+            border-radius: 6px;
+            background-color: #f97316;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cline x1='16' y1='2' x2='16' y2='6'/%3E%3Cline x1='8' y1='2' x2='8' y2='6'/%3E%3Cline x1='3' y1='10' x2='21' y2='10'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: 0.95rem 0.95rem;
+            filter: none;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator:hover,
+        input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover,
+        input[type="time"]::-webkit-calendar-picker-indicator:hover,
+        input[type="month"]::-webkit-calendar-picker-indicator:hover,
+        input[type="week"]::-webkit-calendar-picker-indicator:hover {
+            background-color: #fb923c;
         }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
         .muted { color: var(--muted); font-size: 0.85rem; }
@@ -159,23 +257,101 @@
         .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
         .page-head h1 { margin: 0; font-size: 1.75rem; font-weight: 700; }
         .toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+        .table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .nav-toggle {
+            display: none;
+            border: 1px solid var(--border);
+            background: #1c1836;
+            color: #fff;
+            border-radius: 10px;
+            width: 2.5rem;
+            height: 2.5rem;
+            padding: 0;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 5px;
+            flex-shrink: 0;
+        }
+        .nav-toggle-bar {
+            display: block;
+            width: 1.15rem;
+            height: 2px;
+            background: #f4f2ff;
+            border-radius: 2px;
+        }
+        .sidebar-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(8, 6, 20, 0.55);
+            z-index: 40;
+        }
+        .sidebar-backdrop.is-open { display: block; }
+        @media (max-width: 1100px) {
+            .grid-2 { grid-template-columns: 1fr; }
+        }
         @media (max-width: 900px) {
             body { overflow: auto; height: auto; }
             .shell { flex-direction: column; height: auto; min-height: 100dvh; overflow: visible; }
+            .nav-toggle { display: inline-flex; }
             .sidebar {
-                width: 100%;
-                height: auto;
-                max-height: none;
-                overflow-y: visible;
+                position: fixed;
+                top: 0;
+                left: 0;
+                z-index: 50;
+                width: min(86vw, 300px);
+                height: 100dvh;
+                max-height: 100dvh;
+                transform: translateX(-105%);
+                transition: transform 0.2s ease;
+                box-shadow: 12px 0 40px rgba(0,0,0,0.35);
+                overflow-y: auto;
             }
-            .main { height: auto; overflow: visible; }
-            .content { overflow: visible; min-height: 0; }
-            .grid-2 { grid-template-columns: 1fr; }
+            .sidebar.is-open { transform: translateX(0); }
+            .main { height: auto; overflow: visible; width: 100%; }
+            .topbar {
+                padding: 0.75rem 1rem;
+                position: sticky;
+                top: 0;
+                z-index: 30;
+                backdrop-filter: blur(8px);
+            }
+            .topbar-user {
+                font-size: 0.85rem;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                max-width: 42vw;
+            }
+            .content { padding: 1rem; overflow: visible; min-height: 0; }
+            .page-head h1 { font-size: 1.35rem; }
+            .card { padding: 1rem; border-radius: 12px; overflow-x: auto; }
+            .btn, .btn.ghost { min-height: 2.5rem; }
+            table.data { min-width: 640px; }
+            table.data th, table.data td { font-size: 0.85rem; padding: 0.55rem 0.35rem; }
+            .role-badge { font-size: 0.65rem; }
+        }
+        @media (max-width: 560px) {
+            .topbar-actions .btn { padding: 0.45rem 0.65rem; font-size: 0.8rem; }
+            .content { padding: 0.75rem; }
+            .page-head { gap: 0.75rem; }
+            .page-head .btn { width: 100%; text-align: center; }
         }
         @media print {
-            .sidebar, .topbar, .no-print, .logout-modal { display: none !important; }
-            .content { padding: 0; }
-            body { background: #fff; color: #111; }
+            .sidebar, .topbar, .no-print, .logout-modal, .nav-toggle, .sidebar-backdrop, .toast-host, .sidebar-foot {
+                display: none !important;
+            }
+            .shell, .main, .content {
+                display: block !important;
+                height: auto !important;
+                overflow: visible !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                background: #fff !important;
+            }
+            body { background: #fff !important; color: #111 !important; }
         }
         .logout-modal {
             position: fixed;
@@ -238,7 +414,8 @@
     $username = auth()->user()->username ?: explode('@', auth()->user()->email)[0];
 @endphp
 <div class="shell">
-    <aside class="sidebar no-print">
+    <div class="sidebar-backdrop no-print" id="sidebar-backdrop" hidden></div>
+    <aside class="sidebar no-print" id="app-sidebar">
         <div class="brand-block">
             <div style="display:flex;align-items:center;gap:0.6rem">
                 <img src="{{ asset('sns-logo.png') }}" alt="SNS" style="height:36px;width:auto;border-radius:8px;background:#fff;padding:2px">
@@ -248,10 +425,12 @@
                 </div>
             </div>
         </div>
-        @if (auth()->user()->hasPermission('finance', 'view') || auth()->user()->canViewFunding() || auth()->user()->canViewAllocations())
+        @if (auth()->user()->hasPermission('finance', 'view') || auth()->user()->hasPermission('finance', 'create') || auth()->user()->canViewFunding() || auth()->user()->canViewAllocations())
             <div class="nav-section">Finance</div>
-            @if (auth()->user()->hasPermission('finance', 'view'))
+            @if (auth()->user()->hasPermission('finance', 'view') || auth()->user()->hasPermission('finance', 'create'))
                 <a class="nav-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}" href="{{ route('invoices.index') }}">Invoices</a>
+            @endif
+            @if (auth()->user()->hasPermission('finance', 'view'))
                 <a class="nav-link {{ request()->routeIs('payments.*') ? 'active' : '' }}" href="{{ route('payments.index') }}">Payments</a>
             @endif
             @if (auth()->user()->canViewFunding())
@@ -357,28 +536,55 @@
     </aside>
     <div class="main">
         <header class="topbar no-print">
-            <div class="topbar-user">{{ '@'.$username }} {{ auth()->user()->full_name }}</div>
+            <div style="display:flex;align-items:center;gap:0.65rem;min-width:0;flex:1">
+                <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-controls="app-sidebar" aria-expanded="false">
+                    <span class="nav-toggle-bar" aria-hidden="true"></span>
+                    <span class="nav-toggle-bar" aria-hidden="true"></span>
+                    <span class="nav-toggle-bar" aria-hidden="true"></span>
+                </button>
+                <div class="topbar-user">{{ '@'.$username }} {{ auth()->user()->full_name }}</div>
+            </div>
             <div class="topbar-actions">
                 <span class="role-badge">{{ $roleLabel }}</span>
                 <button class="btn ghost" type="button" data-logout-open>Logout</button>
             </div>
         </header>
         <div class="content @yield('content_class')">
-            @if (session('status'))
-                <div class="flash no-print">{{ session('status') }}</div>
-            @endif
-            @if ($errors->any())
-                <div class="errors no-print">
-                    <ul style="margin:0;padding-left:1.1rem">
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
             @yield('content')
         </div>
     </div>
+</div>
+
+@php
+    $erpToasts = [];
+    if (session('status')) {
+        $erpToasts[] = ['type' => 'success', 'text' => (string) session('status')];
+    }
+    if (isset($errors) && $errors->any()) {
+        foreach ($errors->all() as $error) {
+            $erpToasts[] = ['type' => 'error', 'text' => (string) $error];
+        }
+    }
+@endphp
+<div
+    class="toast-host no-print"
+    x-data="erpToasts(@js($erpToasts))"
+    x-cloak
+    aria-live="polite"
+    aria-relevant="additions"
+>
+    <template x-for="t in toasts" :key="t.id">
+        <div
+            class="toast"
+            :class="t.type === 'error' ? 'toast-error' : 'toast-success'"
+            x-show="t.visible"
+            x-transition.opacity.duration.200ms
+            role="status"
+        >
+            <div class="toast-body" x-text="t.text"></div>
+            <button type="button" class="toast-close" @click="dismiss(t.id)" aria-label="Dismiss">&times;</button>
+        </div>
+    </template>
 </div>
 
 <div class="logout-modal no-print" id="logout-modal" role="dialog" aria-modal="true" aria-labelledby="logout-title" hidden>
@@ -398,7 +604,48 @@
 <script>
 (function () {
     var SIDEBAR_SCROLL_KEY = 'sns.sidebar.scrollTop';
-    var sidebar = document.querySelector('.sidebar');
+    var sidebar = document.getElementById('app-sidebar') || document.querySelector('.sidebar');
+    var backdrop = document.getElementById('sidebar-backdrop');
+    var toggle = document.getElementById('nav-toggle');
+
+    function closeSidebar() {
+        if (sidebar) sidebar.classList.remove('is-open');
+        if (backdrop) {
+            backdrop.classList.remove('is-open');
+            backdrop.hidden = true;
+        }
+        if (toggle) toggle.setAttribute('aria-expanded', 'false');
+        document.body.style.overflow = '';
+    }
+    function openSidebar() {
+        if (sidebar) sidebar.classList.add('is-open');
+        if (backdrop) {
+            backdrop.hidden = false;
+            backdrop.classList.add('is-open');
+        }
+        if (toggle) toggle.setAttribute('aria-expanded', 'true');
+        if (window.matchMedia('(max-width: 900px)').matches) {
+            document.body.style.overflow = 'hidden';
+        }
+    }
+    if (toggle) {
+        toggle.addEventListener('click', function () {
+            if (sidebar && sidebar.classList.contains('is-open')) closeSidebar();
+            else openSidebar();
+        });
+    }
+    if (backdrop) backdrop.addEventListener('click', closeSidebar);
+    if (sidebar) {
+        sidebar.querySelectorAll('a.nav-link').forEach(function (link) {
+            link.addEventListener('click', function () {
+                if (window.matchMedia('(max-width: 900px)').matches) closeSidebar();
+            });
+        });
+    }
+    window.addEventListener('resize', function () {
+        if (!window.matchMedia('(max-width: 900px)').matches) closeSidebar();
+    });
+
     if (sidebar) {
         var saved = sessionStorage.getItem(SIDEBAR_SCROLL_KEY);
         if (saved !== null) {
@@ -459,6 +706,39 @@
 @else
     @yield('content')
 @endauth
+<script>
+function erpToasts(initial) {
+    return {
+        toasts: [],
+        init() {
+            (initial || []).forEach((m) => this.push(m.type || 'success', m.text || ''));
+            window.addEventListener('erp-toast', (e) => {
+                const d = e.detail || {};
+                this.push(d.type || 'success', d.text || '');
+            });
+        },
+        push(type, text) {
+            const message = String(text || '').trim();
+            if (!message) return;
+            const id = Date.now() + Math.random();
+            const item = { id: id, type: type === 'error' ? 'error' : 'success', text: message, visible: true };
+            this.toasts.push(item);
+            setTimeout(() => this.dismiss(id), 5000);
+        },
+        dismiss(id) {
+            const item = this.toasts.find((t) => t.id === id);
+            if (!item) return;
+            item.visible = false;
+            setTimeout(() => {
+                this.toasts = this.toasts.filter((t) => t.id !== id);
+            }, 220);
+        },
+    };
+}
+window.erpToast = function (text, type) {
+    window.dispatchEvent(new CustomEvent('erp-toast', { detail: { text: text, type: type || 'success' } }));
+};
+</script>
 @stack('scripts')
 </body>
 </html>

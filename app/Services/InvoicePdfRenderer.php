@@ -12,7 +12,7 @@ class InvoicePdfRenderer
 
     private const PAGE_H = 841.89;
 
-    private const MARGIN_L = 36.0;
+    private const MARGIN_L = 48.0;
 
     private const MARGIN_R = 36.0;
 
@@ -113,9 +113,9 @@ class InvoicePdfRenderer
             'terms' => [
                 'payment' => (string) ($input['terms']['payment'] ?? ''),
                 'delivery_place' => (string) ($input['terms']['delivery_place'] ?? ''),
-                'delivery_days' => (string) ($input['terms']['delivery_days'] ?? ''),
-                'validity_days' => (string) ($input['terms']['validity_days'] ?? ''),
-                'warranty' => (string) ($input['terms']['warranty'] ?? ''),
+                'delivery_days' => $this->formatTermUnit($input['terms']['delivery_days'] ?? '', 'days'),
+                'validity_days' => $this->formatTermUnit($input['terms']['validity_days'] ?? '', 'days'),
+                'warranty' => $this->formatTermUnit($input['terms']['warranty'] ?? '', 'years'),
             ],
             'discountLabel' => $discountLabel,
             'taxLabel' => 'VAT '.($input['tax']['rate'] ?? '15').'%',
@@ -233,6 +233,19 @@ class InvoicePdfRenderer
         }
 
         return implode(' · ', $parts);
+    }
+
+    private function formatTermUnit(mixed $value, string $unit): string
+    {
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return '';
+        }
+        if (preg_match('/[a-zA-Z]/', $raw)) {
+            return $raw;
+        }
+
+        return $raw.' '.$unit;
     }
 
     private function logoDataUri(): string

@@ -18,6 +18,7 @@ class Invoice extends Model
         'issued_at',
         'due_date',
         'snapshot_json',
+        'created_by',
     ];
 
     protected function casts(): array
@@ -35,6 +36,16 @@ class Invoice extends Model
     public function salesOrder(): BelongsTo
     {
         return $this->belongsTo(SalesOrder::class, 'sales_order_id');
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function isOwnedBy(?User $user): bool
+    {
+        return $user !== null && $this->created_by !== null && (int) $this->created_by === (int) $user->id;
     }
 
     public function payments(): HasMany

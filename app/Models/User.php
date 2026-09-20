@@ -608,19 +608,25 @@ class User extends Authenticatable
             }
         }
 
-        // Admin is observer: can view finance surfaces without create/edit grants.
-        if ($this->isAdmin() && ! isset($seen['finance:view'])) {
-            $seen['finance:view'] = true;
-            $perm = Permission::query()
-                ->where('module_key', 'finance')
-                ->where('action_key', 'view')
-                ->first();
-            $rows[] = [
-                'id' => (int) ($perm?->id ?? 0),
-                'role_id' => 0,
-                'module' => 'finance',
-                'action' => 'view',
-            ];
+        // Admin is observer for create/edit, but may approve invoices.
+        if ($this->isAdmin()) {
+            foreach (['view', 'approve'] as $action) {
+                $key = 'finance:'.$action;
+                if (isset($seen[$key])) {
+                    continue;
+                }
+                $seen[$key] = true;
+                $perm = Permission::query()
+                    ->where('module_key', 'finance')
+                    ->where('action_key', $action)
+                    ->first();
+                $rows[] = [
+                    'id' => (int) ($perm?->id ?? 0),
+                    'role_id' => 0,
+                    'module' => 'finance',
+                    'action' => $action,
+                ];
+            }
         }
 
         return $rows;

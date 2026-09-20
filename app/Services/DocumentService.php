@@ -93,9 +93,9 @@ class DocumentService
             'terms' => array_merge([
                 'payment' => '50% up on Order / 50% up on dispatch',
                 'delivery_place' => 'A.A',
-                'delivery_days' => '35 working days',
-                'validity_days' => '5 days',
-                'warranty' => '1 year',
+                'delivery_days' => '35',
+                'validity_days' => '5',
+                'warranty' => '1',
             ], $params['terms'] ?? []),
             'prepared_by' => $params['prepared_by'] ?? ['name' => '', 'phone' => ''],
             'approved_by' => $params['approved_by'] ?? ['name' => '', 'phone' => ''],
@@ -109,7 +109,7 @@ class DocumentService
             'doc_type' => 'PROFORMA',
             'doc_number' => $docNumber,
             'doc_date' => date('Y-m-d'),
-            'valid_until' => date('Y-m-d', strtotime('+30 days')),
+            'valid_until' => date('Y-m-d'),
             'customer' => [
                 'name' => '',
                 'address_line' => '',
@@ -214,9 +214,6 @@ class DocumentService
     public function validateDocumentRules(array $doc): ?string
     {
         $type = $doc['doc_type'] ?? 'PROFORMA';
-        if ($type === 'PROFORMA' && empty(trim((string) ($doc['valid_until'] ?? '')))) {
-            return 'Valid until date is required for proforma invoices';
-        }
         if ($type === 'CREDIT_NOTE' && empty(trim((string) ($doc['parent_doc_number'] ?? '')))) {
             return 'Parent invoice number is required for credit notes';
         }
