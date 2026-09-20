@@ -26,18 +26,19 @@ class LoginController extends Controller
         $identifier = (string) $request->input('email', '');
         $password = (string) $request->input('password', '');
         $remember = $request->boolean('remember_me');
+        $safeInput = $request->only(['email', 'remember_me']);
 
         if (trim($identifier) === '' || $password === '') {
-            return back()->withErrors(['email' => 'Email or username and password are required'])->withInput();
+            return back()->withErrors(['email' => 'Email or username and password are required'])->withInput($safeInput);
         }
 
         $user = $this->jwt->findUserByIdentifier($identifier);
         if (! $user || ! $this->jwt->verifyPassword($user, $password)) {
-            return back()->withErrors(['email' => 'Invalid email/username or password'])->withInput();
+            return back()->withErrors(['email' => 'Invalid email/username or password'])->withInput($safeInput);
         }
 
         if (! $user->is_active) {
-            return back()->withErrors(['email' => 'User account is deactivated'])->withInput();
+            return back()->withErrors(['email' => 'User account is deactivated'])->withInput($safeInput);
         }
 
         $user->forceFill(['last_login_at' => now()])->save();
@@ -46,9 +47,10 @@ class LoginController extends Controller
         if (! $user || ! $user->hasInvoiceLaunchRole()) {
             return back()->withErrors([
                 'email' => 'Invoice system only — your role is not enabled for this launch',
-            ])->withInput();
+            ])->withInput($safeInput);
         }
 
+        $request->session()->regenerate();
         auth()->login($user, $remember);
 
         return redirect()->intended(route($user->preferredHomeRouteName()));
