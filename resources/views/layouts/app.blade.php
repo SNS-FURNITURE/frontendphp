@@ -4,10 +4,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ ($__title = trim($__env->yieldContent('title'))) !== '' ? $__title.' · SNS Furniture' : 'SNS Furniture' }}</title>
-    <link rel="icon" type="image/png" href="{{ asset('sns-logo.png') }}">
-    <link rel="shortcut icon" type="image/png" href="{{ asset('sns-logo.png') }}">
-    <link rel="apple-touch-icon" href="{{ asset('sns-logo.png') }}">
+    <title>SNS Furniture</title>
+    <link rel="icon" href="{{ asset('favicon.ico') }}?v=2" sizes="any">
+    <link rel="icon" type="image/png" href="{{ asset('sns-logo.png') }}?v=2">
+    <link rel="shortcut icon" href="{{ asset('favicon.ico') }}?v=2">
+    <link rel="apple-touch-icon" href="{{ asset('sns-logo.png') }}?v=2">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
     <style>
         :root {
