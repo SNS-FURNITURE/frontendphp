@@ -4,9 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SNS Furniture</title>
-    <link rel="icon" type="image/png" href="{{ asset('sns-logo.png') }}">
-    <link rel="shortcut icon" type="image/png" href="{{ asset('sns-logo.png') }}">
-    <link rel="apple-touch-icon" href="{{ asset('sns-logo.png') }}">
+    <link rel="icon" href="{{ asset('favicon.ico') }}?v=2" sizes="any">
+    <link rel="icon" type="image/png" href="{{ asset('sns-logo.png') }}?v=2">
+    <link rel="shortcut icon" href="{{ asset('favicon.ico') }}?v=2">
+    <link rel="apple-touch-icon" href="{{ asset('sns-logo.png') }}?v=2">
     <style>
         body { margin:0; font-family: Georgia, 'Times New Roman', serif; min-height:100vh; display:flex; }
         .left {
