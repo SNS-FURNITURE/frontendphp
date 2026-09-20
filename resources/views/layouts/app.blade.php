@@ -227,13 +227,14 @@
 <body>
 @auth
 @php
-    $roleNames = auth()->user()->roles->pluck('name')->map(fn ($n) => strtolower($n))->all();
-    $roleLabel = 'Staff';
-    if (in_array('admin', $roleNames, true)) $roleLabel = 'Admin';
-    elseif (in_array('finance', $roleNames, true)) $roleLabel = 'Finance';
-    elseif (in_array('company_manager', $roleNames, true)) $roleLabel = 'Company Manager';
-    elseif (in_array('marketing_manager', $roleNames, true)) $roleLabel = 'Marketing Manager';
-    elseif (in_array('advisor', $roleNames, true) || in_array('supervisor', $roleNames, true)) $roleLabel = 'Advisor';
+    $roleLabel = auth()->user()->roles
+        ->pluck('name')
+        ->filter()
+        ->map(fn ($n) => str_replace('_', ' ', (string) $n))
+        ->map(fn ($n) => ucwords(strtolower($n)))
+        ->unique()
+        ->values()
+        ->join(' · ') ?: 'No role';
     $username = auth()->user()->username ?: explode('@', auth()->user()->email)[0];
 @endphp
 <div class="shell">
