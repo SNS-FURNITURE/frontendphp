@@ -35,7 +35,6 @@ class ProfileController extends Controller
         }
 
         $fields = array_filter([
-            'full_name' => $request->input('full_name'),
             'username' => $request->input('username'),
             'email' => $request->input('email'),
             'phone' => $request->input('phone'),
@@ -45,8 +44,8 @@ class ProfileController extends Controller
             return ApiResponse::error('No profile fields provided to update', 'INVALID_INPUT', 400);
         }
 
-        if (array_key_exists('full_name', $fields) && strlen(trim((string) $fields['full_name'])) < 2) {
-            return ApiResponse::error('Full name must be at least 2 characters', 'INVALID_INPUT', 400);
+        if ($request->exists('full_name')) {
+            return ApiResponse::error('Full name cannot be changed. Contact an admin.', 'FULL_NAME_LOCKED', 403);
         }
 
         if (array_key_exists('username', $fields)) {
@@ -81,10 +80,6 @@ class ProfileController extends Controller
                 return ApiResponse::error('Email is already in use', 'EMAIL_TAKEN', 409);
             }
             $user->email = $email;
-        }
-
-        if (array_key_exists('full_name', $fields)) {
-            $user->full_name = trim((string) $fields['full_name']);
         }
 
         if (array_key_exists('phone', $fields)) {

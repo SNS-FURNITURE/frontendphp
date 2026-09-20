@@ -6,7 +6,7 @@
 <div class="page-head">
     <div>
         <h1>My Profile</h1>
-        <p class="muted" style="margin:0.35rem 0 0">Update your workspace identity and password.</p>
+        <p class="muted" style="margin:0.35rem 0 0">Update your contact details and password. Full name is fixed by admin.</p>
     </div>
 </div>
 
@@ -17,7 +17,8 @@
             @csrf
             @method('PATCH')
             <label>Full name</label>
-            <input name="full_name" value="{{ old('full_name', $user->full_name) }}" required>
+            <input value="{{ $user->full_name }}" readonly disabled>
+            <p class="muted" style="margin:-0.5rem 0 0.85rem;font-size:.8rem">Set by admin when your account was created — cannot be changed.</p>
             <label>Username</label>
             <input name="username" value="{{ old('username', $user->username) }}" required>
             <label>Email</label>

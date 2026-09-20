@@ -35,39 +35,30 @@ class AdminUserWebController extends Controller
 
         $data = $request->validate([
             'full_name' => ['required', 'string', 'min:2', 'max:255'],
-            'email' => ['required', 'email', 'max:255'],
-            'username' => ['nullable', 'string', 'max:64'],
             'phone' => ['nullable', 'string', 'max:64'],
-            'password' => ['nullable', 'string', 'min:6'],
             'role' => ['required', 'string'],
         ]);
 
         if (strtolower($data['role']) === 'admin') {
-            return back()->withErrors(['role' => 'Admin role cannot be assigned from this screen']);
+            return back()->withErrors(['role' => 'Admin role cannot be assigned from this screen'])->withInput();
         }
 
         $role = Role::query()->where('name', $data['role'])->first();
         if (! $role) {
-            return back()->withErrors(['role' => 'Unknown role']);
+            return back()->withErrors(['role' => 'Unknown role'])->withInput();
         }
 
-        $email = strtolower(trim($data['email']));
-        $username = isset($data['username']) && trim((string) $data['username']) !== ''
-            ? strtolower(trim((string) $data['username']))
-            : preg_replace('/[^a-z0-9._-]/', '.', explode('@', $email)[0] ?? 'user');
-        $username = substr((string) $username, 0, 64);
-        if (strlen($username) < 3) {
-            $username = 'user.'.substr((string) time(), -6);
-        }
+        $fullName = trim($data['full_name']);
+        [$username, $email] = $this->uniqueCredentialsFromName($fullName);
 
         try {
-            DB::transaction(function () use ($data, $email, $username, $role, $request) {
+            DB::transaction(function () use ($data, $fullName, $email, $username, $role, $request) {
                 $user = new User;
-                $user->full_name = trim($data['full_name']);
+                $user->full_name = $fullName;
                 $user->email = $email;
                 $user->username = $username;
                 $user->phone = ($data['phone'] ?? null) ?: null;
-                $user->password_hash = Hash::make($data['password'] ?: 'password123');
+                $user->password_hash = Hash::make('password123');
                 $user->status = 'ACTIVE';
                 $user->is_active = true;
                 $user->save();
@@ -78,17 +69,63 @@ class AdminUserWebController extends Controller
                     'assigned_at' => now(),
                 ]);
 
-                $this->audit->log(auth()->user(), 'user', (int) $user->id, 'CREATE_USER', [
-                    'full_name' => $user->full_name,
+                $this->audit->log(auth()->user(), 'user', (int) $user->id, 'CREATE_USER_ACCOUNT', [
+                    'full_name' => $fullName,
                     'email' => $email,
                     'username' => $username,
                     'role' => $role->name,
                 ], $request);
             });
         } catch (\Throwable $e) {
-            return back()->withErrors(['email' => 'Email or username is already in use'])->withInput();
+            report($e);
+
+            return back()->withErrors([
+                'full_name' => 'Could not create user account. Try again.',
+            ])->withInput();
         }
 
-        return redirect()->route('admin.users')->with('status', 'User account for '.$data['full_name'].' created');
+        return redirect()
+            ->route('admin.users')
+            ->with('status', 'User account created for '.$fullName.' — @'.$username.' / '.$email.' / password123');
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function uniqueCredentialsFromName(string $fullName): array
+    {
+        $base = $this->slugFromFullName($fullName);
+        $username = $base;
+        $n = 2;
+
+        while (
+            User::query()
+                ->where('username', $username)
+                ->orWhere('email', $username.'@sns.com')
+                ->exists()
+        ) {
+            $suffix = (string) $n;
+            $username = substr($base, 0, max(1, 64 - strlen($suffix))).$suffix;
+            $n++;
+            if ($n > 9999) {
+                $username = 'user.'.substr((string) (int) (microtime(true) * 1000), -8);
+                break;
+            }
+        }
+
+        return [$username, $username.'@sns.com'];
+    }
+
+    private function slugFromFullName(string $fullName): string
+    {
+        $firstName = preg_split('/\s+/', trim($fullName), 2)[0] ?? $fullName;
+        $slug = strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '', $firstName) ?? ''));
+        $slug = substr($slug !== '' ? $slug : 'user', 0, 64);
+
+        if (strlen($slug) < 3) {
+            $slug = 'user'.$slug;
+        }
+
+        return $slug;
     }
 }

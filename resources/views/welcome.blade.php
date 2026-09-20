@@ -4,7 +4,10 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <title>{{ config('app.name', 'Laravel') }}</title>
+        <title>SNS Furniture</title>
+        <link rel="icon" type="image/png" href="{{ asset('sns-logo.png') }}">
+        <link rel="shortcut icon" type="image/png" href="{{ asset('sns-logo.png') }}">
+        <link rel="apple-touch-icon" href="{{ asset('sns-logo.png') }}">
 
         @fonts
 

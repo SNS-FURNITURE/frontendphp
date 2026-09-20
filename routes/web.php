@@ -70,11 +70,15 @@ Route::middleware(['auth', EnsureWebInvoiceAccess::class])->group(function () {
     Route::get('/finance/invoices/create', [InvoiceWebController::class, 'create'])->name('invoices.create');
     Route::get('/finance/invoices/new', [InvoiceWebController::class, 'create'])->name('invoices.new');
     Route::post('/finance/invoices', [InvoiceWebController::class, 'store'])->name('invoices.store');
+    Route::post('/finance/invoices/autosave', [InvoiceWebController::class, 'autosave'])->name('invoices.autosave');
     Route::post('/finance/invoices/compose-pdf', [InvoiceWebController::class, 'composePdf'])->name('invoices.compose-pdf');
     Route::get('/finance/invoices/{invoice}', [InvoiceWebController::class, 'show'])->name('invoices.show');
     Route::get('/finance/invoices/{invoice}/edit', [InvoiceWebController::class, 'edit'])->name('invoices.edit');
     Route::put('/finance/invoices/{invoice}', [InvoiceWebController::class, 'update'])->name('invoices.update');
+    Route::post('/finance/invoices/{invoice}/autosave', [InvoiceWebController::class, 'autosave'])->name('invoices.autosave.existing');
+    Route::delete('/finance/invoices/{invoice}', [InvoiceWebController::class, 'destroy'])->name('invoices.destroy');
     Route::patch('/finance/invoices/{invoice}/status', [InvoiceWebController::class, 'updateStatus'])->name('invoices.status');
+    Route::post('/finance/invoices/{invoice}/approve', [InvoiceWebController::class, 'approve'])->name('invoices.approve');
     Route::get('/finance/invoices/{invoice}/document', [InvoiceWebController::class, 'document'])->name('invoices.document');
 
     Route::get('/finance/payments', [PaymentWebController::class, 'index'])->name('payments.index');

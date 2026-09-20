@@ -35,14 +35,10 @@
         ? (($doc['discount']['value'] ?? '0').'% Discount')
         : 'Discount';
     $taxLabel = 'VAT '.($doc['tax']['rate'] ?? '15').'%';
-    $prepared = trim(implode(' ', array_filter([
-        $doc['prepared_by']['name'] ?? '',
-        $doc['prepared_by']['phone'] ?? '',
-    ], fn ($v) => trim((string) $v) !== '')));
-    $approved = trim(implode(' ', array_filter([
-        $doc['approved_by']['name'] ?? '',
-        $doc['approved_by']['phone'] ?? '',
-    ], fn ($v) => trim((string) $v) !== '')));
+    $preparedName = trim((string) ($doc['prepared_by']['name'] ?? ''));
+    $preparedPhone = trim((string) ($doc['prepared_by']['phone'] ?? ''));
+    $approvedName = trim((string) ($doc['approved_by']['name'] ?? ''));
+    $approvedPhone = trim((string) ($doc['approved_by']['phone'] ?? ''));
     $showWords = in_array($doc['doc_type'] ?? '', ['TAX_INVOICE', 'CREDIT_NOTE'], true);
     $forPdf = $forPdf ?? false;
     $logoPath = public_path('sns-logo.png');
@@ -78,12 +74,12 @@
 @if (! $forPdf && $fontEthiopic)
   @font-face { font-family: 'NotoEthiopic'; src: url('{{ $fontEthiopic }}') format('truetype'); font-weight: 400; }
 @endif
-  @page { size: A4 portrait; margin: 1mm 10mm 12mm 2mm; }
+  @page { size: A4 portrait; margin: 10mm 10mm 12mm 14mm; }
   * { box-sizing: border-box; }
   body {
     font-family: @if($forPdf) DejaVu Sans, sans-serif @else 'NotoSans', 'NotoEthiopic', DejaVu Sans, sans-serif @endif;
     font-size: 10pt;
-    color: #111;
+    color: #000;
     margin: 0;
     padding: 0;
     position: relative;
@@ -91,33 +87,37 @@
   .sheet { position: relative; z-index: 1; }
   .header { width: 100%; border-collapse: collapse; margin: 0; padding: 0; }
   .header td { vertical-align: top; }
-  .logo { height: 88px; width: auto; display: block; margin: 0; }
-  .title { font-size: 22pt; font-weight: 700; text-align: right; margin: 0; padding-top: 18px; }
-  .supplier { margin-top: 8px; font-size: 9pt; line-height: 1.35; }
-  .supplier .name { font-weight: 700; font-size: 11pt; }
+  .logo { height: 110px; width: auto; display: block; margin: 0; }
+  .title { font-size: 22pt; font-weight: 700; text-align: right; margin: 0; padding-top: 18px; color: #000; }
+  .supplier { margin-top: 8px; font-size: 9pt; line-height: 1.35; color: #000; }
+  .supplier .name { font-weight: 700; font-size: 11pt; color: #000; }
   .meta { border-collapse: collapse; font-size: 9pt; margin-top: 4px; margin-left: auto; }
-  .meta .lbl { text-align: right; padding-right: 8px; color: #444; white-space: nowrap; }
-  .meta .val { font-weight: 700; text-align: right; }
-  .customer { margin: 16px 0 10px; font-size: 9pt; line-height: 1.35; }
-  .customer h3 { margin: 0 0 4px; font-size: 10pt; }
-  table.lines { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  .meta .lbl { text-align: right; padding-right: 8px; color: #000; white-space: nowrap; }
+  .meta .val { font-weight: 700; text-align: right; color: #000; }
+  .customer { margin: 16px 0 10px; font-size: 9pt; line-height: 1.35; color: #000; }
+  .customer h3 { margin: 0 0 4px; font-size: 10pt; color: #000; }
+  table.lines { width: 100%; border-collapse: collapse; font-size: 12px; }
   table.lines thead { display: table-header-group; }
-  table.lines th, table.lines td { border: 1px solid #333; padding: 4px 5px; vertical-align: top; }
-  table.lines th { background: #f0f0f0; font-weight: 700; }
+  table.lines th, table.lines td { border: 1px solid #000; padding: 4px 5px; vertical-align: top; color: #000; font-weight: 400; font-size: 12px; }
+  table.lines th { background: #f0f0f0; font-weight: 400; color: #000; }
   .c { text-align: center; }
   .r { text-align: right; white-space: nowrap; }
-  .desc { font-weight: 400; color: #333; }
+  .litem-name { font-weight: 700; color: #000; font-size: 12px; }
+  .litem-desc { font-weight: 400; color: #000; font-size: 12px; }
   .bottom { width: 100%; border-collapse: collapse; margin-top: 14px; }
   .bottom > tbody > tr > td { vertical-align: top; }
   .notes-terms { font-size: 8.5pt; line-height: 1.4; }
-  .notes-terms h4 { margin: 0 0 4px; font-size: 9pt; }
-  ul.notes { margin: 0; padding-left: 1.1em; list-style: none; }
+  .notes-terms h4 { margin: 0 0 4px; font-size: 9pt; font-weight: 700; color: #000; }
+  .notes-terms .term-lbl { font-weight: 400; color: #000; }
+  ul.notes { margin: 0; padding-left: 1.1em; list-style: none; font-weight: 400; }
   ul.notes li:before { content: "- "; margin-left: -1em; }
   .totals { width: 240px; border-collapse: collapse; font-size: 9pt; margin-left: auto; }
   .totals td { padding: 3px 6px; }
-  .totals .lbl { text-align: right; }
-  .totals .amt { text-align: right; font-variant-numeric: tabular-nums; }
-  .totals .grand td { font-weight: 700; font-size: 10.5pt; border-top: 2px solid #111; padding-top: 6px; }
+  .totals .lbl { text-align: right; font-weight: 700; color: #000; }
+  .totals .amt { text-align: right; font-variant-numeric: tabular-nums; font-weight: 400; }
+  .totals .grand td { font-size: 10.5pt; border-top: 2px solid #111; padding-top: 6px; }
+  .totals .grand .lbl { font-weight: 700; }
+  .totals .grand .amt { font-weight: 400; }
   .words { margin-top: 10px; font-size: 9pt; }
   .sigs { width: 100%; border-collapse: collapse; margin-top: 28px; }
   .sigs td { width: 45%; font-size: 8.5pt; vertical-align: top; }
@@ -141,9 +141,6 @@
         <table class="meta">
           <tr><td class="lbl">Invoice Id</td><td class="val">{{ $doc['doc_number'] ?? '' }}</td></tr>
           <tr><td class="lbl">Date</td><td class="val">{{ $docDate }}</td></tr>
-          @if (($doc['doc_type'] ?? '') === 'PROFORMA' && $validUntil)
-            <tr><td class="lbl">Valid Until</td><td class="val">{{ $validUntil }}</td></tr>
-          @endif
           @if (($doc['doc_type'] ?? '') === 'CREDIT_NOTE' && !empty($doc['parent_doc_number']))
             <tr><td class="lbl">Against Invoice</td><td class="val">{{ $doc['parent_doc_number'] }}</td></tr>
           @endif
@@ -175,10 +172,7 @@
       <tr>
         <td class="c">{{ $line['line_no'] ?? ($i + 1) }}</td>
         <td>
-          <strong>{{ $line['name'] ?? '' }}</strong>
-          @if (!empty($line['description']))
-            <br/><span class="desc">{{ $line['description'] }}</span>
-          @endif
+          <span class="litem-name">{{ $line['name'] ?? '' }}</span>@if (!empty(trim((string) ($line['description'] ?? ''))))<span class="litem-desc">: {{ $line['description'] }}</span>@endif
         </td>
         <td class="c">{{ $line['uom_code'] ?? '' }}</td>
         <td class="r">{{ $fmtQty($line['quantity'] ?? 0) }}</td>
@@ -211,12 +205,12 @@
             <p>—</p>
           @endif
           <h4>Terms &amp; Conditions:</h4>
-          <div>Payment: {{ $doc['terms']['payment'] ?? '' }}</div>
-          <div>Delivery:</div>
-          <div>Place: {{ $doc['terms']['delivery_place'] ?? '' }}</div>
-          <div>Time: {{ $doc['terms']['delivery_days'] ?? '' }}</div>
-          <div>Validity: {{ $doc['terms']['validity_days'] ?? '' }}</div>
-          <div>Warrenty: {{ $doc['terms']['warranty'] ?? '' }}</div>
+          <div><span class="term-lbl">Payment:</span> {{ $doc['terms']['payment'] ?? '' }}</div>
+          <div><span class="term-lbl">Delivery:</span></div>
+          <div><span class="term-lbl">Place:</span> {{ $doc['terms']['delivery_place'] ?? '' }}</div>
+          <div><span class="term-lbl">Time:</span> {{ $doc['terms']['delivery_days'] ?? '' }}{{ isset($doc['terms']['delivery_days']) && $doc['terms']['delivery_days'] !== '' && !preg_match('/[a-zA-Z]/', (string) $doc['terms']['delivery_days']) ? ' days' : '' }}</div>
+          <div><span class="term-lbl">Validity:</span> {{ $doc['terms']['validity_days'] ?? '' }}{{ isset($doc['terms']['validity_days']) && $doc['terms']['validity_days'] !== '' && !preg_match('/[a-zA-Z]/', (string) $doc['terms']['validity_days']) ? ' days' : '' }}</div>
+          <div><span class="term-lbl">Warranty:</span> {{ $doc['terms']['warranty'] ?? '' }}{{ isset($doc['terms']['warranty']) && $doc['terms']['warranty'] !== '' && !preg_match('/[a-zA-Z]/', (string) $doc['terms']['warranty']) ? ' years' : '' }}</div>
         </div>
       </td>
       <td style="width:42%">
@@ -238,12 +232,22 @@
   <table class="sigs">
     <tr>
       <td>
-        <div>{{ $prepared }}</div>
-        <div>Prepared By Phone Number</div>
+        @if ($preparedName !== '')
+          <div>Name: {{ $preparedName }}</div>
+        @endif
+        @if ($preparedPhone !== '')
+          <div>Tel: {{ $preparedPhone }}</div>
+        @endif
+        <div>Prepared By</div>
       </td>
       <td>
-        <div>{{ $approved }}</div>
-        <div>Approved By Contact</div>
+        @if ($approvedName !== '')
+          <div>Name: {{ $approvedName }}</div>
+        @endif
+        @if ($approvedPhone !== '')
+          <div>Tel: {{ $approvedPhone }}</div>
+        @endif
+        <div>Approved By</div>
       </td>
     </tr>
   </table>

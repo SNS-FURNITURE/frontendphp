@@ -10,7 +10,8 @@
     'formAction' => route('invoices.store'),
     'formMethod' => 'POST',
     'pageTitle' => 'Create invoice',
-    'pageDescription' => 'Edit like Word, then save as draft or issue.',
+    'pageDescription' => 'Autosaves as a draft if you leave. Click Save to add it to the invoice list.',
     'salesOrderId' => $salesOrderId,
+    'invoiceId' => null,
 ])
 @endsection

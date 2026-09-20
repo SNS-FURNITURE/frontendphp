@@ -9,7 +9,7 @@
   body {
     font-family: DejaVu Sans, sans-serif;
     font-size: 9pt;
-    color: #111;
+    color: #000;
     width: {{ $page['w'] }}pt;
     height: {{ $page['h'] }}pt;
   }
@@ -21,13 +21,14 @@
   }
   .header { width: 100%; border-collapse: collapse; }
   .header td { vertical-align: top; }
-  .logo { height: 78pt; width: auto; display: block; margin-left: -18pt; }
+  .logo { height: 96pt; width: auto; display: block; margin: 0; }
   .title {
     font-size: 18pt;
     font-weight: 700;
     text-align: right;
     margin: 8pt 0 6pt;
     line-height: 1.1;
+    color: #000;
   }
   .meta-line {
     text-align: right;
@@ -47,24 +48,30 @@
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
-    font-size: 7.5pt;
+    font-size: 12px;
+    color: #000;
   }
   table.lines th {
     background: #E8E8E8;
-    border: 0.6pt solid #222;
-    font-weight: 700;
-    font-size: 8pt;
+    border: 0.6pt solid #000;
+    font-weight: 400;
+    font-size: 12px;
     padding: 4pt 2pt;
+    color: #000;
   }
   table.lines td {
-    border: 0.6pt solid #333;
+    border: 0.6pt solid #000;
     padding: 3pt 2pt;
     vertical-align: top;
+    color: #000;
+    font-weight: 400;
+    font-size: 12px;
   }
   .c { text-align: center; }
   .r { text-align: right; white-space: nowrap; }
   .l { text-align: left; }
-  .desc { font-weight: 400; color: #333; font-size: 7.5pt; display: block; margin-top: 1pt; }
+  .litem-name { font-weight: 700; color: #000; font-size: 12px; }
+  .litem-desc { font-weight: 400; color: #000; font-size: 12px; }
   .bottom {
     width: 100%;
     border-collapse: collapse;
@@ -72,13 +79,16 @@
   }
   .bottom > tbody > tr > td { vertical-align: top; }
   .notes-terms { font-size: 8.5pt; line-height: 1.35; padding-right: 8pt; }
-  .notes-terms .h { font-weight: 700; font-size: 9pt; margin: 0 0 2pt; }
+  .notes-terms .h { font-weight: 700; font-size: 9pt; margin: 0 0 2pt; color: #000; }
+  .notes-terms .term-lbl { font-weight: 400; color: #000; }
   .notes-terms .gap { height: 8pt; }
   .totals { width: 100%; border-collapse: collapse; font-size: 9pt; }
   .totals td { padding: 1pt 0; vertical-align: baseline; }
-  .totals .lbl { text-align: left; width: 55%; }
-  .totals .amt { text-align: right; width: 45%; white-space: nowrap; }
-  .totals .grand td { font-weight: 700; font-size: 10pt; padding-top: 2pt; }
+  .totals .lbl { text-align: left; width: 55%; font-weight: 700; color: #000; }
+  .totals .amt { text-align: right; width: 45%; white-space: nowrap; font-weight: 400; }
+  .totals .grand td { font-size: 10pt; padding-top: 2pt; }
+  .totals .grand .lbl { font-weight: 700; }
+  .totals .grand .amt { font-weight: 400; }
   .sigs {
     width: 100%;
     border-collapse: collapse;
@@ -92,14 +102,10 @@
 </head>
 <body>
 @php
-    $prepared = trim(implode(' ', array_filter([
-        $vm['preparedBy']['name'] ?? '',
-        $vm['preparedBy']['phone'] ?? '',
-    ], fn ($v) => trim((string) $v) !== '')));
-    $approved = trim(implode(' ', array_filter([
-        $vm['approvedBy']['name'] ?? '',
-        $vm['approvedBy']['phone'] ?? '',
-    ], fn ($v) => trim((string) $v) !== '')));
+    $preparedName = trim((string) ($vm['preparedBy']['name'] ?? ''));
+    $preparedPhone = trim((string) ($vm['preparedBy']['phone'] ?? ''));
+    $approvedName = trim((string) ($vm['approvedBy']['name'] ?? ''));
+    $approvedPhone = trim((string) ($vm['approvedBy']['phone'] ?? ''));
 @endphp
 <div class="page">
   <table class="header">
@@ -117,9 +123,6 @@
         <div class="title">{{ $vm['title'] }}</div>
         <div class="meta-line">Invoice Id&nbsp;&nbsp;{{ $vm['docNumber'] }}</div>
         <div class="meta-line">Date&nbsp;&nbsp;{{ $vm['docDate'] }}</div>
-        @if ($vm['showValidUntil'] && $vm['validUntil'])
-          <div class="meta-line">Valid Until&nbsp;&nbsp;{{ $vm['validUntil'] }}</div>
-        @endif
         @if ($vm['showAgainstInvoice'] && $vm['parentDocNumber'])
           <div class="meta-line">Against Invoice&nbsp;&nbsp;{{ $vm['parentDocNumber'] }}</div>
         @endif
@@ -152,10 +155,7 @@
       <tr>
         <td class="c">{{ $line['lineNo'] }}</td>
         <td class="l">
-          <strong>{{ $line['name'] }}</strong>
-          @if ($line['description'] !== '')
-            <span class="desc">{{ $line['description'] }}</span>
-          @endif
+          <span class="litem-name">{{ $line['name'] }}</span>@if ($line['description'] !== '')<span class="litem-desc">: {{ $line['description'] }}</span>@endif
         </td>
         <td class="c">{{ $line['uom'] }}</td>
         <td class="r">{{ $line['qty'] }}</td>
@@ -181,12 +181,12 @@
           @endif
           <div class="gap"></div>
           <div class="h">Terms &amp; Conditions:</div>
-          <div>Payment: {{ $vm['terms']['payment'] }}</div>
-          <div>Delivery:</div>
-          <div>Place: {{ $vm['terms']['delivery_place'] }}</div>
-          <div>Time: {{ $vm['terms']['delivery_days'] }}</div>
-          <div>Validity: {{ $vm['terms']['validity_days'] }}</div>
-          <div>Warrenty: {{ $vm['terms']['warranty'] }}</div>
+          <div><span class="term-lbl">Payment:</span> {{ $vm['terms']['payment'] }}</div>
+          <div><span class="term-lbl">Delivery:</span></div>
+          <div><span class="term-lbl">Place:</span> {{ $vm['terms']['delivery_place'] }}</div>
+          <div><span class="term-lbl">Time:</span> {{ $vm['terms']['delivery_days'] }}</div>
+          <div><span class="term-lbl">Validity:</span> {{ $vm['terms']['validity_days'] }}</div>
+          <div><span class="term-lbl">Warranty:</span> {{ $vm['terms']['warranty'] }}</div>
         </div>
       </td>
       <td style="width:42%">
@@ -204,12 +204,18 @@
   <table class="sigs">
     <tr>
       <td>
-        <div>{{ $prepared !== '' ? $prepared : '&nbsp;' }}</div>
-        <div class="label">Prepared By Phone Number</div>
+        <div>{{ $preparedName !== '' ? 'Name: '.$preparedName : '&nbsp;' }}</div>
+        @if ($preparedPhone !== '')
+          <div>Tel: {{ $preparedPhone }}</div>
+        @endif
+        <div class="label">Prepared By</div>
       </td>
       <td>
-        <div>{{ $approved !== '' ? $approved : '&nbsp;' }}</div>
-        <div class="label">Approved By Contact</div>
+        <div>{{ $approvedName !== '' ? 'Name: '.$approvedName : '&nbsp;' }}</div>
+        @if ($approvedPhone !== '')
+          <div>Tel: {{ $approvedPhone }}</div>
+        @endif
+        <div class="label">Approved By</div>
       </td>
     </tr>
   </table>

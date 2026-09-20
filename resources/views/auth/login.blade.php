@@ -3,7 +3,10 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Sign in · SNS Furniture</title>
+    <title>SNS Furniture</title>
+    <link rel="icon" type="image/png" href="{{ asset('sns-logo.png') }}">
+    <link rel="shortcut icon" type="image/png" href="{{ asset('sns-logo.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('sns-logo.png') }}">
     <style>
         body { margin:0; font-family: Georgia, 'Times New Roman', serif; min-height:100vh; display:flex; }
         .left {
@@ -71,9 +74,51 @@
             width:100%; height:44px; border:0; border-radius:12px;
             background:#E13B30; color:#fff; font-weight:700; cursor:pointer;
         }
-        .error { color:#E13B30; font-size:0.85rem; margin-bottom:0.6rem; }
-        .toast { background:#e8f7ef; color:#146c43; padding:0.65rem 0.85rem; border-radius:10px; margin-bottom:0.85rem; font-size:0.85rem; }
-        .toast.warn { background:#fff4e5; color:#9a5b00; }
+        .toast-host {
+            position: fixed;
+            top: 1.25rem;
+            right: 1.25rem;
+            z-index: 12000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+            width: min(22rem, calc(100vw - 2rem));
+            pointer-events: none;
+            font-family: system-ui, sans-serif;
+        }
+        .toast-popup {
+            pointer-events: auto;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.9rem 1rem;
+            border-radius: 12px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+            font-size: 0.92rem;
+            line-height: 1.4;
+            animation: toast-in 0.28s ease-out;
+            transition: opacity 0.2s ease;
+        }
+        .toast-popup.is-hiding { opacity: 0; }
+        .toast-popup.success { background: #e8f7ef; color: #146c43; border: 1px solid #b7e4c7; }
+        .toast-popup.warn { background: #fff4e5; color: #9a5b00; border: 1px solid #f0d9a8; }
+        .toast-popup.error { background: #fde8e8; color: #E13B30; border: 1px solid #f5c2c2; }
+        .toast-popup .toast-body { flex: 1; min-width: 0; }
+        .toast-popup .toast-close {
+            flex-shrink: 0;
+            background: transparent;
+            border: 0;
+            color: inherit;
+            opacity: 0.7;
+            cursor: pointer;
+            font-size: 1.1rem;
+            line-height: 1;
+            padding: 0;
+        }
+        @keyframes toast-in {
+            from { opacity: 0; transform: translateY(-0.6rem); }
+            to { opacity: 1; transform: translateY(0); }
+        }
         .remember { display:flex; align-items:center; gap:0.4rem; margin-bottom:1rem; color:#24194D; font-size:0.9rem; }
         .logo {
             width:120px; height:120px; border-radius:24px; background:#fff;
@@ -95,6 +140,19 @@
     </style>
 </head>
 <body>
+@php
+    $loginToasts = [];
+    if (request('loggedOut')) {
+        $loginToasts[] = ['type' => 'success', 'text' => 'Signed out successfully. See you soon!'];
+    }
+    if (request('sessionExpired')) {
+        $loginToasts[] = ['type' => 'warn', 'text' => 'Your session expired due to inactivity. Please sign in again.'];
+    }
+    if (isset($errors) && $errors->any()) {
+        $loginToasts[] = ['type' => 'error', 'text' => (string) $errors->first()];
+    }
+@endphp
+<div class="toast-host" id="login-toasts" aria-live="polite"></div>
 <div class="left">
     <div class="logo"><img src="{{ asset('sns-logo.png') }}" alt="SNS Furniture"></div>
     <div class="eyebrow">Staff Portal</div>
@@ -105,15 +163,6 @@
     <div class="card">
         <h2>Sign in</h2>
         <p style="color:#452F80b3;margin-top:0">Enter your workspace credentials</p>
-        @if (request('loggedOut'))
-            <div class="toast">Signed out successfully. See you soon!</div>
-        @endif
-        @if (request('sessionExpired'))
-            <div class="toast warn">Your session expired due to inactivity. Please sign in again.</div>
-        @endif
-        @if ($errors->any())
-            <div class="error">{{ $errors->first() }}</div>
-        @endif
         <form method="POST" action="{{ route('login') }}">
             @csrf
             <label for="email">Username/Email</label>
@@ -140,6 +189,33 @@
 </div>
 <script>
 (function () {
+    var host = document.getElementById('login-toasts');
+    var initial = @json($loginToasts);
+    function dismiss(el) {
+        el.classList.add('is-hiding');
+        setTimeout(function () { el.remove(); }, 200);
+    }
+    function showToast(type, text) {
+        if (!host || !text) return;
+        var el = document.createElement('div');
+        el.className = 'toast-popup ' + (type || 'success');
+        el.setAttribute('role', 'status');
+        var body = document.createElement('div');
+        body.className = 'toast-body';
+        body.textContent = text;
+        var close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'toast-close';
+        close.setAttribute('aria-label', 'Dismiss');
+        close.innerHTML = '&times;';
+        close.addEventListener('click', function () { dismiss(el); });
+        el.appendChild(body);
+        el.appendChild(close);
+        host.appendChild(el);
+        setTimeout(function () { if (el.parentNode) dismiss(el); }, 5000);
+    }
+    (initial || []).forEach(function (t) { showToast(t.type, t.text); });
+
     var input = document.getElementById('password');
     var btn = document.getElementById('toggle-password');
     if (!input || !btn) return;
