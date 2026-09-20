@@ -35,7 +35,6 @@ class AdminUserWebController extends Controller
 
         $data = $request->validate([
             'full_name' => ['required', 'string', 'min:2', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:64'],
             'role' => ['required', 'string'],
         ]);
@@ -50,20 +49,7 @@ class AdminUserWebController extends Controller
         }
 
         $fullName = trim($data['full_name']);
-        $email = isset($data['email']) && trim((string) $data['email']) !== ''
-            ? strtolower(trim((string) $data['email']))
-            : $this->emailFromFullName($fullName);
-
-        $username = substr(explode('@', $email)[0] ?? 'user', 0, 64);
-        if (strlen($username) < 3) {
-            $username = 'user.'.substr((string) time(), -6);
-        }
-
-        if (User::query()->where('email', $email)->orWhere('username', $username)->exists()) {
-            return back()->withErrors([
-                'email' => 'An account with this email/username already exists: '.$email,
-            ])->withInput();
-        }
+        [$username, $email] = $this->uniqueCredentialsFromName($fullName);
 
         try {
             DB::transaction(function () use ($data, $fullName, $email, $username, $role, $request) {
@@ -94,21 +80,52 @@ class AdminUserWebController extends Controller
             report($e);
 
             return back()->withErrors([
-                'full_name' => 'Could not create user account. Check unique email/username.',
+                'full_name' => 'Could not create user account. Try again.',
             ])->withInput();
         }
 
         return redirect()
             ->route('admin.users')
-            ->with('status', 'User account created for '.$fullName.' — login: '.$email.' / password123');
+            ->with('status', 'User account created for '.$fullName.' — @'.$username.' / '.$email.' / password123');
     }
 
-    private function emailFromFullName(string $fullName): string
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function uniqueCredentialsFromName(string $fullName): array
+    {
+        $base = $this->slugFromFullName($fullName);
+        $username = $base;
+        $n = 2;
+
+        while (
+            User::query()
+                ->where('username', $username)
+                ->orWhere('email', $username.'@sns.com')
+                ->exists()
+        ) {
+            $suffix = (string) $n;
+            $username = substr($base, 0, max(1, 64 - strlen($suffix))).$suffix;
+            $n++;
+            if ($n > 9999) {
+                $username = 'user.'.substr((string) (int) (microtime(true) * 1000), -8);
+                break;
+            }
+        }
+
+        return [$username, $username.'@sns.com'];
+    }
+
+    private function slugFromFullName(string $fullName): string
     {
         $slug = strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '.', $fullName) ?? '', '.'));
-        $slug = preg_replace('/\.+/', '.', $slug) ?: 'employee';
+        $slug = preg_replace('/\.+/', '.', $slug) ?: 'user';
         $slug = substr($slug, 0, 64);
 
-        return $slug.'@sns.com';
+        if (strlen($slug) < 3) {
+            $slug = 'user.'.$slug;
+        }
+
+        return $slug;
     }
 }

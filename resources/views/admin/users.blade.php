@@ -7,28 +7,12 @@
     <div>
         <h1>Users</h1>
         <p class="muted" style="margin:.35rem 0 0">
-            Admin only: create ERP login accounts. Default password is <strong>password123</strong>.
-            Email defaults to <code>firstname.lastname@sns.com</code>. Employee HR details stay on the HR employees page.
+            Admin only: create ERP login accounts. Username and company email are auto-built from the full name
+            (e.g. <code>abebe.kebede</code> / <code>abebe.kebede@sns.com</code>). Default password is <strong>password123</strong>.
         </p>
     </div>
     <button class="btn" type="button" onclick="document.getElementById('create-user').hidden=false">Add user account</button>
 </div>
-
-@if (session('status'))
-    <div class="card" style="margin-bottom:1rem;border-color:#16a34a">
-        <p style="margin:0;color:#15803d">{{ session('status') }}</p>
-    </div>
-@endif
-
-@if ($errors->any())
-    <div class="card" style="margin-bottom:1rem;border-color:#dc2626">
-        <ul style="margin:0;padding-left:1.2rem;color:#b91c1c">
-            @foreach ($errors->all() as $error)
-                <li>{{ $error }}</li>
-            @endforeach
-        </ul>
-    </div>
-@endif
 
 <div class="card" id="create-user" style="margin-bottom:1.25rem" @if(!$errors->any()) hidden @endif>
     <h2 style="margin-top:0;font-size:1.1rem">Create user account</h2>
@@ -39,13 +23,7 @@
                 <label for="full_name">Full name *</label>
                 <input id="full_name" name="full_name" value="{{ old('full_name') }}" required minlength="2"
                        placeholder="e.g. Abebe Kebede" autocomplete="name">
-                <p class="muted" style="margin:.35rem 0 0;font-size:.8rem">Used to build login email automatically.</p>
-            </div>
-            <div>
-                <label for="email">Login email (optional override)</label>
-                <input id="email" name="email" type="email" value="{{ old('email') }}"
-                       placeholder="auto: name@sns.com">
-                <p class="muted" style="margin:.35rem 0 0;font-size:.8rem" id="email-preview">Leave blank to auto-generate.</p>
+                <p class="muted" style="margin:.35rem 0 0;font-size:.8rem" id="cred-preview">Username and company email are created from this name.</p>
             </div>
             <div>
                 <label for="phone">Phone</label>
@@ -80,7 +58,7 @@
         <tr>
             <th>Name</th>
             <th>Username</th>
-            <th>Email</th>
+            <th>Company email</th>
             <th>Roles</th>
             <th>Active</th>
             <th>Created</th>
@@ -106,31 +84,26 @@
 <script>
 (function () {
     const nameInput = document.getElementById('full_name');
-    const emailInput = document.getElementById('email');
-    const preview = document.getElementById('email-preview');
+    const preview = document.getElementById('cred-preview');
     if (!nameInput || !preview) return;
 
-    function slugEmail(name) {
+    function slugName(name) {
         const slug = String(name || '')
             .toLowerCase()
             .trim()
             .replace(/[^a-z0-9]+/g, '.')
             .replace(/^\.+|\.+$/g, '')
             .replace(/\.+/g, '.')
-            .slice(0, 64) || 'employee';
-        return slug + '@sns.com';
+            .slice(0, 64) || 'user';
+        return slug.length < 3 ? 'user.' + slug : slug;
     }
 
     function updatePreview() {
-        if (emailInput && emailInput.value.trim() !== '') {
-            preview.textContent = 'Will use: ' + emailInput.value.trim().toLowerCase();
-            return;
-        }
-        preview.textContent = 'Will use: ' + slugEmail(nameInput.value);
+        const username = slugName(nameInput.value);
+        preview.textContent = 'Will create: @' + username + ' / ' + username + '@sns.com (unique suffix added if needed)';
     }
 
     nameInput.addEventListener('input', updatePreview);
-    if (emailInput) emailInput.addEventListener('input', updatePreview);
     updatePreview();
 })();
 </script>
