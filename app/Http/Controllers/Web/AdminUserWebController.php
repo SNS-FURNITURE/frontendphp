@@ -89,6 +89,32 @@ class AdminUserWebController extends Controller
             ->with('status', 'User account created for '.$fullName.' — @'.$username.' / '.$email.' / password123');
     }
 
+    public function update(Request $request, User $user): RedirectResponse
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $data = $request->validate([
+            'full_name' => ['required', 'string', 'min:2', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:64'],
+        ]);
+
+        $fullName = trim($data['full_name']);
+        $user->full_name = $fullName;
+        $user->phone = ($data['phone'] ?? null) !== null && $data['phone'] !== ''
+            ? $data['phone']
+            : null;
+        $user->save();
+
+        $this->audit->log(auth()->user(), 'user', (int) $user->id, 'UPDATE_USER_CONTACT', [
+            'full_name' => $fullName,
+            'phone' => $user->phone,
+        ], $request);
+
+        return redirect()
+            ->route('admin.users')
+            ->with('status', 'Updated name/phone for '.$fullName);
+    }
+
     /**
      * @return array{0: string, 1: string}
      */

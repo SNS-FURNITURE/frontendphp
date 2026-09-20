@@ -97,8 +97,8 @@ class ErpDemoSeeder extends Seeder
 
         $passwordHash = Hash::make('password123');
         $users = [
-            ['full_name' => 'General Manager (Admin)', 'email' => 'admin@sns.com', 'role' => 'admin', 'phone' => '+251911000001'],
-            ['full_name' => 'Maya Manager (Operations)', 'email' => 'manager@sns.com', 'role' => 'company_manager', 'phone' => '+251911000004'],
+            ['full_name' => 'General Manager', 'email' => 'admin@sns.com', 'role' => 'admin', 'phone' => '+251911000001'],
+            ['full_name' => 'Maya Manager', 'email' => 'manager@sns.com', 'role' => 'company_manager', 'phone' => '+251911000004'],
             ['full_name' => 'Hana HR & PR Officer', 'email' => 'hr@sns.com', 'role' => 'hr', 'phone' => '+251911000008'],
             ['full_name' => 'Fiona Finance', 'email' => 'finance@sns.com', 'role' => 'finance', 'phone' => '+251911000006'],
             ['full_name' => 'Lina Lead Gen', 'email' => 'sales@sns.com', 'role' => 'sales_lead_gen', 'phone' => '+251911000002'],

@@ -505,7 +505,7 @@
                 <div></div>
                 <div>
                     <label>Prepared by — name</label>
-                    <input type="text" :value="doc.prepared_by.name" readonly disabled>
+                    <input type="text" :value="personName(doc.prepared_by.name)" readonly disabled>
                 </div>
                 <div>
                     <label>Prepared by — phone</label>
@@ -513,7 +513,7 @@
                 </div>
                 <div>
                     <label>Approved by — name</label>
-                    <input type="text" :value="doc.approved_by.name || 'Filled when admin approves'" readonly disabled>
+                    <input type="text" :value="personName(doc.approved_by.name) || 'Filled when admin approves'" readonly disabled>
                 </div>
                 <div>
                     <label>Approved by — phone</label>
@@ -532,13 +532,6 @@
                     <img class="inv-logo" src="{{ $invoiceLogoSrc }}" alt="SNS">
                     <h1 class="inv-title" x-text="docTitle"></h1>
                 </div>
-                @if (($invoiceStatus ?? null) === 'approved')
-                    <div style="margin:0 0 0.75rem;text-align:center">
-                        <span style="display:inline-block;padding:0.25rem 0.85rem;border:2px solid #166534;color:#166534;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;font-size:0.85rem">
-                            Approved
-                        </span>
-                    </div>
-                @endif
 
                 <div class="inv-supplier-meta">
                     <div class="inv-supplier">
@@ -665,7 +658,7 @@
                         <div class="inv-sig-line"></div>
                         <div class="inv-sig-row">
                             <span class="lbl">Name:</span>
-                            <span class="val" x-text="doc.prepared_by.name"></span>
+                            <span class="val" x-text="personName(doc.prepared_by.name)"></span>
                         </div>
                         <div class="inv-sig-row">
                             <span class="lbl">Tel:</span>
@@ -677,15 +670,12 @@
                         <div class="inv-sig-line"></div>
                         <div class="inv-sig-row">
                             <span class="lbl">Name:</span>
-                            <span class="val" x-text="doc.approved_by.name"></span>
+                            <span class="val" x-text="personName(doc.approved_by.name)"></span>
                         </div>
                         <div class="inv-sig-row">
                             <span class="lbl">Tel:</span>
                             <span class="val" x-text="doc.approved_by.phone"></span>
                         </div>
-                        @if (($invoiceStatus ?? null) === 'approved')
-                            <div class="inv-sig-row" style="margin-top:0.35rem;color:#166534;font-weight:700;font-size:0.8rem">Status: Approved</div>
-                        @endif
                     </div>
                 </div>
             </div>
@@ -871,6 +861,9 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus) {
             }
         },
         round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; },
+        personName(name) {
+            return String(name || '').replace(/\s*\([^)]*\)\s*$/u, '').trim();
+        },
         money(n) {
             return this.round2(Number(n)||0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         },

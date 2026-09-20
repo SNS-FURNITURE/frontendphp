@@ -460,16 +460,17 @@ class InvoiceWebController extends Controller
         }
 
         $user = auth()->user();
+        $approverName = $this->personDisplayName($user?->full_name ?: $user?->username);
         $snapshot = is_array($invoice->snapshot_json) ? $invoice->snapshot_json : [];
         $snapshot['approved_by'] = [
-            'name' => (string) ($user->full_name ?: $user->username ?: 'Admin'),
+            'name' => $approverName,
             'phone' => (string) ($user->phone ?: ''),
         ];
         $snapshot['approval'] = [
             'status' => 'approved',
             'approved_at' => now()->toIso8601String(),
             'approved_by_user_id' => (int) $user->id,
-            'approved_by_name' => (string) ($user->full_name ?: $user->username ?: 'Admin'),
+            'approved_by_name' => $approverName,
         ];
 
         $invoice->status = 'approved';
@@ -639,6 +640,19 @@ class InvoiceWebController extends Controller
         }
 
         return $assembled;
+    }
+
+    private function personDisplayName(?string $name): string
+    {
+        $name = trim((string) $name);
+        if ($name === '') {
+            return '';
+        }
+
+        // Drop trailing role tags like "(Admin)" / "(Operations)".
+        $name = preg_replace('/\s*\([^)]*\)\s*$/u', '', $name) ?? $name;
+
+        return trim($name);
     }
 
     private function normalizeDate(mixed $value): ?string

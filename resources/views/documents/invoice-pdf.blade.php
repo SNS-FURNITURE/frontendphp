@@ -102,9 +102,9 @@
 </head>
 <body>
 @php
-    $preparedName = trim((string) ($vm['preparedBy']['name'] ?? ''));
+    $preparedName = trim(preg_replace('/\s*\([^)]*\)\s*$/u', '', (string) ($vm['preparedBy']['name'] ?? '')) ?? '');
     $preparedPhone = trim((string) ($vm['preparedBy']['phone'] ?? ''));
-    $approvedName = trim((string) ($vm['approvedBy']['name'] ?? ''));
+    $approvedName = trim(preg_replace('/\s*\([^)]*\)\s*$/u', '', (string) ($vm['approvedBy']['name'] ?? '')) ?? '');
     $approvedPhone = trim((string) ($vm['approvedBy']['phone'] ?? ''));
 @endphp
 <div class="page">
