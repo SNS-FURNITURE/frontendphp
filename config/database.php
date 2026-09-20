@@ -1,7 +1,51 @@
 <?php
 
 use Illuminate\Support\Str;
-use Pdo\Mysql;
+
+/**
+ * MySQL / MariaDB PDO SSL options driven entirely by .env so you can switch
+ * local ↔ Aiven ↔ another host without changing application code.
+ *
+ * Env knobs:
+ * - DB_URL                  Optional full DSN (overrides host/port/user/pass/db when set)
+ * - DB_SSL=true             Require TLS (needed for Aiven and most managed MySQL)
+ * - MYSQL_ATTR_SSL_CA=path  Optional CA bundle (Aiven "Download CA certificate")
+ * - DB_SSL_VERIFY=false     Skip server-cert verify when you have no CA file
+ */
+$mysqlSslOptions = static function (): array {
+    if (! extension_loaded('pdo_mysql')) {
+        return [];
+    }
+
+    $sslCaConstant = defined('Pdo\\Mysql::ATTR_SSL_CA')
+        ? constant('Pdo\\Mysql::ATTR_SSL_CA')
+        : PDO::MYSQL_ATTR_SSL_CA;
+
+    $sslVerifyConstant = defined('Pdo\\Mysql::ATTR_SSL_VERIFY_SERVER_CERT')
+        ? constant('Pdo\\Mysql::ATTR_SSL_VERIFY_SERVER_CERT')
+        : PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT;
+
+    $ca = env('MYSQL_ATTR_SSL_CA', env('DB_SSL_CA'));
+    $wantSsl = filter_var(env('DB_SSL', false), FILTER_VALIDATE_BOOLEAN) || filled($ca);
+
+    if (! $wantSsl) {
+        return [];
+    }
+
+    $options = [
+        // Empty-string / true CA still turns TLS on for managed MySQL (Aiven, etc.)
+        $sslCaConstant => filled($ca) ? (string) $ca : true,
+    ];
+
+    $verify = env('DB_SSL_VERIFY', env('MYSQL_ATTR_SSL_VERIFY_SERVER_CERT'));
+    if ($verify !== null && $verify !== '') {
+        $options[$sslVerifyConstant] = filter_var($verify, FILTER_VALIDATE_BOOLEAN);
+    } elseif (! filled($ca)) {
+        $options[$sslVerifyConstant] = false;
+    }
+
+    return $options;
+};
 
 return [
 
@@ -10,24 +54,19 @@ return [
     | Default Database Connection Name
     |--------------------------------------------------------------------------
     |
-    | Here you may specify which of the database connections below you wish
-    | to use as your default connection for database operations. This is
-    | the connection which will be utilized unless another connection
-    | is explicitly specified when you execute a query / statement.
+    | Switch providers by changing .env only:
+    |   DB_CONNECTION=mysql|mariadb|pgsql|sqlite
+    |   DB_HOST / DB_PORT / DB_DATABASE / DB_USERNAME / DB_PASSWORD
+    |   or a single DB_URL=mysql://user:pass@host:port/db
     |
     */
 
-    'default' => env('DB_CONNECTION', 'sqlite'),
+    'default' => env('DB_CONNECTION', 'mysql'),
 
     /*
     |--------------------------------------------------------------------------
     | Database Connections
     |--------------------------------------------------------------------------
-    |
-    | Below are all of the database connections defined for your application.
-    | An example configuration is provided for each database system which
-    | is supported by Laravel. You're free to add / remove connections.
-    |
     */
 
     'connections' => [
@@ -49,7 +88,7 @@ return [
             'url' => env('DB_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '3306'),
-            'database' => env('DB_DATABASE', 'laravel'),
+            'database' => env('DB_DATABASE', 'sns_erp_db'),
             'username' => env('DB_USERNAME', 'root'),
             'password' => env('DB_PASSWORD', ''),
             'unix_socket' => env('DB_SOCKET', ''),
@@ -59,9 +98,7 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
-                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
+            'options' => $mysqlSslOptions(),
         ],
 
         'mariadb' => [
@@ -69,7 +106,7 @@ return [
             'url' => env('DB_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '3306'),
-            'database' => env('DB_DATABASE', 'laravel'),
+            'database' => env('DB_DATABASE', 'sns_erp_db'),
             'username' => env('DB_USERNAME', 'root'),
             'password' => env('DB_PASSWORD', ''),
             'unix_socket' => env('DB_SOCKET', ''),
@@ -79,9 +116,7 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
-                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
+            'options' => $mysqlSslOptions(),
         ],
 
         'pgsql' => [
@@ -89,14 +124,14 @@ return [
             'url' => env('DB_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '5432'),
-            'database' => env('DB_DATABASE', 'laravel'),
+            'database' => env('DB_DATABASE', 'sns_erp_db'),
             'username' => env('DB_USERNAME', 'root'),
             'password' => env('DB_PASSWORD', ''),
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
             'search_path' => 'public',
-            'sslmode' => env('DB_SSLMODE', 'prefer'),
+            'sslmode' => env('DB_SSLMODE', env('DB_SSL') ? 'require' : 'prefer'),
         ],
 
         'sqlsrv' => [
@@ -104,44 +139,20 @@ return [
             'url' => env('DB_URL'),
             'host' => env('DB_HOST', 'localhost'),
             'port' => env('DB_PORT', '1433'),
-            'database' => env('DB_DATABASE', 'laravel'),
+            'database' => env('DB_DATABASE', 'sns_erp_db'),
             'username' => env('DB_USERNAME', 'root'),
             'password' => env('DB_PASSWORD', ''),
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
-            // 'encrypt' => env('DB_ENCRYPT', 'yes'),
-            // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
         ],
 
     ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Migration Repository Table
-    |--------------------------------------------------------------------------
-    |
-    | This table keeps track of all the migrations that have already run for
-    | your application. Using this information, we can determine which of
-    | the migrations on disk haven't actually been run on the database.
-    |
-    */
 
     'migrations' => [
         'table' => 'migrations',
         'update_date_on_publish' => true,
     ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Redis Databases
-    |--------------------------------------------------------------------------
-    |
-    | Redis is an open source, fast, and advanced key-value store that also
-    | provides a richer body of commands than a typical key-value system
-    | such as Memcached. You may define your connection settings here.
-    |
-    */
 
     'redis' => [
 
