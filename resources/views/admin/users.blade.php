@@ -3,14 +3,15 @@
 @section('title', 'Users · SNS Furniture')
 
 @section('content')
-<div class="page-head">
+<div class="page-head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap">
     <div>
-        <h1>Users &amp; employee accounts</h1>
+        <h1>Users</h1>
         <p class="muted" style="margin:.35rem 0 0">
-            Admin only: hire a staff member by creating their ERP login + employee HR record.
-            Default password is <strong>password123</strong>. Email defaults to <code>firstname.lastname@sns.com</code>.
+            Admin only: create ERP login accounts. Default password is <strong>password123</strong>.
+            Email defaults to <code>firstname.lastname@sns.com</code>. Employee HR details stay on the HR employees page.
         </p>
     </div>
+    <button class="btn" type="button" onclick="document.getElementById('create-user').hidden=false">Add user account</button>
 </div>
 
 @if (session('status'))
@@ -29,12 +30,10 @@
     </div>
 @endif
 
-<div class="card" style="margin-bottom:1.25rem">
-    <h2 style="margin-top:0;font-size:1.1rem">Create employee ERP account</h2>
+<div class="card" id="create-user" style="margin-bottom:1.25rem" @if(!$errors->any()) hidden @endif>
+    <h2 style="margin-top:0;font-size:1.1rem">Create user account</h2>
     <form method="POST" action="{{ route('admin.users.store') }}" id="hire-form">
         @csrf
-
-        <h3 style="font-size:.95rem;margin:0 0 .75rem;color:var(--muted, #64748b)">Account &amp; access</h3>
         <div class="grid-2">
             <div>
                 <label for="full_name">Full name *</label>
@@ -64,65 +63,12 @@
             <div>
                 <label>Password</label>
                 <input type="text" value="password123" disabled>
-                <input type="hidden" name="password_locked" value="1">
-                <p class="muted" style="margin:.35rem 0 0;font-size:.8rem">Fixed default — employee should change after first login.</p>
+                <p class="muted" style="margin:.35rem 0 0;font-size:.8rem">Fixed default — user should change after first login.</p>
             </div>
         </div>
-
-        <h3 style="font-size:.95rem;margin:1.25rem 0 .75rem;color:var(--muted, #64748b)">Employee / HR details</h3>
-        <div class="grid-2">
-            <div>
-                <label for="job_title">Job title</label>
-                <input id="job_title" name="job_title" value="{{ old('job_title') }}">
-            </div>
-            <div>
-                <label for="department">Department</label>
-                <input id="department" name="department" value="{{ old('department') }}">
-            </div>
-            <div>
-                <label for="hire_date">Hire date</label>
-                <input id="hire_date" name="hire_date" type="date" value="{{ old('hire_date', now()->toDateString()) }}">
-            </div>
-            <div>
-                <label for="monthly_salary">Monthly salary (ETB)</label>
-                <input id="monthly_salary" name="monthly_salary" type="number" step="0.01" min="0" value="{{ old('monthly_salary') }}">
-            </div>
-            <div>
-                <label for="employee_no">Employee number</label>
-                <input id="employee_no" name="employee_no" value="{{ old('employee_no') }}" placeholder="Auto if blank">
-            </div>
-            <div>
-                <label for="national_id_number">National ID</label>
-                <input id="national_id_number" name="national_id_number" value="{{ old('national_id_number') }}">
-            </div>
-            <div>
-                <label for="bank_name">Bank name</label>
-                <input id="bank_name" name="bank_name" value="{{ old('bank_name', 'Dashen Bank') }}">
-            </div>
-            <div>
-                <label for="bank_account_number">Bank account number</label>
-                <input id="bank_account_number" name="bank_account_number" value="{{ old('bank_account_number') }}">
-            </div>
-            <div>
-                <label for="employee_account">Employee account (payroll ref)</label>
-                <input id="employee_account" name="employee_account" value="{{ old('employee_account') }}">
-            </div>
-            <div>
-                <label for="emergency_contact_name">Emergency contact name</label>
-                <input id="emergency_contact_name" name="emergency_contact_name" value="{{ old('emergency_contact_name') }}">
-            </div>
-            <div>
-                <label for="emergency_contact_relationship">Emergency contact relationship</label>
-                <input id="emergency_contact_relationship" name="emergency_contact_relationship" value="{{ old('emergency_contact_relationship') }}">
-            </div>
-            <div>
-                <label for="emergency_contact_phone">Emergency contact phone</label>
-                <input id="emergency_contact_phone" name="emergency_contact_phone" value="{{ old('emergency_contact_phone') }}">
-            </div>
-        </div>
-
         <div class="toolbar" style="margin-top:1rem">
-            <button type="submit" class="btn">Create employee account</button>
+            <button type="submit" class="btn">Create account</button>
+            <button class="btn ghost" type="button" onclick="document.getElementById('create-user').hidden=true">Cancel</button>
         </div>
     </form>
 </div>
