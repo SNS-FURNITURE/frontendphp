@@ -76,6 +76,9 @@
             "@php artisan optimize",
             "@php artisan storage:link --force"
         ],
+        "plesk-check": [
+            "@php -r \"echo 'PHP '.PHP_VERSION.PHP_EOL; foreach (['pdo_mysql','mbstring','openssl','tokenizer','xml','ctype','json','fileinfo','curl','zip'] as $e) { echo (extension_loaded($e)?'OK ':'MISSING ').$e.PHP_EOL; }\""
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"
