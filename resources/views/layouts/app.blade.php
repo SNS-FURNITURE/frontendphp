@@ -20,16 +20,24 @@
             --accent: #a78bfa;
         }
         * { box-sizing: border-box; }
-        body {
+        html, body {
+            height: 100%;
             margin: 0;
+        }
+        body {
             font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
             background: var(--purple-dark);
             color: var(--text);
-            min-height: 100vh;
+            overflow: hidden;
         }
         a { color: var(--accent); text-decoration: none; }
         a:hover { text-decoration: underline; }
-        .shell { display: flex; min-height: 100vh; }
+        .shell {
+            display: flex;
+            height: 100%;
+            min-height: 0;
+            overflow: hidden;
+        }
         .sidebar {
             width: 240px;
             background: var(--sidebar);
@@ -38,13 +46,11 @@
             flex-direction: column;
             padding: 1.25rem 0.9rem;
             flex-shrink: 0;
-            position: sticky;
-            top: 0;
-            align-self: flex-start;
-            height: 100vh;
-            max-height: 100vh;
+            height: 100%;
+            max-height: 100%;
             overflow-x: hidden;
             overflow-y: auto;
+            overscroll-behavior: contain;
         }
         .brand-block { padding: 0 0.5rem 1.25rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
         .brand-name { color: #ff6b6b; font-weight: 800; font-size: 1.05rem; }
@@ -60,8 +66,17 @@
         }
         .nav-link:hover { background: #1c1836; text-decoration: none; }
         .nav-link.active { background: #3d3470; color: #fff; font-weight: 600; }
-        .sidebar-foot { margin-top: auto; padding: 0.75rem 0.5rem 0; border-top: 1px solid var(--border); }
-        .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        .sidebar-foot { margin-top: auto; padding: 0.75rem 0.5rem 0; border-top: 1px solid var(--border); flex-shrink: 0; }
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            min-height: 0;
+            height: 100%;
+            overflow: hidden;
+            background: var(--purple-dark);
+        }
         .topbar {
             display: flex;
             justify-content: space-between;
@@ -70,6 +85,7 @@
             padding: 0.9rem 1.5rem;
             border-bottom: 1px solid var(--border);
             background: rgba(16, 14, 36, 0.85);
+            flex-shrink: 0;
         }
         .topbar-user { font-weight: 600; }
         .topbar-actions { display: flex; align-items: center; gap: 0.65rem; }
@@ -83,7 +99,14 @@
             font-weight: 700;
             text-transform: uppercase;
         }
-        .content { padding: 1.5rem; flex: 1; }
+        .content {
+            padding: 1.5rem;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            background: var(--purple-dark);
+        }
         .content-wide { max-width: none; }
         .card {
             background: var(--panel);
@@ -137,14 +160,16 @@
         .page-head h1 { margin: 0; font-size: 1.75rem; font-weight: 700; }
         .toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
         @media (max-width: 900px) {
-            .shell { flex-direction: column; }
+            body { overflow: auto; height: auto; }
+            .shell { flex-direction: column; height: auto; min-height: 100dvh; overflow: visible; }
             .sidebar {
                 width: 100%;
-                position: static;
                 height: auto;
                 max-height: none;
                 overflow-y: visible;
             }
+            .main { height: auto; overflow: visible; }
+            .content { overflow: visible; min-height: 0; }
             .grid-2 { grid-template-columns: 1fr; }
         }
         @media print {
@@ -371,6 +396,26 @@
 
 <script>
 (function () {
+    var SIDEBAR_SCROLL_KEY = 'sns.sidebar.scrollTop';
+    var sidebar = document.querySelector('.sidebar');
+    if (sidebar) {
+        var saved = sessionStorage.getItem(SIDEBAR_SCROLL_KEY);
+        if (saved !== null) {
+            var restore = function () {
+                sidebar.scrollTop = parseInt(saved, 10) || 0;
+            };
+            restore();
+            requestAnimationFrame(restore);
+        }
+        var persistSidebarScroll = function () {
+            sessionStorage.setItem(SIDEBAR_SCROLL_KEY, String(sidebar.scrollTop));
+        };
+        sidebar.addEventListener('scroll', persistSidebarScroll, { passive: true });
+        sidebar.querySelectorAll('a.nav-link').forEach(function (link) {
+            link.addEventListener('click', persistSidebarScroll);
+        });
+    }
+
     var IDLE_MS = 30 * 60 * 1000;
     var timer;
     function reset() {
