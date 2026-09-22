@@ -1,0 +1,15 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Block direct web access to sensitive environment & configuration files
+    RewriteRule ^(\.env|\.git|\.editorconfig|composer\.(json|lock)|package(-lock)?\.json|phpunit\.xml|artisan) - [F,L,NC]
+
+    # Rewrite all traffic to the public folder if document root is set to project root
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Fallback security for Apache 2.4+
+<Files ".env">
+    Require all denied
+</Files>
