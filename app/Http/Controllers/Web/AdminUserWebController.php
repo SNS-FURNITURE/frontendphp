@@ -96,6 +96,7 @@ class AdminUserWebController extends Controller
         $data = $request->validate([
             'full_name' => ['required', 'string', 'min:2', 'max:255'],
             'phone' => ['nullable', 'string', 'max:64'],
+            'role' => ['nullable', 'string'],
         ]);
 
         $fullName = trim($data['full_name']);
@@ -105,14 +106,45 @@ class AdminUserWebController extends Controller
             : null;
         $user->save();
 
+        if (!empty($data['role']) && !$user->isAdmin()) {
+            $role = Role::query()->where('name', $data['role'])->first();
+            if ($role) {
+                $user->roles()->sync([$role->id => ['assigned_at' => now()]]);
+            }
+        }
+
         $this->audit->log(auth()->user(), 'user', (int) $user->id, 'UPDATE_USER_CONTACT', [
             'full_name' => $fullName,
             'phone' => $user->phone,
+            'role' => $data['role'] ?? null,
         ], $request);
 
         return redirect()
             ->route('admin.users')
-            ->with('status', 'Updated name/phone for '.$fullName);
+            ->with('status', 'Updated account for '.$fullName);
+    }
+
+    public function destroy(Request $request, User $user): RedirectResponse
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+        
+        if ($user->id === auth()->id()) {
+            return back()->withErrors(['error' => 'You cannot delete your own account.']);
+        }
+
+        $fullName = $user->full_name;
+        $userId = $user->id;
+
+        $user->roles()->detach();
+        $user->delete();
+
+        $this->audit->log(auth()->user(), 'user', (int) $userId, 'DELETE_USER_ACCOUNT', [
+            'full_name' => $fullName,
+        ], $request);
+
+        return redirect()
+            ->route('admin.users')
+            ->with('status', 'Deleted user account for '.$fullName);
     }
 
     /**

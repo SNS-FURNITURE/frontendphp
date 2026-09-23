@@ -39,7 +39,7 @@ class InvoiceWebController extends Controller
         $drafts = (clone $base)
             ->where('status', 'draft')
             ->when(! $user->isAdmin(), fn ($q) => $q->where('created_by', $user->id))
-            ->orderByDesc('updated_at')
+            ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->get();
 
@@ -509,9 +509,15 @@ class InvoiceWebController extends Controller
             ]);
         }
 
-        return response($this->documents->renderPdf($snapshot), 200, [
+        $pdfData = $this->documents->renderPdf($snapshot);
+        $disposition = $request->query('download') === '1' ? 'attachment' : 'inline';
+        
+        return response($pdfData, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'.pdf"',
+            'Content-Disposition' => $disposition . '; filename="'.$filename.'.pdf"',
+            'Content-Length' => strlen($pdfData),
+            'Cache-Control' => 'private, max-age=0, must-revalidate',
+            'Pragma' => 'public',
         ]);
     }
 

@@ -833,7 +833,7 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus) {
             }
         },
         async flushAutosave(keepalive) {
-            if (!this.canAutosave || this.saving || !this.dirty) return;
+            if (!this.canAutosave || (!keepalive && this.saving) || !this.dirty) return;
             const token = document.querySelector('meta[name="csrf-token"]')?.content;
             if (!token || !this.autosaveUrl) return;
             const payload = this.buildPayload();
@@ -848,7 +848,7 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus) {
                         'X-Requested-With': 'XMLHttpRequest',
                     },
                     body: JSON.stringify(payload),
-                    keepalive: !!keepalive,
+                    keepalive: true,
                     credentials: 'same-origin',
                 });
                 if (!res.ok) return;

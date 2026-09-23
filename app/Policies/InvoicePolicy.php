@@ -75,8 +75,7 @@ class InvoicePolicy
             return false;
         }
 
-        return $user->isAdmin()
-            || ($user->hasInvoiceLaunchRole() && $user->hasPermission('finance', 'approve'));
+        return $user->isAdmin();
     }
 
     public function recordPayment(User $user): bool

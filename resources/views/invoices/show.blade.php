@@ -209,7 +209,22 @@
             var JsPDF = window.jspdf.jsPDF;
             var pdf = new JsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
             pdf.addImage(img, 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
-            pdf.save(fileName);
+            
+            // Fix for Chrome 'File wasn't available on the site' bug
+            var blob = pdf.output('blob');
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            
+            setTimeout(function() {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 5000);
+            
         } catch (err) {
             console.error(err);
             alert('Could not create PDF from the paper. Please try again.');

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
@@ -10,18 +10,74 @@
     <link rel="shortcut icon" href="{{ asset('favicon.ico') }}?v=2">
     <link rel="apple-touch-icon" href="{{ asset('sns-logo.png') }}?v=2">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+    <script>
+        if (localStorage.getItem('theme') === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+        }
+    </script>
     <style>
         :root {
             --purple: #6c5ce7;
-            --purple-mid: #452F80;
+            --purple-mid: #a78bfa;
+            --purple-dark: #f8fafc;
+            --sidebar: #ffffff;
+            --panel: #ffffff;
+            --border: #e2e8f0;
+            --text: #0f172a;
+            --muted: #64748b;
+            --red: #ef4444;
+            --accent: #4f46e5;
+            --nav-hover: #f1f5f9;
+            --topbar-bg: rgba(255, 255, 255, 0.85);
+            --role-bg: #e0e7ff;
+            --role-text: #4338ca;
+            --btn-text: #ffffff;
+            --toast-succ-bg: #dcfce7;
+            --toast-succ-txt: #166534;
+            --toast-succ-bd: #bbf7d0;
+            --toast-err-bg: #fee2e2;
+            --toast-err-txt: #991b1b;
+            --toast-err-bd: #fecaca;
+            --input-bg: #ffffff;
+            --color-scheme: var(--color-scheme);
+            --badge-bg: #e0e7ff;
+            --nav-toggle-bg: #ffffff;
+            --backdrop: rgba(15, 23, 42, 0.4);
+            --dialog-bg: #ffffff;
+            --btn-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            --card-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            --cal-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cline x1='16' y1='2' x2='16' y2='6'/%3E%3Cline x1='8' y1='2' x2='8' y2='6'/%3E%3Cline x1='3' y1='10' x2='21' y2='10'/%3E%3C/svg%3E");
+            --cal-bg: var(--accent);
+        }
+        [data-theme="dark"] {
             --purple-dark: #0d0b21;
             --sidebar: #100e24;
             --panel: #16132e;
             --border: #2a2550;
             --text: #f4f2ff;
             --muted: #9b94b8;
-            --red: #E13B30;
             --accent: #a78bfa;
+            --nav-hover: #1c1836;
+            --topbar-bg: rgba(16, 14, 36, 0.85);
+            --role-bg: #3d3470;
+            --role-text: #dcd6ff;
+            --btn-text: #120f24;
+            --toast-succ-bg: rgba(20, 53, 42, 0.96);
+            --toast-succ-txt: #8dffc1;
+            --toast-succ-bd: #1f5a44;
+            --toast-err-bg: rgba(58, 21, 21, 0.96);
+            --toast-err-txt: #ffb4b4;
+            --toast-err-bd: #6b2a2a;
+            --input-bg: #0f0d1f;
+            --color-scheme: dark;
+            --badge-bg: #2a2550;
+            --nav-toggle-bg: #1c1836;
+            --backdrop: rgba(8, 6, 20, 0.72);
+            --dialog-bg: #1a1634;
+            --btn-shadow: none;
+            --card-shadow: none;
+            --cal-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cline x1='16' y1='2' x2='16' y2='6'/%3E%3Cline x1='8' y1='2' x2='8' y2='6'/%3E%3Cline x1='3' y1='10' x2='21' y2='10'/%3E%3C/svg%3E");
+            --cal-bg: #f97316;
         }
         * { box-sizing: border-box; }
         [x-cloak] { display: none !important; }
@@ -49,7 +105,7 @@
             border-right: 1px solid var(--border);
             display: flex;
             flex-direction: column;
-            padding: 1.25rem 0.9rem;
+            padding: 0 0.9rem;
             flex-shrink: 0;
             height: 100%;
             max-height: 100%;
@@ -57,21 +113,30 @@
             overflow-y: auto;
             overscroll-behavior: contain;
         }
-        .brand-block { padding: 0 0.5rem 1.25rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
+        .brand-block {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: var(--sidebar);
+            padding: 1.25rem 0.5rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 1rem;
+        }
         .brand-name { color: #ff6b6b; font-weight: 800; font-size: 1.05rem; }
         .brand-sub { color: var(--muted); font-size: 0.75rem; margin-top: 0.15rem; }
         .nav-section { color: var(--muted); font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase; margin: 0.85rem 0.5rem 0.4rem; }
         .nav-link {
             display: block;
             padding: 0.55rem 0.75rem;
-            border-radius: 10px;
-            color: #d8d2f0;
+            border-radius: 8px;
+            color: var(--text);
             margin-bottom: 0.25rem;
             font-size: 0.92rem;
+            font-weight: 500;
         }
-        .nav-link:hover { background: #1c1836; text-decoration: none; }
-        .nav-link.active { background: #3d3470; color: #fff; font-weight: 600; }
-        .sidebar-foot { margin-top: auto; padding: 0.75rem 0.5rem 0; border-top: 1px solid var(--border); flex-shrink: 0; }
+        .nav-link:hover { background: var(--nav-hover); text-decoration: none; }
+        .nav-link.active { background: var(--purple); color: #fff; font-weight: 600; }
+        .sidebar-foot { margin-top: auto; padding: 0.75rem 0.5rem 1.25rem; border-top: 1px solid var(--border); flex-shrink: 0; }
         .main {
             flex: 1;
             display: flex;
@@ -89,7 +154,7 @@
             gap: 1rem;
             padding: 0.9rem 1.5rem;
             border-bottom: 1px solid var(--border);
-            background: rgba(16, 14, 36, 0.85);
+            background: var(--topbar-bg);
             flex-shrink: 0;
         }
         .topbar-user { font-weight: 600; }
@@ -98,8 +163,8 @@
             display: inline-block;
             padding: 0.2rem 0.65rem;
             border-radius: 999px;
-            background: #3d3470;
-            color: #dcd6ff;
+            background: var(--role-bg);
+            color: var(--role-text);
             font-size: 0.72rem;
             font-weight: 700;
             text-transform: uppercase;
@@ -116,23 +181,25 @@
         .card {
             background: var(--panel);
             border: 1px solid var(--border);
-            border-radius: 16px;
+            border-radius: 12px;
             padding: 1.25rem;
+            box-shadow: var(--card-shadow);
         }
         .btn {
             display: inline-block;
             border: 0;
-            border-radius: 10px;
+            border-radius: 8px;
             padding: 0.55rem 0.95rem;
             background: var(--accent);
-            color: #120f24;
-            font-weight: 700;
+            color: var(--btn-text);
+            font-weight: 600;
             cursor: pointer;
             font-size: 0.9rem;
+            box-shadow: var(--btn-shadow);
         }
         .btn:hover { filter: brightness(1.05); text-decoration: none; }
         .btn.secondary { background: var(--purple); color: #fff; }
-        .btn.ghost { background: transparent; color: #dcd6ff; border: 1px solid var(--border); }
+        .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); box-shadow: none; }
         .btn.danger { background: var(--red); color: #fff; }
         table.data { width: 100%; border-collapse: collapse; }
         table.data th, table.data td { text-align: left; padding: 0.7rem 0.45rem; border-bottom: 1px solid var(--border); font-size: 0.92rem; }
@@ -162,14 +229,14 @@
             animation: toast-in 0.28s ease-out;
         }
         .toast-success {
-            background: rgba(20, 53, 42, 0.96);
-            color: #8dffc1;
-            border: 1px solid #1f5a44;
+            background: var(--toast-succ-bg);
+            color: var(--toast-succ-txt);
+            border: 1px solid var(--toast-succ-bd);
         }
         .toast-error {
-            background: rgba(58, 21, 21, 0.96);
-            color: #ffb4b4;
-            border: 1px solid #6b2a2a;
+            background: var(--toast-err-bg);
+            color: var(--toast-err-txt);
+            border: 1px solid var(--toast-err-bd);
         }
         .toast-body { flex: 1; min-width: 0; }
         .toast-close {
@@ -198,22 +265,23 @@
                 width: min(22rem, calc(100vw - 1.5rem));
             }
         }
-        label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem; color: #d8d2f0; }
+        label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; color: var(--text); }
         input, select, textarea {
             width: 100%;
             padding: 0.55rem 0.7rem;
             border: 1px solid var(--border);
-            border-radius: 10px;
+            border-radius: 8px;
             margin-bottom: 0.85rem;
-            background: #0f0d1f;
+            background: var(--input-bg);
             color: var(--text);
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);
         }
         input[type="date"],
         input[type="datetime-local"],
         input[type="time"],
         input[type="month"],
         input[type="week"] {
-            color-scheme: dark;
+            color-scheme: var(--color-scheme);
             min-height: 2.6rem;
             padding-right: 0.55rem;
         }
@@ -230,7 +298,7 @@
             margin-left: 0.35rem;
             border-radius: 6px;
             background-color: #f97316;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cline x1='16' y1='2' x2='16' y2='6'/%3E%3Cline x1='8' y1='2' x2='8' y2='6'/%3E%3Cline x1='3' y1='10' x2='21' y2='10'/%3E%3C/svg%3E");
+            background-image: var(--cal-icon);
             background-repeat: no-repeat;
             background-position: center;
             background-size: 0.95rem 0.95rem;
@@ -249,22 +317,22 @@
             display: inline-block;
             padding: 0.15rem 0.5rem;
             border-radius: 999px;
-            background: #2a2550;
+            background: var(--badge-bg);
             color: var(--accent);
             font-size: 0.75rem;
             font-weight: 700;
             text-transform: uppercase;
         }
         .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
-        .page-head h1 { margin: 0; font-size: 1.75rem; font-weight: 700; }
+        .page-head h1 { margin: 0; font-size: 1.75rem; font-weight: 700; color: var(--text); }
         .toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
         .table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .nav-toggle {
             display: none;
             border: 1px solid var(--border);
-            background: #1c1836;
-            color: #fff;
-            border-radius: 10px;
+            background: var(--nav-toggle-bg);
+            color: var(--text);
+            border-radius: 8px;
             width: 2.5rem;
             height: 2.5rem;
             padding: 0;
@@ -272,22 +340,23 @@
             align-items: center;
             justify-content: center;
             flex-direction: column;
-            gap: 5px;
+            gap: 4px;
             flex-shrink: 0;
         }
         .nav-toggle-bar {
             display: block;
             width: 1.15rem;
             height: 2px;
-            background: #f4f2ff;
+            background: var(--text);
             border-radius: 2px;
         }
         .sidebar-backdrop {
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(8, 6, 20, 0.55);
+            background: var(--backdrop);
             z-index: 40;
+            backdrop-filter: blur(2px);
         }
         .sidebar-backdrop.is-open { display: block; }
         @media (max-width: 1100px) {
@@ -362,7 +431,7 @@
             align-items: center;
             justify-content: center;
             padding: 1rem;
-            background: rgba(8, 6, 20, 0.72);
+            background: var(--backdrop);
             backdrop-filter: blur(4px);
         }
         .logout-modal.is-open { display: flex !important; }
@@ -370,11 +439,11 @@
         .logout-dialog {
             width: 100%;
             max-width: 380px;
-            background: #1a1634;
+            background: var(--dialog-bg);
             border: 1px solid var(--border);
-            border-radius: 18px;
+            border-radius: 12px;
             padding: 1.5rem;
-            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
             animation: logout-pop 0.18s ease-out;
         }
         @keyframes logout-pop {
@@ -384,7 +453,7 @@
         .logout-dialog h3 {
             margin: 0 0 0.4rem;
             font-size: 1.2rem;
-            color: #fff;
+            color: var(--text);
         }
         .logout-dialog p {
             margin: 0 0 1.25rem;
@@ -546,6 +615,14 @@
                 <div class="topbar-user">{{ '@'.$username }} {{ auth()->user()->full_name }}</div>
             </div>
             <div class="topbar-actions">
+                <button type="button" class="btn ghost" id="theme-toggle" aria-label="Toggle Theme" style="padding: 0.35rem 0.5rem;" title="Toggle Dark/Light Mode">
+                    <svg id="theme-icon-dark" style="display:none; width: 18px; height: 18px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
+                    </svg>
+                    <svg id="theme-icon-light" style="display:block; width: 18px; height: 18px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+                    </svg>
+                </button>
                 <span class="role-badge">{{ $roleLabel }}</span>
                 <button class="btn ghost" type="button" data-logout-open>Logout</button>
             </div>
@@ -604,6 +681,42 @@
 
 <script>
 (function () {
+    
+    var savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    }
+    
+    var themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) {
+        var iconDark = document.getElementById('theme-icon-dark');
+        var iconLight = document.getElementById('theme-icon-light');
+        
+        function updateIcons() {
+            var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            if (isDark) {
+                iconDark.style.display = 'block';
+                iconLight.style.display = 'none';
+            } else {
+                iconDark.style.display = 'none';
+                iconLight.style.display = 'block';
+            }
+        }
+        // Run on next tick so DOM is ready
+        setTimeout(updateIcons, 0);
+        
+        themeToggle.addEventListener('click', function() {
+            if (document.documentElement.getAttribute('data-theme') === 'dark') {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+            }
+            updateIcons();
+        });
+    }
+
     var SIDEBAR_SCROLL_KEY = 'sns.sidebar.scrollTop';
     var sidebar = document.getElementById('app-sidebar') || document.querySelector('.sidebar');
     var backdrop = document.getElementById('sidebar-backdrop');

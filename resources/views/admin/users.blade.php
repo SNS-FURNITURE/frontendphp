@@ -70,7 +70,28 @@
         <tbody>
         @forelse ($users as $user)
             <tr>
-                <td colspan="7" style="padding-top:1rem;padding-bottom:1rem">
+                <td>{{ $user->full_name }}</td>
+                <td>{{ $user->phone ?: '—' }}</td>
+                <td>{{ '@'.($user->username ?: '—') }}</td>
+                <td>{{ $user->email }}</td>
+                <td>{{ $user->roles->pluck('name')->join(', ') ?: '—' }}</td>
+                <td>
+                    {{ $user->is_active ? 'Active' : 'Inactive' }}
+                    @if ($user->id === auth()->id()) <span class="muted" style="font-size:0.8rem"> (you)</span> @endif
+                </td>
+                <td>
+                    <div style="display:flex;gap:0.5rem;align-items:center">
+                        <button type="button" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; background: #000; color: #fff; border-color: #000;" onclick="document.getElementById('edit-user-{{ $user->id }}').hidden = !document.getElementById('edit-user-{{ $user->id }}').hidden">Edit</button>
+                        <form method="POST" action="{{ route('admin.users.destroy', $user) }}" onsubmit="return confirm('Are you sure you want to completely delete {{ $user->full_name }}? This cannot be undone.');" style="margin:0">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="btn ghost" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; color: #dc2626;">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            <tr id="edit-user-{{ $user->id }}" hidden>
+                <td colspan="7" style="padding-top:1rem;padding-bottom:1rem; background: var(--bg-alt, #f9f9f9);">
                     <form method="POST" action="{{ route('admin.users.update', $user) }}" class="grid-2" style="margin:0;align-items:end">
                         @csrf
                         @method('PATCH')
@@ -82,17 +103,24 @@
                             <label>Phone</label>
                             <input name="phone" value="{{ old('phone', $user->phone) }}" placeholder="+2519…" style="margin-bottom:0">
                         </div>
+                        @if (!$user->isAdmin())
                         <div>
-                            <label class="muted">Username / email</label>
-                            <input value="{{ '@'.($user->username ?: '—') }} · {{ $user->email }}" readonly disabled style="margin-bottom:0">
+                            <label>ERP Role</label>
+                            <select name="role" required style="margin-bottom:0">
+                                @foreach ($roles as $role)
+                                    <option value="{{ $role->name }}" @selected($user->roles->contains('name', $role->name))>{{ $role->name }}</option>
+                                @endforeach
+                            </select>
                         </div>
-                        <div class="toolbar" style="justify-content:space-between;width:100%">
-                            <span class="muted" style="font-size:.8rem">
-                                {{ $user->roles->pluck('name')->join(', ') ?: '—' }}
-                                · {{ $user->is_active ? 'Active' : 'Inactive' }}
-                                @if ($user->id === auth()->id()) · you @endif
-                            </span>
-                            <button type="submit" class="btn" style="margin:0">Save name/phone</button>
+                        @else
+                        <div>
+                            <label>ERP Role</label>
+                            <input value="Admin" readonly disabled style="margin-bottom:0; background: #eee;">
+                        </div>
+                        @endif
+                        <div class="toolbar" style="justify-content:flex-end;width:100%;grid-column: 1 / -1; margin-top: 0.5rem;">
+                            <button type="button" class="btn ghost" onclick="document.getElementById('edit-user-{{ $user->id }}').hidden = true">Cancel</button>
+                            <button type="submit" class="btn" style="margin:0">Save changes</button>
                         </div>
                     </form>
                 </td>

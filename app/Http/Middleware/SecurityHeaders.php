@@ -25,6 +25,8 @@ class SecurityHeaders
 
         // Private ERP — discourage indexing.
         $response->headers->set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+        $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        $response->headers->set('Pragma', 'no-cache');
 
         if ($request->isSecure() || app()->environment('production')) {
             $response->headers->set(

@@ -11,6 +11,8 @@ class User extends Authenticatable
 {
     use Notifiable;
 
+    protected ?array $cachedPermissionPairs = null;
+
     protected $table = 'users';
 
     protected $fillable = [
@@ -552,6 +554,10 @@ class User extends Authenticatable
      */
     public function permissionPairs(): array
     {
+        if ($this->cachedPermissionPairs !== null) {
+            return $this->cachedPermissionPairs;
+        }
+
         $rows = [];
         $seen = [];
 
@@ -629,7 +635,7 @@ class User extends Authenticatable
             }
         }
 
-        return $rows;
+        return $this->cachedPermissionPairs = $rows;
     }
 
     /**
