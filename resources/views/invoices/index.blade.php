@@ -109,10 +109,6 @@
                                         <a href="{{ route('invoices.edit', $invoice) }}">Edit</a>
                                     @endif
                                 @endcan
-                                @can('approve', $invoice)
-                                    @if (!in_array($invoice->status, ['approved','paid','cancelled'], true) && auth()->user()->can('update', $invoice)) · @endif
-                                    <a href="{{ route('invoices.show', $invoice) }}" style="font-size:0.8rem">Review &amp; approve</a>
-                                @endcan
                             </td>
                         </tr>
                     @endforeach

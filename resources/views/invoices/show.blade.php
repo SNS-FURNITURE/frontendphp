@@ -30,15 +30,15 @@
     'readOnly' => true,
     'formAction' => null,
     'pageTitle' => $invoice->invoice_number,
-    'pageDescription' => $invoice->status === 'approved'
-        ? 'Approved order — signed by '.($document['approved_by']['name'] ?? 'admin').'.'
-        : (($canApprove ?? false)
-            ? 'Review prices and fill in Approved By details, then click Approve order.'
-            : 'Saved order document.'),
+    'pageDescription' => ($canApprove ?? false)
+        ? 'Set prices and approver details, then click Approve order.'
+        : null,
     'invoiceStatus' => $invoice->status,
     'invoiceId' => $invoice->id,
-    'approvalMode' => $canApprove ?? false,
-    'approveAction' => ($canApprove ?? false) ? route('invoices.approve', $invoice) : null,
+    'approvalMode' => ($canApprove ?? false) && $invoice->status !== 'approved',
+    'approveAction' => ($canApprove ?? false) && $invoice->status !== 'approved'
+        ? route('invoices.approve', $invoice)
+        : null,
 ])
 @endsection
 
