@@ -1562,6 +1562,7 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
             this.autosaveTimer = null;
             this.syncDirtyState();
             this.dirty = true;
+            this.persistLocalDraft();
             this.flushAutosave(false);
         },
         get filteredCustomers() {
@@ -1596,6 +1597,7 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
             if (this.canAutosave) {
                 clearTimeout(this.autosaveTimer);
                 this.dirty = true;
+                this.persistLocalDraft();
                 this.flushAutosave(false);
             }
         },
@@ -1613,6 +1615,9 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
             return this.dirty;
         },
         hasDraftContent() {
+            if (String(this.doc.customer?.name || '').trim()) {
+                return true;
+            }
             if (this.doc.customer?.is_valid || this.findCustomerMatch()) {
                 return true;
             }
@@ -1628,7 +1633,7 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
 
             return false;
         },
-        shouldPersistDraftOnLeave() {
+        needsDraftPersistence() {
             if (!this.canAutosave) {
                 return false;
             }
@@ -1636,6 +1641,73 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
             this.syncDirtyState();
 
             return this.dirty || this.hasDraftContent() || !!this.autosaveTimer || this.saving;
+        },
+        sendBeaconAutosave() {
+            const token = document.querySelector('meta[name="csrf-token"]')?.content;
+            if (!token || !this.autosaveUrl) {
+                return false;
+            }
+
+            let payload;
+            try {
+                payload = this.prepareAutosavePayload();
+            } catch (_) {
+                return false;
+            }
+
+            const formData = new FormData();
+            formData.append('_token', token);
+            formData.append('document_json', payload.document_json);
+            formData.append('amount', payload.amount);
+            formData.append('status', payload.status);
+            if (payload.sales_order_id) {
+                formData.append('sales_order_id', payload.sales_order_id);
+            }
+
+            if (navigator.sendBeacon) {
+                return navigator.sendBeacon(this.autosaveUrl, formData);
+            }
+
+            try {
+                fetch(this.autosaveUrl, {
+                    method: 'POST',
+                    body: formData,
+                    keepalive: true,
+                    credentials: 'same-origin',
+                });
+
+                return true;
+            } catch (_) {
+                return false;
+            }
+        },
+        async persistDraftBeforeLeave({ awaitServer = true, useBeacon = false } = {}) {
+            if (!this.canAutosave) {
+                return;
+            }
+
+            clearTimeout(this.autosaveTimer);
+            this.autosaveTimer = null;
+            clearTimeout(this._localDraftTimer);
+            this._localDraftTimer = null;
+            this.syncDirtyState();
+            this.persistLocalDraft();
+
+            if (!this.dirty && !this.hasDraftContent() && !this.saving) {
+                return;
+            }
+
+            if (useBeacon) {
+                this.sendBeaconAutosave();
+
+                return;
+            }
+
+            if (awaitServer) {
+                await this.flushAutosave(false, true);
+            } else {
+                this.flushAutosave(true, true);
+            }
         },
         localDraftStorageKey() {
             const id = this.invoiceId || ('create-' + (salesOrderId || 'none'));
@@ -1798,8 +1870,10 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
                 this.scheduleAutosave();
             }, { deep: true });
             const flushOnLeave = () => {
-                this.persistLocalDraft();
-                this.flushAutosave(true, true);
+                if (!this.needsDraftPersistence()) {
+                    return;
+                }
+                this.persistDraftBeforeLeave({ awaitServer: false, useBeacon: true });
             };
             window.addEventListener('pagehide', flushOnLeave);
             window.addEventListener('beforeunload', flushOnLeave);
@@ -1813,15 +1887,14 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
                 if (!isReload || event.altKey) {
                     return;
                 }
-                if (!this.shouldPersistDraftOnLeave()) {
+                if (!this.needsDraftPersistence()) {
                     return;
                 }
                 event.preventDefault();
                 event.stopPropagation();
                 this._leaveSaving = true;
-                this.persistLocalDraft();
                 try {
-                    await this.flushAutosave(false, true);
+                    await this.persistDraftBeforeLeave({ awaitServer: true });
                 } finally {
                     this._leaveSaving = false;
                 }
@@ -1829,8 +1902,8 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
             };
             window.addEventListener('keydown', this._reloadKeyHandler, true);
             document.addEventListener('visibilitychange', () => {
-                if (document.visibilityState === 'hidden') {
-                    flushOnLeave();
+                if (document.visibilityState === 'hidden' && this.needsDraftPersistence()) {
+                    this.persistDraftBeforeLeave({ awaitServer: false, useBeacon: true });
                 }
             });
             this._leaveClickHandler = async (event) => {
@@ -1850,14 +1923,14 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
                 if (!this.isNavigatingAway(link.href)) {
                     return;
                 }
-                if (!this.shouldPersistDraftOnLeave()) {
+                if (!this.needsDraftPersistence()) {
                     return;
                 }
                 event.preventDefault();
                 event.stopPropagation();
                 this._leaveSaving = true;
                 try {
-                    await this.flushAutosave(false, true);
+                    await this.persistDraftBeforeLeave({ awaitServer: true });
                 } finally {
                     this._leaveSaving = false;
                 }
@@ -1876,14 +1949,14 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
                 if (!this.isNavigatingAway(action)) {
                     return;
                 }
-                if (!this.shouldPersistDraftOnLeave()) {
+                if (!this.needsDraftPersistence()) {
                     return;
                 }
                 event.preventDefault();
                 event.stopPropagation();
                 this._leaveSaving = true;
                 try {
-                    await this.flushAutosave(false, true);
+                    await this.persistDraftBeforeLeave({ awaitServer: true });
                 } finally {
                     this._leaveSaving = false;
                 }
@@ -1892,13 +1965,17 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
             document.addEventListener('submit', this._leaveSubmitHandler, true);
         },
         scheduleAutosave() {
-            if (!this.canAutosave) return;
-            if (!this.readOnly && !this.doc.customer?.is_valid && !this.hasDraftContent()) return;
+            if (!this.canAutosave || this.readOnly) {
+                return;
+            }
+            if (!this.dirty && !this.hasDraftContent()) {
+                return;
+            }
             clearTimeout(this.autosaveTimer);
             this.autosaveTimer = setTimeout(() => {
                 this.autosaveTimer = null;
                 this.flushAutosave(false);
-            }, 1200);
+            }, 800);
         },
         buildPayload() {
             if (this.prepareSubmit({ preventDefault(){} }) === false) {
@@ -1956,21 +2033,7 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
 
             if (keepalive) {
                 this.persistLocalDraft();
-                const payload = this.prepareAutosavePayload();
-                try {
-                    fetch(this.autosaveUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': token,
-                            'Accept': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest',
-                        },
-                        body: JSON.stringify(payload),
-                        keepalive: true,
-                        credentials: 'same-origin',
-                    });
-                } catch (_) {}
+                this.sendBeaconAutosave();
 
                 return;
             }
