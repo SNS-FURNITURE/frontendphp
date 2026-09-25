@@ -6,13 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Models\Party;
 use App\Models\User;
 use App\Services\AuditService;
+use App\Services\CustomerIdentityService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class PartyController extends Controller
 {
-    public function __construct(private AuditService $audit) {}
+    public function __construct(
+        private AuditService $audit,
+        private CustomerIdentityService $customerIdentity,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -41,17 +45,43 @@ class PartyController extends Controller
         /** @var User|null $user */
         $user = $request->attributes->get('auth_user') ?? $request->user();
 
-        $party = Party::query()->create([
-            'party_type' => $request->input('party_type', 'customer'),
-            'name' => $name,
-            'company_name' => $request->input('company_name'),
-            'phone' => $request->input('phone'),
-            'email' => $request->input('email'),
-            'address' => $request->input('address'),
-            'notes' => $request->input('notes'),
-            'approval_status' => 'pending',
-            'created_by' => $user?->id,
-        ]);
+        $partyType = $request->input('party_type', 'customer');
+        $address = $request->input('address');
+
+        if ($partyType === 'customer' && $this->customerIdentity->customerExists($name, is_string($address) ? $address : null)) {
+            return ApiResponse::error(
+                'A customer with this name and address already exists.',
+                'DUPLICATE_CUSTOMER',
+                409,
+            );
+        }
+
+        try {
+            $party = $partyType === 'customer'
+                ? $this->customerIdentity->createCustomer([
+                    'name' => $name,
+                    'company_name' => $request->input('company_name'),
+                    'phone' => $request->input('phone'),
+                    'email' => $request->input('email'),
+                    'address' => $address,
+                    'notes' => $request->input('notes'),
+                    'approval_status' => 'pending',
+                    'created_by' => $user?->id,
+                ])
+                : Party::query()->create([
+                    'party_type' => $partyType,
+                    'name' => $name,
+                    'company_name' => $request->input('company_name'),
+                    'phone' => $request->input('phone'),
+                    'email' => $request->input('email'),
+                    'address' => $address,
+                    'notes' => $request->input('notes'),
+                    'approval_status' => 'pending',
+                    'created_by' => $user?->id,
+                ]);
+        } catch (\InvalidArgumentException $exception) {
+            return ApiResponse::error($exception->getMessage(), 'DUPLICATE_CUSTOMER', 409);
+        }
 
         $this->audit->log($user, 'party', (int) $party->id, 'CREATE_PARTY', [
             'name' => $party->name,

@@ -14,8 +14,8 @@
     $user = auth()->user();
     $canViewPrices = (bool) ($user?->canViewInvoicePrices());
     $canEditPrices = (bool) ($user?->canEditInvoicePrices());
-    $catalogProducts = \App\Models\Product::all();
-    $catalogCategories = $catalogProducts->pluck('category')->unique()->values();
+    $catalogProducts = \App\Models\Product::catalog();
+    $catalogCategories = \App\Models\Product::catalogCategories($catalogProducts);
     $customerOptions = isset($customers)
         ? $customers->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'address' => $c->address, 'phone' => $c->phone])->values()->toArray()
         : [];
@@ -212,7 +212,7 @@
 .inv-lines .lname { font-weight: 700; display: inline; color: #000; font-size: 12px; }
 .inv-lines .lsep { font-weight: 400; display: inline; }
 .inv-lines .ldesc { color: #000; font-size: 12px; font-weight: 400; display: inline; white-space: pre-wrap; }
-.invoice-a4.is-advisor-paper .inv-lines {
+.invoice-a4.is-supervisor-paper .inv-lines {
     margin-left: -6px;
     width: calc(100% + 6px);
     margin-top: 10px;
@@ -220,7 +220,7 @@
     border-collapse: collapse;
     font-size: 11px;
 }
-.invoice-a4.is-advisor-paper .inv-lines th {
+.invoice-a4.is-supervisor-paper .inv-lines th {
     background: #e8e8e8;
     border: 0;
     font-weight: 700;
@@ -229,7 +229,7 @@
     text-align: left;
     color: #000;
 }
-.invoice-a4.is-advisor-paper .inv-lines td {
+.invoice-a4.is-supervisor-paper .inv-lines td {
     border: 0;
     border-bottom: 1px solid #d4d4d4;
     padding: 4px 2px 4px 0;
@@ -238,11 +238,11 @@
     font-weight: 400;
     color: #000;
 }
-.invoice-a4.is-advisor-paper .inv-lines thead th {
+.invoice-a4.is-supervisor-paper .inv-lines thead th {
     border-bottom: 1px solid #d4d4d4;
 }
-.invoice-a4.is-advisor-paper .inv-lines th:nth-child(1),
-.invoice-a4.is-advisor-paper .inv-lines td:nth-child(1) {
+.invoice-a4.is-supervisor-paper .inv-lines th:nth-child(1),
+.invoice-a4.is-supervisor-paper .inv-lines td:nth-child(1) {
     width: 1.1rem;
     min-width: 1.1rem;
     max-width: 1.1rem;
@@ -250,19 +250,19 @@
     padding-left: 0;
     padding-right: 2px;
 }
-.invoice-a4.is-advisor-paper .inv-lines th:nth-child(2),
-.invoice-a4.is-advisor-paper .inv-lines td:nth-child(2) {
+.invoice-a4.is-supervisor-paper .inv-lines th:nth-child(2),
+.invoice-a4.is-supervisor-paper .inv-lines td:nth-child(2) {
     text-align: left;
 }
-.invoice-a4.is-advisor-paper .inv-lines th:nth-child(3),
-.invoice-a4.is-advisor-paper .inv-lines td:nth-child(3) {
+.invoice-a4.is-supervisor-paper .inv-lines th:nth-child(3),
+.invoice-a4.is-supervisor-paper .inv-lines td:nth-child(3) {
     width: 2.25rem;
     text-align: center;
     padding-left: 0;
     padding-right: 0;
 }
-.invoice-a4.is-advisor-paper .inv-lines th:nth-child(4),
-.invoice-a4.is-advisor-paper .inv-lines td:nth-child(4) {
+.invoice-a4.is-supervisor-paper .inv-lines th:nth-child(4),
+.invoice-a4.is-supervisor-paper .inv-lines td:nth-child(4) {
     width: 2.75rem;
     text-align: right;
     white-space: normal;
@@ -270,103 +270,103 @@
     padding-left: 0;
     padding-right: 0;
 }
-.invoice-a4.is-advisor-paper .inv-lines th:nth-child(5),
-.invoice-a4.is-advisor-paper .inv-lines td:nth-child(5) {
+.invoice-a4.is-supervisor-paper .inv-lines th:nth-child(5),
+.invoice-a4.is-supervisor-paper .inv-lines td:nth-child(5) {
     width: 2.25rem;
     text-align: center;
     font-variant-numeric: tabular-nums;
     padding-left: 0;
     padding-right: 0;
 }
-.invoice-a4.is-advisor-paper .inv-lines .litem,
-.invoice-a4.is-advisor-paper .inv-lines .lname,
-.invoice-a4.is-advisor-paper .inv-lines .lsep,
-.invoice-a4.is-advisor-paper .inv-lines .ldesc {
+.invoice-a4.is-supervisor-paper .inv-lines .litem,
+.invoice-a4.is-supervisor-paper .inv-lines .lname,
+.invoice-a4.is-supervisor-paper .inv-lines .lsep,
+.invoice-a4.is-supervisor-paper .inv-lines .ldesc {
     font-size: 11px;
     line-height: 1.25;
 }
-.invoice-a4.is-advisor-paper .inv-lines td:nth-child(1).muted {
+.invoice-a4.is-supervisor-paper .inv-lines td:nth-child(1).muted {
     color: #000;
 }
-.invoice-a4.is-advisor-paper {
+.invoice-a4.is-supervisor-paper {
     font-size: 10px;
     line-height: 1.15;
 }
-.invoice-a4.is-advisor-paper .inv-supplier .name,
-.invoice-a4.is-advisor-paper .inv-supplier .addr,
-.invoice-a4.is-advisor-paper .inv-meta,
-.invoice-a4.is-advisor-paper .inv-meta-row,
-.invoice-a4.is-advisor-paper .inv-meta-row .lbl,
-.invoice-a4.is-advisor-paper .inv-meta-row .val {
+.invoice-a4.is-supervisor-paper .inv-supplier .name,
+.invoice-a4.is-supervisor-paper .inv-supplier .addr,
+.invoice-a4.is-supervisor-paper .inv-meta,
+.invoice-a4.is-supervisor-paper .inv-meta-row,
+.invoice-a4.is-supervisor-paper .inv-meta-row .lbl,
+.invoice-a4.is-supervisor-paper .inv-meta-row .val {
     font-size: 14px;
     line-height: 1.25;
 }
-.invoice-a4.is-advisor-paper .inv-supplier-meta {
+.invoice-a4.is-supervisor-paper .inv-supplier-meta {
     margin-bottom: 0;
 }
-.invoice-a4.is-advisor-paper .inv-customer {
+.invoice-a4.is-supervisor-paper .inv-customer {
     margin-top: 16px;
     margin-bottom: 0.2rem;
     padding: 5px 0 8px;
 }
-.invoice-a4.is-advisor-paper .inv-customer .cap,
-.invoice-a4.is-advisor-paper .inv-customer .cname,
-.invoice-a4.is-advisor-paper .inv-customer .caddr,
-.invoice-a4.is-advisor-paper .inv-customer > div {
+.invoice-a4.is-supervisor-paper .inv-customer .cap,
+.invoice-a4.is-supervisor-paper .inv-customer .cname,
+.invoice-a4.is-supervisor-paper .inv-customer .caddr,
+.invoice-a4.is-supervisor-paper .inv-customer > div {
     font-size: 13px !important;
     line-height: 1.25;
 }
-.invoice-a4.is-advisor-paper .inv-bottom {
+.invoice-a4.is-supervisor-paper .inv-bottom {
     margin-top: 20px;
     gap: 0.75rem;
 }
-.invoice-a4.is-advisor-paper .inv-notes .cap,
-.invoice-a4.is-advisor-paper .inv-notes .term-title,
-.invoice-a4.is-advisor-paper .inv-term-row,
-.invoice-a4.is-advisor-paper .inv-term-row .lbl,
-.invoice-a4.is-advisor-paper .inv-term-row .val,
-.invoice-a4.is-advisor-paper .inv-term-row .term-unit-suffix,
-.invoice-a4.is-advisor-paper .inv-notes textarea,
-.invoice-a4.is-advisor-paper .inv-notes .block > div,
-.invoice-a4.is-advisor-paper .inv-notes input.ghost {
+.invoice-a4.is-supervisor-paper .inv-notes .cap,
+.invoice-a4.is-supervisor-paper .inv-notes .term-title,
+.invoice-a4.is-supervisor-paper .inv-term-row,
+.invoice-a4.is-supervisor-paper .inv-term-row .lbl,
+.invoice-a4.is-supervisor-paper .inv-term-row .val,
+.invoice-a4.is-supervisor-paper .inv-term-row .term-unit-suffix,
+.invoice-a4.is-supervisor-paper .inv-notes textarea,
+.invoice-a4.is-supervisor-paper .inv-notes .block > div,
+.invoice-a4.is-supervisor-paper .inv-notes input.ghost {
     font-size: 12px;
     line-height: 1.3;
 }
-.invoice-a4.is-advisor-paper .inv-notes .block > div {
+.invoice-a4.is-supervisor-paper .inv-notes .block > div {
     min-height: 1.6rem !important;
 }
-.invoice-a4.is-advisor-paper .inv-notes .cap {
+.invoice-a4.is-supervisor-paper .inv-notes .cap {
     text-transform: none;
     letter-spacing: normal;
     margin-bottom: 0.05rem;
 }
-.invoice-a4.is-advisor-paper .inv-notes .block {
+.invoice-a4.is-supervisor-paper .inv-notes .block {
     margin-bottom: 0.3rem;
 }
-.invoice-a4.is-advisor-paper .inv-notes .advisor-notes-field {
+.invoice-a4.is-supervisor-paper .inv-notes .supervisor-notes-field {
     min-height: 1.6rem !important;
 }
-.invoice-a4.is-advisor-paper .inv-term-row {
+.invoice-a4.is-supervisor-paper .inv-term-row {
     margin-bottom: 0.06rem;
 }
-.invoice-a4.is-advisor-paper .term-title {
+.invoice-a4.is-supervisor-paper .term-title {
     margin-bottom: 0.06rem !important;
 }
-.invoice-a4.is-advisor-paper .inv-sigs {
+.invoice-a4.is-supervisor-paper .inv-sigs {
     margin-top: 18px;
     gap: 0.5rem;
 }
-.invoice-a4.is-advisor-paper .inv-sig-val,
-.invoice-a4.is-advisor-paper .inv-sig-lbl,
-.invoice-a4.is-advisor-paper .inv-sig-val input.ghost {
+.invoice-a4.is-supervisor-paper .inv-sig-val,
+.invoice-a4.is-supervisor-paper .inv-sig-lbl,
+.invoice-a4.is-supervisor-paper .inv-sig-val input.ghost {
     font-size: 12px;
     line-height: 1.3;
 }
-.invoice-a4.is-advisor-paper .inv-sig-val {
+.invoice-a4.is-supervisor-paper .inv-sig-val {
     min-height: 1rem;
     padding-bottom: 0.1rem;
 }
-.invoice-a4.is-advisor-paper .inv-lines .litem {
+.invoice-a4.is-supervisor-paper .inv-lines .litem {
     white-space: normal;
 }
 .inv-lines .ghost { font-size: 12px; line-height: 1.2; }
@@ -1071,7 +1071,7 @@
     </div>
 
     <div class="invoice-desk" x-show="(!showCatalog && doc.customer.is_valid) || readOnly">
-        <div class="invoice-a4 @unless($canViewPrices) is-advisor-paper @endunless" id="invoice-a4-sheet" :class="{ 'is-print-preview': paperReadOnly }">
+        <div class="invoice-a4 @unless($canViewPrices) is-supervisor-paper @endunless" id="invoice-a4-sheet" :class="{ 'is-print-preview': paperReadOnly }">
                 <div class="inv-head">
                     <img class="inv-logo" src="{{ $invoiceLogoSrc }}" alt="SNS">
                     <h1 class="inv-title" x-text="docTitle"></h1>
@@ -1154,7 +1154,7 @@
                         <div class="block">
                             <div class="cap">Notes:</div>
                             <template x-if="paperFieldsEditable">
-                                <textarea class="ghost paper-editable @unless($canViewPrices) advisor-notes-field @endunless" x-model="notesText" rows="{{ $canViewPrices ? 3 : 2 }}" style="min-height:{{ $canViewPrices ? '3rem' : '1.4rem' }};white-space:pre-wrap;display:block" :placeholder="notesPlaceholder"></textarea>
+                                <textarea class="ghost paper-editable @unless($canViewPrices) supervisor-notes-field @endunless" x-model="notesText" rows="{{ $canViewPrices ? 3 : 2 }}" style="min-height:{{ $canViewPrices ? '3rem' : '1.4rem' }};white-space:pre-wrap;display:block" :placeholder="notesPlaceholder"></textarea>
                             </template>
                             <template x-if="!paperFieldsEditable">
                                 <div style="min-height:3rem;white-space:pre-wrap;display:block" x-text="(doc.notes || []).filter(n => String(n).trim()).join('\n') || '—'"></div>
@@ -1595,6 +1595,9 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
             if (!term) return customers;
             return customers.filter(c => String(c.name || '').toLowerCase().startsWith(term));
         },
+        normalizeCustomerIdentity(value) {
+            return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        },
         findCustomerMatch() {
             const c = this.doc.customer || {};
             if (c.id) {
@@ -1603,7 +1606,11 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
             }
             const name = String(c.name || '').trim();
             if (!name) return null;
-            return customers.find(p => p.name === name) || null;
+            const addressKey = this.normalizeCustomerIdentity(c.address_line);
+            return customers.find((party) => (
+                this.normalizeCustomerIdentity(party.name) === this.normalizeCustomerIdentity(name)
+                && this.normalizeCustomerIdentity(party.address || '') === addressKey
+            )) || null;
         },
         applyCustomerParty(party) {
             if (!party) return false;

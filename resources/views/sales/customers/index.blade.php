@@ -1,49 +1,51 @@
 @extends('layouts.app')
 
-@section('title', 'Customers')
+@section('title', auth()->user()->isSalesRep() ? 'My Customers' : 'Customer Contacts')
 
 @section('content')
 <div class="page-head">
     <div>
-        <h1>Customers</h1>
+        <h1>@if (auth()->user()->isSalesRep()) My customers @else Customer contacts @endif</h1>
+        @if ($canReview)
+            <p class="muted" style="margin:.35rem 0 0">
+                <a href="{{ route('sales.customers') }}">All</a> ·
+                <a href="{{ route('sales.customers', ['filter' => 'pending']) }}">Pending review</a>
+            </p>
+        @endif
     </div>
     <div class="toolbar">
-        <form method="GET" action="{{ route('sales.customers') }}" style="display:flex;gap:0.5rem;align-items:center;margin:0">
-            <select name="approval_status" onchange="this.form.submit()" style="margin:0;width:auto;min-width:8rem">
-                <option value="">All statuses</option>
-                @foreach (['pending','approved','rejected'] as $st)
-                    <option value="{{ $st }}" @selected($approval === $st)>{{ $st }}</option>
-                @endforeach
-            </select>
-        </form>
         @if ($canCreate)
-            <button class="btn" type="button" onclick="document.getElementById('create-customer').hidden=false">New customer</button>
+            <button class="btn" type="button" onclick="document.getElementById('create-customer').hidden=false">Add contact</button>
         @endif
     </div>
 </div>
 
 @if ($canCreate)
 <div class="card" id="create-customer" style="margin-bottom:1.25rem" @if(!$errors->any() || !old('name')) hidden @endif>
-    <h2 style="margin:0 0 1rem;font-size:1.1rem">Create customer</h2>
+    <h2 style="margin:0 0 1rem;font-size:1.1rem">New customer contact</h2>
+    <p class="muted" style="margin:0 0 1rem">Submitted contacts go to a sales supervisor for approval. Each customer name and address pair must be unique.</p>
     <form method="POST" action="{{ route('sales.customers.store') }}">
         @csrf
         <div class="grid-2">
             <div>
-                <label for="name">Name</label>
+                <label for="name">Name *</label>
                 <input id="name" name="name" value="{{ old('name') }}" required minlength="2">
             </div>
             <div>
-                <label for="phone">Phone</label>
+                <label for="phone">Phone *</label>
                 <input id="phone" name="phone" value="{{ old('phone') }}" required minlength="8">
             </div>
             <div>
                 <label for="address">Address</label>
                 <input id="address" name="address" value="{{ old('address') }}">
             </div>
+            <div>
+                <label for="notes">Notes</label>
+                <input id="notes" name="notes" value="{{ old('notes') }}">
+            </div>
         </div>
-        <p class="muted" style="margin:0 0 0.75rem">New customers always start as <strong>pending</strong> until an advisor approves.</p>
         <div class="toolbar">
-            <button class="btn" type="submit">Save</button>
+            <button class="btn" type="submit">Submit for review</button>
             <button class="btn ghost" type="button" onclick="document.getElementById('create-customer').hidden=true">Cancel</button>
         </div>
     </form>
@@ -51,8 +53,8 @@
 @endif
 
 <div class="card">
-    @if ($customers->isEmpty() && empty($orphanLeads))
-        <p class="muted" style="margin:0;text-align:center;padding:2rem">No customers yet</p>
+    @if ($customers->isEmpty())
+        <p class="muted" style="margin:0;text-align:center;padding:2rem">No contacts yet</p>
     @else
         <table class="data">
             <thead>
@@ -61,42 +63,40 @@
                 <th>Phone</th>
                 <th>Address</th>
                 <th>Status</th>
-                <th></th>
+                @unless (auth()->user()->isSalesRep())
+                    <th>Submitted by</th>
+                @endunless
+                @if ($canReview)
+                    <th></th>
+                @endif
             </tr>
             </thead>
             <tbody>
-            @foreach ($customers as $row)
-                @php $party = $row['party']; @endphp
+            @foreach ($customers as $party)
                 <tr>
                     <td>{{ $party->name }}</td>
                     <td>{{ $party->phone ?? '—' }}</td>
                     <td>{{ $party->address ?? '—' }}</td>
-                    <td><span class="badge">{{ $party->approval_status }}</span></td>
-                    <td style="white-space:nowrap">
-                        @if ($canApprove && $party->approval_status === 'pending')
-                            <form method="POST" action="{{ route('sales.customers.approve', $party) }}" style="display:inline">
-                                @csrf
-                                @method('PATCH')
-                                <input type="hidden" name="approval_status" value="approved">
-                                <button class="btn" type="submit" style="padding:0.3rem 0.55rem;font-size:0.75rem">Approve</button>
-                            </form>
-                            <form method="POST" action="{{ route('sales.customers.approve', $party) }}" style="display:inline">
-                                @csrf
-                                @method('PATCH')
-                                <input type="hidden" name="approval_status" value="rejected">
-                                <button class="btn danger" type="submit" style="padding:0.3rem 0.55rem;font-size:0.75rem">Reject</button>
-                            </form>
-                        @endif
-                    </td>
-                </tr>
-            @endforeach
-            @foreach ($orphanLeads as $lead)
-                <tr>
-                    <td>{{ $lead->name }} <span class="muted">(lead only)</span></td>
-                    <td>{{ $lead->phone ?? '—' }}</td>
-                    <td>—</td>
-                    <td><span class="badge">lead</span></td>
-                    <td></td>
+                    <td>{{ ucfirst($party->approval_status) }}</td>
+                    @unless (auth()->user()->isSalesRep())
+                        <td>{{ $party->creator?->full_name ?? '—' }}</td>
+                    @endunless
+                    @if ($canReview && $party->approval_status === 'pending')
+                        <td>
+                            <div style="display:flex;gap:.5rem">
+                                <form method="POST" action="{{ route('sales.customers.approve', $party) }}">@csrf @method('PATCH')
+                                    <input type="hidden" name="approval_status" value="approved">
+                                    <button type="submit" class="btn" style="padding:.25rem .5rem;font-size:.8rem">Approve</button>
+                                </form>
+                                <form method="POST" action="{{ route('sales.customers.approve', $party) }}">@csrf @method('PATCH')
+                                    <input type="hidden" name="approval_status" value="rejected">
+                                    <button type="submit" class="btn ghost" style="padding:.25rem .5rem;font-size:.8rem;color:#dc2626">Reject</button>
+                                </form>
+                            </div>
+                        </td>
+                    @elseif ($canReview)
+                        <td class="muted">—</td>
+                    @endif
                 </tr>
             @endforeach
             </tbody>
