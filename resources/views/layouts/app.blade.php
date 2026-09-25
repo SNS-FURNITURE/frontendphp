@@ -166,9 +166,14 @@
         .topbar-user { font-weight: 600; }
         .topbar-actions { display: flex; align-items: center; gap: 0.65rem; }
         .app-back-btn {
-            padding: 0.35rem 0.75rem;
-            font-size: 0.85rem;
-            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.1rem;
+            height: 2.1rem;
+            padding: 0;
+            font-size: 1.15rem;
+            line-height: 1;
         }
         .role-badge {
             display: inline-block;
@@ -629,6 +634,9 @@
     <div class="main">
         <header class="topbar no-print">
             <div style="display:flex;align-items:center;gap:0.65rem;min-width:0;flex:1">
+                @if ($showAppBack)
+                    <button type="button" class="btn ghost app-back-btn" id="app-back-btn" aria-label="Go back" title="Go back">&larr;</button>
+                @endif
                 <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-controls="app-sidebar" aria-expanded="false">
                     <span class="nav-toggle-bar" aria-hidden="true"></span>
                     <span class="nav-toggle-bar" aria-hidden="true"></span>
@@ -647,9 +655,6 @@
                 </button>
                 <span class="role-badge">{{ $roleLabel }}</span>
                 <button class="btn ghost" type="button" data-logout-open>Logout</button>
-                @if ($showAppBack)
-                    <button type="button" class="btn ghost app-back-btn" id="app-back-btn" title="Go back">&larr; Back</button>
-                @endif
             </div>
         </header>
         <div class="content @yield('content_class')">
