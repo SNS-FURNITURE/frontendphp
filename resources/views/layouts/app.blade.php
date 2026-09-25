@@ -541,6 +541,9 @@
         ->unique()
         ->values()
         ->join(' · ') ?: 'No role';
+    $isMarketingManager = auth()->user()->isMarketingManager();
+    $commercialReportsFirst = auth()->user()->canViewCommercialReports()
+        && ($isMarketingManager || auth()->user()->isAdmin());
     $showAppBack = !View::hasSection('hide_back')
         && !request()->routeIs('*.index')
         && !request()->routeIs('profile.edit');
@@ -557,10 +560,23 @@
                 </div>
             </div>
         </div>
-        @if (auth()->user()->hasPermission('finance', 'view') || auth()->user()->hasPermission('finance', 'create') || auth()->user()->canViewFunding() || auth()->user()->canViewAllocations())
+        @if ($commercialReportsFirst)
+            <div class="nav-section">Marketing</div>
+            <a class="nav-link {{ request()->routeIs('commercial.reports*') ? 'active' : '' }}" href="{{ route('commercial.reports.index') }}">Commercial reports</a>
+            @if (auth()->user()->isAdmin() && auth()->user()->canViewSales())
+                <a class="nav-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}" href="{{ route('invoices.index') }}">Orders</a>
+            @endif
+            @if (auth()->user()->canManageCommercialTasks())
+                <a class="nav-link {{ request()->routeIs('commercial.tasks*') ? 'active' : '' }}" href="{{ route('commercial.tasks.index') }}">Tasks</a>
+            @endif
+            @if (auth()->user()->canManageContactQuotas())
+                <a class="nav-link {{ request()->routeIs('sales.quota.manage') ? 'active' : '' }}" href="{{ route('sales.quota.manage') }}">Sales quotas</a>
+            @endif
+        @endif
+        @if (! $isMarketingManager && ! auth()->user()->isLimitedSalesRole() && (auth()->user()->canViewPayments() || auth()->user()->hasPermission('finance', 'create') || auth()->user()->canViewFunding() || auth()->user()->canViewAllocations()))
             <div class="nav-section">Finance</div>
 
-            @if (auth()->user()->hasPermission('finance', 'view'))
+            @if (auth()->user()->canViewPayments())
                 <a class="nav-link {{ request()->routeIs('payments.*') ? 'active' : '' }}" href="{{ route('payments.index') }}">Payments</a>
             @endif
             @if (auth()->user()->canViewFunding())
@@ -570,29 +586,58 @@
                 <a class="nav-link {{ request()->routeIs('finance.allocations') ? 'active' : '' }}" href="{{ route('finance.allocations') }}">Allocations</a>
             @endif
         @endif
-        @if (auth()->user()->canViewSales())
+        @if (auth()->user()->isSalesRep())
+            <div class="nav-section">Sales</div>
+            <a class="nav-link {{ request()->routeIs('sales.dashboard') ? 'active' : '' }}" href="{{ route('sales.dashboard') }}">Dashboard</a>
+            <a class="nav-link {{ request()->routeIs('sales.customers*') ? 'active' : '' }}" href="{{ route('sales.customers') }}">My customers</a>
+            <a class="nav-link {{ request()->routeIs('sales.quota') ? 'active' : '' }}" href="{{ route('sales.quota') }}">My sales quota</a>
+            @if (auth()->user()->canViewCommercialTasks())
+                <a class="nav-link {{ request()->routeIs('commercial.tasks*') ? 'active' : '' }}" href="{{ route('commercial.tasks.index') }}">Tasks</a>
+            @endif
+        @elseif (auth()->user()->isSalesSupervisor())
+            <div class="nav-section">Sales</div>
+            <a class="nav-link {{ request()->routeIs('sales.customers*') ? 'active' : '' }}" href="{{ route('sales.customers', ['filter' => 'pending']) }}">Contact reviews</a>
+            <a class="nav-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}" href="{{ route('invoices.index') }}">Orders</a>
+            @if (auth()->user()->canViewCommercialTasks())
+                <a class="nav-link {{ request()->routeIs('commercial.tasks*') ? 'active' : '' }}" href="{{ route('commercial.tasks.index') }}">Tasks</a>
+            @endif
+        @elseif (auth()->user()->canViewSales() && ! auth()->user()->isAdmin())
             <div class="nav-section">Sales</div>
             <a class="nav-link {{ request()->routeIs('sales.customers*') ? 'active' : '' }}" href="{{ route('sales.customers') }}">Customers</a>
             <a class="nav-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}" href="{{ route('invoices.index') }}">Orders</a>
-            <a class="nav-link {{ request()->routeIs('sales.quota') ? 'active' : '' }}" href="{{ route('sales.quota') }}">Quota</a>
         @endif
-        @if (auth()->user()->canViewInventory())
-            <div class="nav-section">Inventory</div>
-            <a class="nav-link {{ request()->routeIs('inventory.items*') ? 'active' : '' }}" href="{{ route('inventory.items') }}">Items</a>
-            <a class="nav-link {{ request()->routeIs('inventory.stock') ? 'active' : '' }}" href="{{ route('inventory.stock') }}">Stock</a>
-            <a class="nav-link {{ request()->routeIs('inventory.low-stock') ? 'active' : '' }}" href="{{ route('inventory.low-stock') }}">Low stock</a>
-            <a class="nav-link {{ request()->routeIs('inventory.movements*') ? 'active' : '' }}" href="{{ route('inventory.movements') }}">Movements</a>
-            <a class="nav-link {{ request()->routeIs('material-requests.*') || request()->routeIs('inventory.material-requests') ? 'active' : '' }}" href="{{ route('material-requests.index') }}">Material requests</a>
-            @if (auth()->user()->canViewDeliveries())
-                <a class="nav-link {{ request()->routeIs('inventory.outbound') ? 'active' : '' }}" href="{{ route('inventory.outbound') }}">Outbound</a>
+        @if (! $isMarketingManager && auth()->user()->canManageContactQuotas())
+            <a class="nav-link {{ request()->routeIs('sales.quota.manage') ? 'active' : '' }}" href="{{ route('sales.quota.manage') }}">Sales quotas</a>
+        @endif
+        @if (! $commercialReportsFirst && auth()->user()->canViewCommercialReports())
+            <div class="nav-section">Marketing</div>
+            <a class="nav-link {{ request()->routeIs('commercial.reports*') ? 'active' : '' }}" href="{{ route('commercial.reports.index') }}">Commercial reports</a>
+            @if (auth()->user()->canManageCommercialTasks())
+                <a class="nav-link {{ request()->routeIs('commercial.tasks*') ? 'active' : '' }}" href="{{ route('commercial.tasks.index') }}">Tasks</a>
             @endif
         @endif
-        @if (auth()->user()->canViewProduction())
+        @if ($isMarketingManager && auth()->user()->canViewProducts())
+            <div class="nav-section">Catalog</div>
+            <a class="nav-link {{ request()->routeIs('products.*') ? 'active' : '' }}" href="{{ route('products.index') }}">Products</a>
+        @elseif (! auth()->user()->isLimitedSalesRole() && auth()->user()->canViewInventory())
+            <div class="nav-section">Inventory</div>
+            <a class="nav-link {{ request()->routeIs('inventory.items*') ? 'active' : '' }}" href="{{ route('inventory.items') }}">Items</a>
+            @unless ($isMarketingManager)
+                <a class="nav-link {{ request()->routeIs('inventory.stock') ? 'active' : '' }}" href="{{ route('inventory.stock') }}">Stock</a>
+                <a class="nav-link {{ request()->routeIs('inventory.low-stock') ? 'active' : '' }}" href="{{ route('inventory.low-stock') }}">Low stock</a>
+                <a class="nav-link {{ request()->routeIs('inventory.movements*') ? 'active' : '' }}" href="{{ route('inventory.movements') }}">Movements</a>
+                <a class="nav-link {{ request()->routeIs('material-requests.*') || request()->routeIs('inventory.material-requests') ? 'active' : '' }}" href="{{ route('material-requests.index') }}">Material requests</a>
+                @if (auth()->user()->canViewDeliveries())
+                    <a class="nav-link {{ request()->routeIs('inventory.outbound') ? 'active' : '' }}" href="{{ route('inventory.outbound') }}">Outbound</a>
+                @endif
+            @endunless
+        @endif
+        @if (! auth()->user()->isLimitedSalesRole() && auth()->user()->canViewProduction())
             <div class="nav-section">Production</div>
             <a class="nav-link {{ request()->routeIs('production.index') || request()->routeIs('manufacturing.production-orders') ? 'active' : '' }}" href="{{ route('production.index') }}">Orders</a>
             <a class="nav-link {{ request()->routeIs('manufacturing.boms*') ? 'active' : '' }}" href="{{ route('manufacturing.boms') }}">BOMs</a>
         @endif
-        @if (auth()->user()->canViewDeliveries())
+        @if (! auth()->user()->isLimitedSalesRole() && auth()->user()->canViewDeliveries())
             <div class="nav-section">Ops</div>
             <a class="nav-link {{ request()->routeIs('production.deliveries*') ? 'active' : '' }}" href="{{ route('production.deliveries') }}">Deliveries</a>
         @endif
@@ -617,7 +662,7 @@
                 <a class="nav-link {{ request()->routeIs('tasks.*') ? 'active' : '' }}" href="{{ route('tasks.index') }}">Priority tasks</a>
             @endif
         @endif
-        @if (auth()->user()->canPostReport() || auth()->user()->canViewAllReports())
+        @if (! $isMarketingManager && (auth()->user()->canPostReport() || auth()->user()->canViewAllReports()))
             <div class="nav-section">Reports</div>
             @if (auth()->user()->canPostReport())
                 <a class="nav-link {{ request()->routeIs('reports.index') || request()->routeIs('reports.store') ? 'active' : '' }}" href="{{ route('reports.index') }}">Post report</a>
@@ -643,7 +688,7 @@
                 <a class="nav-link {{ request()->routeIs('hr.org-chart') ? 'active' : '' }}" href="{{ route('hr.org-chart') }}">Org chart</a>
             @endif
         @endif
-        @if (method_exists(auth()->user(), 'canViewPayroll') && auth()->user()->canViewPayroll() && \Illuminate\Support\Facades\Route::has('finance.payroll'))
+        @if (! $isMarketingManager && ! auth()->user()->isLimitedSalesRole() && method_exists(auth()->user(), 'canViewPayroll') && auth()->user()->canViewPayroll() && \Illuminate\Support\Facades\Route::has('finance.payroll'))
             <a class="nav-link {{ request()->routeIs('finance.payroll*') ? 'active' : '' }}" href="{{ route('finance.payroll') }}">Payroll</a>
         @endif
         @if (method_exists(auth()->user(), 'canViewLeads') && auth()->user()->canViewLeads() && \Illuminate\Support\Facades\Route::has('leads.index'))
