@@ -166,23 +166,40 @@
         .topbar-user { font-weight: 600; }
         .topbar-actions { display: flex; align-items: center; gap: 0.65rem; }
         .app-back-btn {
+            appearance: none;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 2.25rem;
-            height: 2.25rem;
+            width: 2.375rem;
+            height: 2.375rem;
             padding: 0;
-            font-size: 1.35rem;
-            font-weight: 700;
+            margin: 0;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            font-size: 1.125rem;
+            font-weight: 600;
             line-height: 1;
-            color: var(--btn-text);
-            background: var(--accent);
-            border: 1px solid var(--accent);
-            box-shadow: var(--btn-shadow);
+            letter-spacing: -0.04em;
+            color: var(--text);
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+            cursor: pointer;
+            transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
         }
         .app-back-btn:hover {
-            filter: brightness(1.08);
-            text-decoration: none;
+            color: var(--accent);
+            background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+            border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+            transform: translateX(-1px);
+        }
+        .app-back-btn:active {
+            transform: translateX(-1px) scale(0.96);
+        }
+        .app-back-btn:focus-visible {
+            outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+            outline-offset: 2px;
         }
         .role-badge {
             display: inline-block;
@@ -644,7 +661,7 @@
         <header class="topbar no-print">
             <div style="display:flex;align-items:center;gap:0.65rem;min-width:0;flex:1">
                 @if ($showAppBack)
-                    <button type="button" class="btn app-back-btn" id="app-back-btn" aria-label="Go back" title="Go back">&larr;</button>
+                    <button type="button" class="app-back-btn" id="app-back-btn" aria-label="Go back" title="Go back"><span aria-hidden="true">&lt;</span></button>
                 @endif
                 <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-controls="app-sidebar" aria-expanded="false">
                     <span class="nav-toggle-bar" aria-hidden="true"></span>
