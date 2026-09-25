@@ -4,12 +4,12 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
-use App\Models\SalesOrder;
 use App\Models\Party;
+use App\Models\SalesOrder;
 use App\Services\AuditService;
 use App\Services\DocumentService;
-use App\Support\UnitOfMeasure;
 use App\Services\InvoiceNumberService;
+use App\Support\UnitOfMeasure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -41,10 +41,15 @@ class InvoiceWebController extends Controller
 
         $drafts = collect();
         $invoices = null;
+        $allInvoices = null;
         $issuedInvoices = null;
         $approvedInvoices = null;
 
         if ($isOrderReviewer) {
+            $allInvoices = (clone $base)
+                ->latestFirst()
+                ->paginate(25, ['*'], 'all_page');
+
             $issuedInvoices = (clone $base)
                 ->whereIn('status', ['issued', 'overdue'])
                 ->latestFirst()
@@ -70,6 +75,7 @@ class InvoiceWebController extends Controller
         return view('invoices.index', compact(
             'drafts',
             'invoices',
+            'allInvoices',
             'issuedInvoices',
             'approvedInvoices',
             'isOrderReviewer',
@@ -238,6 +244,7 @@ class InvoiceWebController extends Controller
         }
 
         $customers = Party::where('party_type', 'customer')->get();
+
         return view('invoices.edit', compact('invoice', 'document', 'customers'));
     }
 
@@ -589,10 +596,10 @@ class InvoiceWebController extends Controller
 
         $pdfData = $this->documents->renderPdf($snapshot, $showPrices);
         $disposition = $request->query('download') === '1' ? 'attachment' : 'inline';
-        
+
         return response($pdfData, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => $disposition . '; filename="'.$filename.'.pdf"',
+            'Content-Disposition' => $disposition.'; filename="'.$filename.'.pdf"',
             'Content-Length' => strlen($pdfData),
             'Cache-Control' => 'private, max-age=0, must-revalidate',
             'Pragma' => 'public',

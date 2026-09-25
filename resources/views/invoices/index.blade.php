@@ -14,7 +14,7 @@
     $canViewPrices = auth()->user()?->canViewInvoicePrices() ?? false;
     $tab = request('tab');
     if ($isOrderReviewer) {
-        $tab = in_array($tab, ['issued', 'approved'], true) ? $tab : 'issued';
+        $tab = in_array($tab, ['all', 'issued', 'approved'], true) ? $tab : 'all';
     } else {
         $tab = $tab === 'drafts' ? 'drafts' : 'saved';
     }
@@ -25,7 +25,7 @@
         <h1>Order log</h1>
         <p class="muted" style="margin:0.35rem 0 0">
             @if ($isOrderReviewer)
-                Review issued orders, approve them, then find finished orders under Approved.
+                Browse all orders, or filter to issued and approved lists.
             @else
                 Drafts autosave while you work. Click Save to move an order into Saved.
             @endif
@@ -39,6 +39,16 @@
 <div class="card" x-data="{ tab: @js($tab) }" x-cloak>
     <div class="inv-tabs" role="tablist" aria-label="Invoice lists">
         @if ($isOrderReviewer)
+            <button
+                type="button"
+                class="inv-tab"
+                role="tab"
+                :class="{ 'is-active': tab === 'all' }"
+                :aria-selected="tab === 'all'"
+                @click="tab = 'all'; history.replaceState(null, '', '?tab=all')"
+            >
+                All
+            </button>
             <button
                 type="button"
                 class="inv-tab"
@@ -84,6 +94,22 @@
     </div>
 
     @if ($isOrderReviewer)
+        <div x-show="tab === 'all'" role="tabpanel">
+            @if (($allInvoices ?? collect())->isEmpty())
+                <div style="min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.75rem">
+                    <p class="muted" style="margin:0">No orders yet.</p>
+                </div>
+            @else
+                @include('invoices._index-table', [
+                    'rows' => $allInvoices,
+                    'canViewPrices' => $canViewPrices,
+                    'openRoute' => 'show',
+                    'showStatusControl' => false,
+                ])
+                <div style="margin-top:1rem">{{ $allInvoices->appends(['tab' => 'all'])->links() }}</div>
+            @endif
+        </div>
+
         <div x-show="tab === 'issued'" role="tabpanel">
             @if (($issuedInvoices ?? collect())->isEmpty())
                 <div style="min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.75rem">
