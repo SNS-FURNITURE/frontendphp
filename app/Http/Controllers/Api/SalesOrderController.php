@@ -35,7 +35,7 @@ class SalesOrderController extends Controller
             $query->where('status', $request->query('status'));
         }
 
-        $rows = $query->orderByDesc('created_at')->get();
+        $rows = $query->latestFirst()->get();
 
         $data = $rows->map(fn (SalesOrder $so) => $this->serializeListItem($so))->values()->all();
 

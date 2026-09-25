@@ -19,7 +19,7 @@ class EmployeeWebController extends Controller
     {
         abort_unless(auth()->user()?->canViewHr(), 403);
 
-        $employees = Employee::query()->with('party')->orderByDesc('created_at')->get();
+        $employees = Employee::query()->with('party')->latestFirst()->get();
 
         return view('hr.employees.index', [
             'employees' => $employees,

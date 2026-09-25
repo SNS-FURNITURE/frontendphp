@@ -23,8 +23,7 @@ class CustomerWebController extends Controller
 
         $parties = Party::query()
             ->where('party_type', 'customer')
-            ->when($approval, fn ($q) => $q->where('approval_status', $approval))
-            ->orderByDesc('created_at')
+            ->latestFirst()
             ->get();
 
         $customers = $parties->map(function (Party $party) {
@@ -36,7 +35,6 @@ class CustomerWebController extends Controller
         return view('sales.customers.index', [
             'customers' => $customers,
             'orphanLeads' => [],
-            'approval' => $approval,
             'canCreate' => auth()->user()->canCreateSales(),
             'canApprove' => auth()->user()->canApproveParty(),
         ]);
@@ -62,7 +60,7 @@ class CustomerWebController extends Controller
             'name' => $validated['name'],
             'phone' => $validated['phone'],
             'address' => $validated['address'] ?? null,
-            'approval_status' => 'pending',
+            'approval_status' => 'approved',
             'created_by' => auth()->id(),
         ]);
 
@@ -73,7 +71,7 @@ class CustomerWebController extends Controller
 
         return redirect()
             ->route('sales.customers')
-            ->with('status', 'Customer created — pending advisor approval.');
+            ->with('status', 'Customer created.');
     }
 
     public function approve(Request $request, Party $party): RedirectResponse

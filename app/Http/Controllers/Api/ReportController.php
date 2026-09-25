@@ -25,7 +25,7 @@ class ReportController extends Controller
         $user = $request->attributes->get('auth_user') ?? $request->user();
         $isMaster = $user->canViewAllReports();
 
-        $query = Report::query()->with('author')->orderByDesc('posted_at');
+        $query = Report::query()->with('author')->latestFirst('posted_at');
 
         if (! $isMaster) {
             $query->where(function ($q) use ($user) {

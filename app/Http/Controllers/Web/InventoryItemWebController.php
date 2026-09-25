@@ -24,7 +24,7 @@ class InventoryItemWebController extends Controller
 
         $items = Item::query()
             ->when($itemType, fn ($q) => $q->where('item_type', $itemType))
-            ->orderByDesc('created_at')
+            ->latestFirst()
             ->get();
 
         return view('inventory.items', [
@@ -53,7 +53,7 @@ class InventoryItemWebController extends Controller
                 'sku' => $validated['sku'],
                 'name' => $validated['name'],
                 'item_type' => $validated['item_type'],
-                'unit_of_measure' => $validated['unit_of_measure'] ?? 'pcs',
+                'unit_of_measure' => \App\Support\UnitOfMeasure::normalize($validated['unit_of_measure'] ?? null),
                 'reorder_level' => $validated['reorder_level'] ?? 0,
             ]);
 

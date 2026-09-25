@@ -8,6 +8,7 @@ use App\Policies\InvoicePolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
@@ -24,6 +25,18 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Paginator::useBootstrapFive();
+
+        Builder::macro('latestFirst', function (?string $column = null) {
+            /** @var Builder $this */
+            $column = $column ?? 'updated_at';
+            $model = $this->getModel();
+            $table = $model->getTable();
+            $key = $model->getKeyName();
+
+            return $this
+                ->orderByDesc("{$table}.{$column}")
+                ->orderByDesc("{$table}.{$key}");
+        });
 
         Gate::policy(Invoice::class, InvoicePolicy::class);
 

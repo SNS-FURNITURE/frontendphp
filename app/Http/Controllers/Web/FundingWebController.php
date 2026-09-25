@@ -19,7 +19,7 @@ class FundingWebController extends Controller
 
         $requests = FundingRequest::query()
             ->with(['requester', 'approver'])
-            ->orderByDesc('created_at')
+            ->latestFirst()
             ->get();
 
         $user = auth()->user();

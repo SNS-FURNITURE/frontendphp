@@ -36,7 +36,7 @@ class TaskWebController extends Controller
         }
 
         return view('tasks.index', [
-            'tasks' => $query->orderByRaw("(status = 'done')")->orderByDesc('id')->get(),
+            'tasks' => $query->latestFirst()->get(),
             'users' => User::query()->where('is_active', true)->orderBy('full_name')->get(['id', 'full_name']),
             'canEdit' => $user->canEditTasks(),
         ]);

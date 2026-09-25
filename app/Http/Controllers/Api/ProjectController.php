@@ -22,7 +22,7 @@ class ProjectController extends Controller
     public function index(): JsonResponse
     {
         return ApiResponse::success(
-            Project::query()->orderByDesc('created_at')->get()->values()->all()
+            Project::query()->latestFirst()->get()->values()->all()
         );
     }
 
@@ -58,7 +58,7 @@ class ProjectController extends Controller
     {
         $rows = ProjectTask::query()
             ->where('project_id', $id)
-            ->orderByDesc('created_at')
+            ->latestFirst()
             ->get();
 
         return ApiResponse::success($rows->values()->all());

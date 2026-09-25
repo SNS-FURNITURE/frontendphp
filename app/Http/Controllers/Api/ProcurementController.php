@@ -21,7 +21,7 @@ class ProcurementController extends Controller
     {
         $query = ProcurementMarketResearch::query()
             ->with(['conductedBy', 'approvedBy'])
-            ->orderByDesc('created_at');
+            ->latestFirst();
 
         if ($status = $request->query('status')) {
             $query->where('status', $status);
@@ -64,7 +64,7 @@ class ProcurementController extends Controller
             'category' => $request->input('category'),
             'specifications' => $request->input('specifications'),
             'quantity' => $quantity,
-            'unit_of_measure' => $request->input('unit_of_measure') ?: 'pcs',
+            'unit_of_measure' => \App\Support\UnitOfMeasure::normalize($request->input('unit_of_measure')),
             'supplier_options_json' => $options,
             'selected_supplier_name' => $request->input('selected_supplier_name'),
             'selected_unit_price' => $unitPrice,
@@ -203,7 +203,7 @@ class ProcurementController extends Controller
 
     public function installationsIndex(Request $request): JsonResponse
     {
-        $query = SiteInstallationJob::query()->with('laborer')->orderByDesc('created_at');
+        $query = SiteInstallationJob::query()->with('laborer')->latestFirst();
 
         if ($status = $request->query('status')) {
             $query->where('status', $status);

@@ -17,7 +17,7 @@ class LeadWebController extends Controller
         abort_unless(auth()->user()?->canViewLeads(), 403);
 
         $user = auth()->user();
-        $query = Lead::query()->orderByDesc('created_at');
+        $query = Lead::query()->latestFirst();
 
         if (! $user->canVerifyLeads()) {
             $query->where('created_by', $user->id);

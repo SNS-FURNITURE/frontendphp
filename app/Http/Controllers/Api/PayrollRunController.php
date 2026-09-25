@@ -29,8 +29,7 @@ class PayrollRunController extends Controller
     public function index(): JsonResponse
     {
         $rows = PayrollRun::query()
-            ->orderByDesc('period')
-            ->orderByDesc('created_at')
+            ->latestFirst('period')
             ->get()
             ->map(fn (PayrollRun $r) => $r->toApiArray())
             ->values()

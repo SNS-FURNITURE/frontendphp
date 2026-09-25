@@ -38,6 +38,7 @@ class InventoryStockWebController extends Controller
                 LEFT JOIN stock_levels sl ON i.id = sl.item_id
                 GROUP BY i.id
                 HAVING total_stock <= i.reorder_level OR total_stock IS NULL
+                ORDER BY i.updated_at DESC, i.id DESC
             ');
         }
 

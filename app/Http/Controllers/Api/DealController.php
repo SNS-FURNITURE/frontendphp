@@ -25,7 +25,7 @@ class DealController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $query = Deal::query()->with('owner')->orderByDesc('created_at');
+        $query = Deal::query()->with('owner')->latestFirst();
 
         if ($request->filled('status')) {
             $query->where('status', $request->query('status'));

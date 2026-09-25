@@ -26,7 +26,7 @@ class PartyController extends Controller
             $query->where('approval_status', $request->query('approval_status'));
         }
 
-        $rows = $query->orderByDesc('created_at')->get();
+        $rows = $query->latestFirst()->get();
 
         return ApiResponse::success($rows->map(fn (Party $p) => $this->serialize($p))->values()->all());
     }

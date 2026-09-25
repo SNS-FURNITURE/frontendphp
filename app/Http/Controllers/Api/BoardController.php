@@ -23,7 +23,7 @@ class BoardController extends Controller
     public function workspacesIndex(): JsonResponse
     {
         return ApiResponse::success(
-            Workspace::query()->orderByDesc('created_at')->get()->values()->all()
+            Workspace::query()->latestFirst()->get()->values()->all()
         );
     }
 
@@ -48,7 +48,7 @@ class BoardController extends Controller
 
     public function boardsIndex(Request $request): JsonResponse
     {
-        $query = Board::query()->where('is_active', true)->orderByDesc('created_at');
+        $query = Board::query()->where('is_active', true)->latestFirst();
         if ($ws = $request->query('workspace_id')) {
             $query->where('workspace_id', $ws);
         }

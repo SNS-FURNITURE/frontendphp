@@ -7,6 +7,7 @@ use App\Models\BillOfMaterial;
 use App\Models\BomLine;
 use App\Models\Item;
 use App\Services\AuditService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +23,7 @@ class BomWebController extends Controller
 
         $boms = BillOfMaterial::query()
             ->with(['finishedItem', 'lines.componentItem'])
-            ->orderByDesc('created_at')
+            ->latestFirst()
             ->get();
 
         $finishedItems = Item::query()
@@ -104,7 +105,7 @@ class BomWebController extends Controller
         return back()->with('status', 'BOM updated');
     }
 
-    public function destroy(Request $request, BillOfMaterial $bom): RedirectResponse
+    public function destroy(Request $request, BillOfMaterial $bom): RedirectResponse|JsonResponse
     {
         abort_unless(auth()->user()?->canCreateProduction(), 403);
 
@@ -112,6 +113,14 @@ class BomWebController extends Controller
         $bom->delete();
 
         $this->audit->log(auth()->user(), 'bom', $id, 'DELETE_BOM', null, $request);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'BOM deleted',
+                'id' => $id,
+            ]);
+        }
 
         return redirect()->route('manufacturing.boms')->with('status', 'BOM deleted');
     }
@@ -155,7 +164,7 @@ class BomWebController extends Controller
         return back()->with('status', 'BOM line updated');
     }
 
-    public function destroyLine(Request $request, BillOfMaterial $bom, BomLine $line): RedirectResponse
+    public function destroyLine(Request $request, BillOfMaterial $bom, BomLine $line): RedirectResponse|JsonResponse
     {
         abort_unless(auth()->user()?->canCreateProduction(), 403);
         abort_unless((int) $line->bom_id === (int) $bom->id, 404);
@@ -166,6 +175,14 @@ class BomWebController extends Controller
         $this->audit->log(auth()->user(), 'bom_line', $id, 'DELETE_BOM_LINE', [
             'bom_id' => $bom->id,
         ], $request);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'BOM line removed',
+                'id' => $id,
+            ]);
+        }
 
         return back()->with('status', 'BOM line removed');
     }

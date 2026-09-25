@@ -20,7 +20,7 @@ class EmployeeController extends Controller
     {
         $rows = Employee::query()
             ->with('party')
-            ->orderByDesc('created_at')
+            ->latestFirst()
             ->get()
             ->map(fn (Employee $e) => $e->toListArray())
             ->values()

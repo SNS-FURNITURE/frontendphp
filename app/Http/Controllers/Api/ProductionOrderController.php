@@ -31,7 +31,7 @@ class ProductionOrderController extends Controller
 
         $query = ProductionOrder::query()
             ->with(['bom', 'salesOrder'])
-            ->orderByDesc('created_at');
+            ->latestFirst();
 
         if ($status = $request->query('status')) {
             $query->where('status', $status);

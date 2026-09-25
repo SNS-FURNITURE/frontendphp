@@ -24,8 +24,8 @@ class BoardWebController extends Controller
         abort_unless(auth()->user()?->canViewBoards(), 403);
 
         return view('boards.index', [
-            'workspaces' => Workspace::query()->orderByDesc('created_at')->get(),
-            'boards' => Board::query()->where('is_active', true)->orderByDesc('created_at')->get(),
+            'workspaces' => Workspace::query()->latestFirst()->get(),
+            'boards' => Board::query()->where('is_active', true)->latestFirst()->get(),
             'canCreate' => auth()->user()->canCreateBoards(),
         ]);
     }

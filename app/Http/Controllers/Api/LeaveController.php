@@ -18,7 +18,7 @@ class LeaveController extends Controller
     {
         $rows = LeaveRequest::query()
             ->with('approver')
-            ->orderByDesc('created_at')
+            ->latestFirst()
             ->get()
             ->map(fn (LeaveRequest $l) => $l->toApiArray())
             ->values()

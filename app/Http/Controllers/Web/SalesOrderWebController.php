@@ -35,13 +35,12 @@ class SalesOrderWebController extends Controller
         $orders = SalesOrder::query()
             ->with('customer')
             ->when($status, fn ($q) => $q->where('status', $status))
-            ->orderByDesc('created_at')
+            ->latestFirst()
             ->paginate(25)
             ->withQueryString();
 
         $customers = Party::query()
             ->where('party_type', 'customer')
-            ->where('approval_status', 'approved')
             ->orderBy('name')
             ->get();
 
@@ -94,11 +93,7 @@ class SalesOrderWebController extends Controller
             return back()->withErrors(['customer_id' => 'Customer not found'])->withInput();
         }
 
-        if ($customer->approval_status !== 'approved') {
-            return back()->withErrors([
-                'customer_id' => 'Customer must be approved by an advisor first',
-            ])->withInput();
-        }
+
 
         $order = null;
 

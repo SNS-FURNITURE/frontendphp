@@ -18,7 +18,7 @@ class FundingRequestController extends Controller
     {
         $query = FundingRequest::query()
             ->with(['requester', 'approver'])
-            ->orderByDesc('created_at');
+            ->latestFirst();
 
         if ($status = $request->query('status')) {
             $query->where('status', $status);

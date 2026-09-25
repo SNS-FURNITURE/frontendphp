@@ -27,14 +27,14 @@ class AttendanceWebController extends Controller
         $from = $period.'-01';
         $to = sprintf('%s-%02d', $period, $daysInMonth);
 
-        $employees = Employee::query()->active()->with('party')->orderBy('id')->get();
+        $employees = Employee::query()->active()->with('party')->latestFirst()->get();
         $marks = Attendance::query()
             ->whereDate('date', '>=', $from)
             ->whereDate('date', '<=', $to)
             ->get()
             ->groupBy(fn (Attendance $a) => $a->employee_id.'|'.$a->date?->format('Y-m-d').'|'.$a->session);
 
-        $submissions = AttendanceSubmission::query()->orderByDesc('period')->limit(12)->get();
+        $submissions = AttendanceSubmission::query()->latestFirst('period')->limit(12)->get();
         $today = now()->toDateString();
 
         return view('hr.attendance.index', [

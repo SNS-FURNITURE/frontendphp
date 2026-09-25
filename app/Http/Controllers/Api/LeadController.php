@@ -23,7 +23,7 @@ class LeadController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $query = Lead::query()->orderByDesc('created_at');
+        $query = Lead::query()->latestFirst();
 
         if ($request->filled('status')) {
             $query->where('status', $request->query('status'));

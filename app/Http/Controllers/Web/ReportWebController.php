@@ -24,7 +24,7 @@ class ReportWebController extends Controller
         abort_unless(auth()->user()?->canPostReport(), 403);
 
         $user = auth()->user();
-        $query = Report::query()->with('author')->orderByDesc('posted_at');
+        $query = Report::query()->with('author')->latestFirst('posted_at');
         if (! $user->canViewAllReports()) {
             $query->where(function ($q) use ($user) {
                 $q->where('posted_by_user_id', $user->id);
@@ -46,7 +46,7 @@ class ReportWebController extends Controller
         abort_unless(auth()->user()?->canViewAllReports(), 403);
 
         return view('reports.library', [
-            'reports' => Report::query()->with('author')->orderByDesc('posted_at')->limit(200)->get(),
+            'reports' => Report::query()->with('author')->latestFirst('posted_at')->limit(200)->get(),
         ]);
     }
 

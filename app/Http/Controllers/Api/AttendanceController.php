@@ -29,8 +29,7 @@ class AttendanceController extends Controller
     {
         $query = Attendance::query()
             ->with(['employee.party'])
-            ->orderByDesc('date')
-            ->orderByDesc('check_in');
+            ->latestFirst('date');
 
         if ($request->filled('date')) {
             $query->whereDate('date', $request->query('date'));
@@ -148,7 +147,7 @@ class AttendanceController extends Controller
     {
         $rows = AttendanceSubmission::query()
             ->with(['compiler', 'approver'])
-            ->orderByDesc('period')
+            ->latestFirst('period')
             ->get()
             ->map(fn (AttendanceSubmission $s) => $s->toApiArray())
             ->values()

@@ -30,8 +30,7 @@ class InvoiceController extends Controller
     {
         $rows = Invoice::query()
             ->with('salesOrder')
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
+            ->latestFirst()
             ->get();
 
         $result = $rows->map(function (Invoice $r) {

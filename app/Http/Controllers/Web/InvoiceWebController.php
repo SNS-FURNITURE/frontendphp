@@ -29,6 +29,7 @@ class InvoiceWebController extends Controller
         $this->authorize('viewAny', Invoice::class);
 
         $user = auth()->user();
+        $isOrderReviewer = $user->isAdmin() || $user->hasRole('marketing_manager');
 
         $base = Invoice::query()
             ->when(! $user->isAdmin(), function ($query) use ($user) {
@@ -38,20 +39,41 @@ class InvoiceWebController extends Controller
                 });
             });
 
-        $drafts = (clone $base)
-            ->where('status', 'draft')
-            ->when(! $user->isAdmin(), fn ($q) => $q->where('created_by', $user->id))
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->get();
+        $drafts = collect();
+        $invoices = null;
+        $issuedInvoices = null;
+        $approvedInvoices = null;
 
-        $invoices = (clone $base)
-            ->where('status', '!=', 'draft')
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->paginate(25);
+        if ($isOrderReviewer) {
+            $issuedInvoices = (clone $base)
+                ->whereIn('status', ['issued', 'overdue'])
+                ->latestFirst()
+                ->paginate(25, ['*'], 'issued_page');
 
-        return view('invoices.index', compact('invoices', 'drafts'));
+            $approvedInvoices = (clone $base)
+                ->whereIn('status', ['approved', 'paid'])
+                ->latestFirst()
+                ->paginate(25, ['*'], 'approved_page');
+        } else {
+            $drafts = (clone $base)
+                ->where('status', 'draft')
+                ->where('created_by', $user->id)
+                ->latestFirst()
+                ->get();
+
+            $invoices = (clone $base)
+                ->where('status', '!=', 'draft')
+                ->latestFirst()
+                ->paginate(25);
+        }
+
+        return view('invoices.index', compact(
+            'drafts',
+            'invoices',
+            'issuedInvoices',
+            'approvedInvoices',
+            'isOrderReviewer',
+        ));
     }
 
     public function create(): View

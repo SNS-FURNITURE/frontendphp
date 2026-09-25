@@ -30,7 +30,7 @@ class ProductionOrderWebController extends Controller
         $orders = ProductionOrder::query()
             ->with(['bom.finishedItem', 'salesOrder'])
             ->when($status, fn ($q) => $q->where('status', $status))
-            ->orderByDesc('created_at')
+            ->latestFirst()
             ->get();
 
         return view('production.index', [
@@ -38,7 +38,7 @@ class ProductionOrderWebController extends Controller
             'status' => $status,
             'statuses' => ProductionOrder::STATUSES,
             'boms' => BillOfMaterial::query()->orderBy('name')->get(),
-            'salesOrders' => SalesOrder::query()->orderByDesc('created_at')->limit(100)->get(),
+            'salesOrders' => SalesOrder::query()->latestFirst()->limit(100)->get(),
             'canCreate' => auth()->user()->canCreateProduction(),
             'openCreate' => $request->boolean('create'),
         ]);

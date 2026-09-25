@@ -21,9 +21,9 @@ class ProcurementWebController extends Controller
         abort_unless(auth()->user()?->canViewProcurement(), 403);
 
         return view('procurement.index', [
-            'research' => ProcurementMarketResearch::query()->with(['conductedBy', 'approvedBy'])->orderByDesc('created_at')->get(),
+            'research' => ProcurementMarketResearch::query()->with(['conductedBy', 'approvedBy'])->latestFirst()->get(),
             'laborers' => ExternalLaborer::query()->orderBy('full_name')->get(),
-            'installations' => SiteInstallationJob::query()->with('laborer')->orderByDesc('created_at')->get(),
+            'installations' => SiteInstallationJob::query()->with('laborer')->latestFirst()->get(),
             'researchStatuses' => ProcurementMarketResearch::STATUSES,
             'laborerStatuses' => ExternalLaborer::STATUSES,
             'installationStatuses' => SiteInstallationJob::STATUSES,
