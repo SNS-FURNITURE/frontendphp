@@ -1390,6 +1390,8 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
         baselineJson: '',
         _autosaveChain: Promise.resolve(),
         _leaveSaving: false,
+        _lastServerSyncAt: 0,
+        _localDraftTimer: null,
         get canAutosave() {
             if (this.readOnly || this.submitting) return false;
             return !this.invoiceId || this.invoiceStatus === 'draft' || this.invoiceStatus === null;
@@ -1505,6 +1507,7 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
             const existingIndex = this.findProductLineIndex(product);
             if (existingIndex !== -1) {
                 Object.assign(this.doc.lines[existingIndex], lineData);
+                this.queueImmediateAutosave();
                 return;
             }
             if (this.doc.lines.length === 1 && !this.doc.lines[0].name && !this.doc.lines[0].description && this.doc.lines[0].quantity == 1) {
@@ -1634,6 +1637,120 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
 
             return this.dirty || this.hasDraftContent() || !!this.autosaveTimer || this.saving;
         },
+        localDraftStorageKey() {
+            const id = this.invoiceId || ('create-' + (salesOrderId || 'none'));
+
+            return 'sns-invoice-draft:' + id;
+        },
+        localDraftCreateKey() {
+            return 'sns-invoice-draft:create-' + (salesOrderId || 'none');
+        },
+        readLocalDraft(key) {
+            try {
+                const raw = sessionStorage.getItem(key);
+                if (!raw) {
+                    return null;
+                }
+
+                return JSON.parse(raw);
+            } catch (_) {
+                return null;
+            }
+        },
+        persistLocalDraft() {
+            if (!this.canAutosave || this.readOnly) {
+                return;
+            }
+
+            const key = this.localDraftStorageKey();
+            try {
+                sessionStorage.setItem(key, JSON.stringify({
+                    doc: JSON.parse(JSON.stringify(this.doc)),
+                    invoiceId: this.invoiceId,
+                    autosaveUrl: this.autosaveUrl,
+                    updatedAt: Date.now(),
+                    lastServerSyncAt: this._lastServerSyncAt || 0,
+                }));
+            } catch (_) {}
+        },
+        scheduleLocalDraftPersist() {
+            if (!this.canAutosave || this.readOnly) {
+                return;
+            }
+            clearTimeout(this._localDraftTimer);
+            this._localDraftTimer = setTimeout(() => {
+                this._localDraftTimer = null;
+                this.persistLocalDraft();
+            }, 200);
+        },
+        migrateLocalDraftKey(fromKey, toKey) {
+            if (!fromKey || fromKey === toKey) {
+                return;
+            }
+            try {
+                const raw = sessionStorage.getItem(fromKey);
+                if (raw) {
+                    sessionStorage.setItem(toKey, raw);
+                    sessionStorage.removeItem(fromKey);
+                }
+            } catch (_) {}
+        },
+        clearLocalDraft() {
+            try {
+                sessionStorage.removeItem(this.localDraftStorageKey());
+                sessionStorage.removeItem(this.localDraftCreateKey());
+            } catch (_) {}
+        },
+        restoreLocalDraft(serverSnapshot) {
+            if (!this.canAutosave || this.readOnly) {
+                return;
+            }
+
+            let stored = this.readLocalDraft(this.localDraftStorageKey());
+            if (!stored && !this.invoiceId) {
+                stored = this.readLocalDraft(this.localDraftCreateKey());
+            }
+            if (!stored || !stored.doc) {
+                return;
+            }
+
+            const storedSnapshot = JSON.stringify(stored.doc);
+            if (storedSnapshot === serverSnapshot) {
+                return;
+            }
+
+            const storedHasContent = (stored.doc.lines || []).some((line) => String(line?.name || '').trim() !== '')
+                || stored.doc.customer?.is_valid
+                || (stored.doc.notes || []).some((note) => String(note || '').trim() !== '')
+                || String(stored.doc.prepared_by?.name || '').trim()
+                || String(stored.doc.prepared_by?.phone || '').trim();
+
+            if (!storedHasContent) {
+                return;
+            }
+
+            const restored = JSON.parse(storedSnapshot);
+            Object.keys(this.doc).forEach((key) => {
+                delete this.doc[key];
+            });
+            Object.assign(this.doc, restored);
+            if (stored.invoiceId) {
+                this.invoiceId = stored.invoiceId;
+            }
+            if (stored.autosaveUrl) {
+                this.autosaveUrl = stored.autosaveUrl;
+            }
+            if (this.doc.customer && (this.doc.customer.name || this.doc.customer.id)) {
+                this.resolveCustomerFromCatalog();
+            } else if (this.doc.customer) {
+                this.doc.customer.is_valid = false;
+            }
+
+            this.dirty = true;
+            this.$nextTick(() => {
+                this.queueImmediateAutosave();
+            });
+        },
         prepareAutosavePayload() {
             this.normalizeLinesForSave();
             this.resolveCustomerFromCatalog();
@@ -1672,15 +1789,45 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
                 this.doc.customer.is_valid = false;
             }
             if (!this.canAutosave) return;
+            const serverSnapshot = JSON.stringify(this.doc);
+            this.restoreLocalDraft(serverSnapshot);
             this.baselineJson = JSON.stringify(this.doc);
             this.$watch('doc', () => {
                 this.syncDirtyState();
+                this.scheduleLocalDraftPersist();
                 this.scheduleAutosave();
             }, { deep: true });
-            const flushOnLeave = () => this.flushAutosave(true, true);
+            const flushOnLeave = () => {
+                this.persistLocalDraft();
+                this.flushAutosave(true, true);
+            };
             window.addEventListener('pagehide', flushOnLeave);
             window.addEventListener('beforeunload', flushOnLeave);
             window.addEventListener('popstate', flushOnLeave);
+            this._reloadKeyHandler = async (event) => {
+                if (this.readOnly || !this.canAutosave || this.submitting || this._leaveSaving) {
+                    return;
+                }
+                const key = String(event.key || '').toLowerCase();
+                const isReload = key === 'f5' || ((event.ctrlKey || event.metaKey) && key === 'r');
+                if (!isReload || event.altKey) {
+                    return;
+                }
+                if (!this.shouldPersistDraftOnLeave()) {
+                    return;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                this._leaveSaving = true;
+                this.persistLocalDraft();
+                try {
+                    await this.flushAutosave(false, true);
+                } finally {
+                    this._leaveSaving = false;
+                }
+                window.location.reload();
+            };
+            window.addEventListener('keydown', this._reloadKeyHandler, true);
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'hidden') {
                     flushOnLeave();
@@ -1762,12 +1909,17 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
         },
         applyAutosaveResponse(data) {
             if (!data || !data.ok) return;
+            const previousKey = this.localDraftStorageKey();
             this.invoiceId = data.id;
             this.invoiceStatus = 'draft';
             this.autosaveUrl = data.autosave_url || this.autosaveUrl;
             this.doc.doc_number = data.invoice_number || this.doc.doc_number;
+            this._lastServerSyncAt = Date.now();
+            this.migrateLocalDraftKey(previousKey, this.localDraftStorageKey());
+            this.migrateLocalDraftKey(this.localDraftCreateKey(), this.localDraftStorageKey());
             this.baselineJson = JSON.stringify(this.doc);
             this.dirty = false;
+            this.persistLocalDraft();
             const form = this.$el.querySelector('form');
             if (form && data.update_url) {
                 form.setAttribute('action', data.update_url);
@@ -1803,6 +1955,7 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
             }
 
             if (keepalive) {
+                this.persistLocalDraft();
                 const payload = this.prepareAutosavePayload();
                 try {
                     fetch(this.autosaveUrl, {
@@ -1931,7 +2084,8 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
             }, 10);
         },
         prepareSubmit(e, statusOverride) {
-            if (e && e.target && e.target.tagName === 'FORM' && !this.readOnly) {
+            const isFormSubmit = e && e.target && e.target.tagName === 'FORM' && !this.readOnly;
+            if (isFormSubmit) {
                 if (!this.doc.customer?.is_valid || !this.findCustomerMatch()) {
                     window.erpToast('<b>Please select a valid customer from the dropdown.</b>', 'error');
                     this.submitting = false;
@@ -2002,6 +2156,9 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
                 if (jsonInput) jsonInput.value = JSON.stringify(this.doc);
                 if (amountInput) amountInput.value = String(t.grandTotal);
                 if (statusInput) statusInput.value = statusOverride || 'draft';
+            }
+            if (isFormSubmit) {
+                this.clearLocalDraft();
             }
             return true;
         },
