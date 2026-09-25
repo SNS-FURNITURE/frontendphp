@@ -45,7 +45,7 @@ return new class extends Migration
             $table->string('category', 100)->nullable();
             $table->text('specifications')->nullable();
             $table->decimal('quantity', 12, 2);
-            $table->string('unit_of_measure', 50)->default('pcs');
+            $table->string('unit_of_measure', 50)->default('pieces');
             $table->json('supplier_options_json')->nullable();
             $table->string('selected_supplier_name')->nullable();
             $table->decimal('selected_unit_price', 12, 2)->nullable();

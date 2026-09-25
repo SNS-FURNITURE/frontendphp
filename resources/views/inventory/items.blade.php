@@ -47,7 +47,7 @@
             </div>
             <div>
                 <label for="unit_of_measure">UOM</label>
-                <input id="unit_of_measure" name="unit_of_measure" value="{{ old('unit_of_measure', 'pcs') }}" required>
+                <input id="unit_of_measure" name="unit_of_measure" value="{{ old('unit_of_measure', \App\Support\UnitOfMeasure::DEFAULT) }}" required>
             </div>
             <div>
                 <label for="reorder_level">Reorder level</label>

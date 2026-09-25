@@ -238,7 +238,7 @@ class AttendanceController extends Controller
             ]);
         }
 
-        foreach ($this->notify->activeUserIdsWithRolesRaw(['company_manager', 'manager']) as $managerId) {
+        foreach ($this->notify->activeUserIdsWithRolesRaw(['company_manager']) as $managerId) {
             $this->notify->notifyUser($managerId, [
                 'type' => 'attendance_payroll_review',
                 'title' => "Attendance compiled for {$period}",
@@ -260,7 +260,7 @@ class AttendanceController extends Controller
         /** @var User|null $user */
         $user = $request->attributes->get('auth_user') ?? $request->user();
 
-        if (! $user || (! $user->hasRole('company_manager') && ! $user->hasRole('manager'))) {
+        if (! $user || ! $user->hasRole('company_manager')) {
             return ApiResponse::error('Only the Company Manager can approve attendance', 'FORBIDDEN', 403);
         }
 

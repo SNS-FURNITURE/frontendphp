@@ -83,7 +83,11 @@ function addBomLine() {
             </div>
             @if ($canCreate)
                 <div class="toolbar">
-                    <form method="POST" action="{{ route('manufacturing.boms.destroy', $bom) }}" onsubmit="return confirm('Delete this BOM?')">
+                    <form method="POST" action="{{ route('manufacturing.boms.destroy', $bom) }}"
+                          data-erp-confirm="Delete this BOM?"
+                          data-erp-confirm-danger
+                          data-erp-confirm-ok="Delete"
+                          data-erp-remove="closest:.card">
                         @csrf
                         @method('DELETE')
                         <button class="btn ghost" type="submit">Delete</button>
@@ -120,7 +124,7 @@ function addBomLine() {
                 @if ($canCreate)<th></th>@endif
             </tr>
             </thead>
-            <tbody>
+            <tbody data-erp-empty-message="No lines">
             @forelse ($bom->lines as $line)
                 <tr>
                     <td>{{ $line->componentItem?->name }}</td>
@@ -140,7 +144,11 @@ function addBomLine() {
                     <td>{{ $line->componentItem?->unit_of_measure }}</td>
                     @if ($canCreate)
                         <td>
-                            <form method="POST" action="{{ route('manufacturing.boms.lines.destroy', [$bom, $line]) }}" style="margin:0">
+                            <form method="POST" action="{{ route('manufacturing.boms.lines.destroy', [$bom, $line]) }}"
+                                  data-erp-confirm="Remove this line?"
+                                  data-erp-confirm-danger
+                                  data-erp-confirm-ok="Remove"
+                                  style="margin:0">
                                 @csrf
                                 @method('DELETE')
                                 <button class="btn ghost" type="submit">Remove</button>

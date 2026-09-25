@@ -24,12 +24,14 @@ Open `http://localhost:8000/login`
 
 ## Launch roles
 
-`admin`, `company_manager`, `finance`, `marketing_manager`, `advisor`, `supervisor`
+`admin`, `company_manager`, `finance`, `marketing_manager`, `sales_supervisor`, `sales`, `operations_customer`, `operations_factory`
 
 | Role | View | Create / pay | Edit |
 |------|------|--------------|------|
 | finance | yes | yes | yes |
-| advisor / supervisor | yes | yes | no |
+| sales_supervisor / sales | yes | yes | no |
+| operations_customer | yes | no | no |
+| operations_factory | yes | no | no |
 | marketing_manager | yes | yes | no |
 | admin | yes | no (observer) | no |
 | company_manager | yes | no | no |
@@ -40,7 +42,10 @@ Open `http://localhost:8000/login`
 - `admin@sns.com`
 - `manager@sns.com`
 - `mktmanager@sns.com`
-- `advisor@sns.com`
+- `advisor@sns.com` (sales supervisor)
+- `sales@sns.com`
+- `opscustomer@sns.com`
+- `opsfactory@sns.com`
 
 ## Features
 

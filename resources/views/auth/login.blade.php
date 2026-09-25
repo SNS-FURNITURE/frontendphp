@@ -33,7 +33,7 @@
         }
         .card h2 { margin-top:0; color:#24194D; font-family: Georgia, serif; font-size:1.8rem; }
         label { display:block; font-size:0.75rem; font-weight:700; color:#24194D; margin-bottom:0.3rem; }
-        input[type=text], input[type=password] {
+        input[type=text], input[type=email], input[type=password] {
             width:100%; height:44px; border-radius:12px; border:1px solid #452F804d;
             padding:0 0.8rem; margin-bottom:0.9rem; box-sizing:border-box;
         }
@@ -170,8 +170,8 @@
         <p style="color:#452F80b3;margin-top:0">Enter your workspace credentials</p>
         <form method="POST" action="{{ route('login') }}">
             @csrf
-            <label for="email">Username/Email</label>
-            <input id="email" name="email" type="text" value="{{ old('email') }}" autocomplete="username" required>
+            <label for="email">Company Email</label>
+            <input id="email" name="email" type="email" value="{{ old('email') }}" autocomplete="email" required>
             <label for="password">Password</label>
             <div class="password-field">
                 <input id="password" name="password" type="password" autocomplete="current-password" required>

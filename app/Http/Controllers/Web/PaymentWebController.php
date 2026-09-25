@@ -17,7 +17,7 @@ class PaymentWebController extends Controller
 
     public function index(): View
     {
-        $this->authorize('viewAny', Invoice::class);
+        abort_unless(auth()->user()?->canViewPayments(), 403);
 
         $payments = Payment::query()
             ->with('invoice')

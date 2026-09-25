@@ -67,7 +67,7 @@ class SalesOrderController extends Controller
 
         if ($customer->approval_status !== 'approved') {
             return ApiResponse::error(
-                'Customer must be approved by an advisor first',
+                'Customer must be approved by a sales supervisor first',
                 'CUSTOMER_NOT_APPROVED',
                 400,
             );

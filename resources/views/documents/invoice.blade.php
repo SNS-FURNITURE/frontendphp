@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<title>{{ ($doc['doc_type'] ?? 'PROFORMA') === 'CREDIT_NOTE' ? 'Credit Note' : 'Proforma Invoice' }} {{ $doc['doc_number'] ?? '' }}</title>
+<title>{{ ($doc['doc_type'] ?? 'PROFORMA') === 'CREDIT_NOTE' ? 'Credit Note' : 'Proforma Order' }} {{ $doc['doc_number'] ?? '' }}</title>
 @php
     $fmtMoney = function ($value, bool $negate = false): string {
         $n = round((float) $value, 2);
@@ -28,7 +28,7 @@
 
         return gmdate('D M j Y', gmmktime(0, 0, 0, (int) $m[2], (int) $m[3], (int) $m[1]));
     };
-    $title = (($doc['doc_type'] ?? 'PROFORMA') === 'CREDIT_NOTE') ? 'Credit Note' : 'Proforma Invoice';
+    $title = (($doc['doc_type'] ?? 'PROFORMA') === 'CREDIT_NOTE') ? 'Credit Note' : 'Proforma Order';
     $docDate = $fmtDate($doc['doc_date'] ?? '');
     $validUntil = ! empty($doc['valid_until']) ? $fmtDate($doc['valid_until']) : null;
     $discountLabel = (($doc['discount']['type'] ?? 'PERCENT') === 'PERCENT')
@@ -41,6 +41,7 @@
     $approvedPhone = trim((string) ($doc['approved_by']['phone'] ?? ''));
     $showWords = in_array($doc['doc_type'] ?? '', ['TAX_INVOICE', 'CREDIT_NOTE'], true);
     $forPdf = $forPdf ?? false;
+    $showPrices = $showPrices ?? true;
     $logoPath = public_path('sns-logo.png');
     $logoSrc = (is_file($logoPath) && extension_loaded('gd'))
         ? 'data:image/png;base64,'.base64_encode((string) file_get_contents($logoPath))
@@ -65,6 +66,7 @@
     }
 @endphp
 <style>
+@import url('https://fonts.cdnfonts.com/css/neris');
 @if (! $forPdf && $fontRegular)
   @font-face { font-family: 'NotoSans'; src: url('{{ $fontRegular }}') format('truetype'); font-weight: 400; }
 @endif
@@ -77,7 +79,7 @@
   @page { size: A4 portrait; margin: 10mm 10mm 12mm 14mm; }
   * { box-sizing: border-box; }
   body {
-    font-family: @if($forPdf) DejaVu Sans, sans-serif @else 'NotoSans', 'NotoEthiopic', DejaVu Sans, sans-serif @endif;
+    font-family: @if($forPdf) DejaVu Sans, sans-serif @else 'Neris', 'NotoSans', 'NotoEthiopic', DejaVu Sans, sans-serif @endif;
     font-size: 10pt;
     color: #000;
     margin: 0;
@@ -139,10 +141,10 @@
       <td style="width:45%">
         <h1 class="title">{{ $title }}</h1>
         <table class="meta">
-          <tr><td class="lbl">Invoice Id</td><td class="val">{{ $doc['doc_number'] ?? '' }}</td></tr>
+          <tr><td class="lbl">Order Id</td><td class="val">{{ $doc['doc_number'] ?? '' }}</td></tr>
           <tr><td class="lbl">Date</td><td class="val">{{ $docDate }}</td></tr>
           @if (($doc['doc_type'] ?? '') === 'CREDIT_NOTE' && !empty($doc['parent_doc_number']))
-            <tr><td class="lbl">Against Invoice</td><td class="val">{{ $doc['parent_doc_number'] }}</td></tr>
+            <tr><td class="lbl">Against Order</td><td class="val">{{ $doc['parent_doc_number'] }}</td></tr>
           @endif
         </table>
       </td>
@@ -152,6 +154,9 @@
   <div class="customer">
     <h3>Customer</h3>
     <div><strong>{{ $doc['customer']['name'] ?? '' }}</strong></div>
+    @if (!empty($doc['customer']['phone']))
+        <div>{{ $doc['customer']['phone'] }}</div>
+    @endif
     <div>{{ $doc['customer']['address_line'] ?? '' }}</div>
   </div>
 
@@ -163,8 +168,10 @@
         <th>Unit</th>
         <th>Qty</th>
         <th>Pieces</th>
+        @if ($showPrices)
         <th>Unit Price</th>
         <th>Total Price</th>
+        @endif
       </tr>
     </thead>
     <tbody>
@@ -174,11 +181,13 @@
         <td>
           <span class="litem-name">{{ $line['name'] ?? '' }}</span>@if (!empty(trim((string) ($line['description'] ?? ''))))<span class="litem-desc">: {{ $line['description'] }}</span>@endif
         </td>
-        <td class="c">{{ $line['uom_code'] ?? '' }}</td>
+        <td class="c">{{ \App\Support\UnitOfMeasure::normalize($line['uom_code'] ?? null) }}</td>
         <td class="r">{{ $fmtQty($line['quantity'] ?? 0) }}</td>
         <td class="c">{{ $line['unit_count'] ?? '' }}</td>
+        @if ($showPrices)
         <td class="r">{{ $fmtMoney($line['unit_price'] ?? 0) }}</td>
         <td class="r">{{ $fmtMoney($line['line_total'] ?? 0) }}</td>
+        @endif
       </tr>
     @endforeach
     </tbody>
@@ -186,7 +195,7 @@
 
   <table class="bottom">
     <tr>
-      <td style="width:58%">
+      <td style="width:{{ $showPrices ? '58' : '100' }}%">
         <div class="notes-terms">
           <h4>Notes:</h4>
           @php
@@ -213,6 +222,7 @@
           <div><span class="term-lbl">Warranty:</span> {{ $doc['terms']['warranty'] ?? '' }}{{ isset($doc['terms']['warranty']) && $doc['terms']['warranty'] !== '' && !preg_match('/[a-zA-Z]/', (string) $doc['terms']['warranty']) ? ' years' : '' }}</div>
         </div>
       </td>
+      @if ($showPrices)
       <td style="width:42%">
         <table class="totals">
           <tr><td class="lbl">Total</td><td class="amt">{{ $fmtMoney($doc['totals']['subtotal'] ?? 0) }}</td></tr>
@@ -222,6 +232,7 @@
           <tr class="grand"><td class="lbl">G. Total</td><td class="amt">{{ $fmtMoney($doc['totals']['grand_total'] ?? 0) }}</td></tr>
         </table>
       </td>
+      @endif
     </tr>
   </table>
 

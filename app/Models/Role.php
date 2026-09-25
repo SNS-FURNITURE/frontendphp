@@ -30,17 +30,19 @@ class Role extends Model
             'company_manager' => 'COMPANY MANAGER',
             'hr' => 'HUMAN RESOURCE',
             'finance' => 'FINANCE',
+            'marketing_manager' => 'MARKETING MANAGER',
+            'sales_supervisor' => 'SALES SUPERVISOR',
+            'sales' => 'SALES',
+            'operations_customer' => 'OPERATIONS CUSTOMER',
+            'operations_factory' => 'OPERATIONS FACTORY',
             'procurement_operations' => 'PROCUREMENT OPERATIONS',
             'inventory' => 'INVENTORY',
             'product_manager' => 'PRODUCT MANAGER',
             'designer' => 'DESIGNER',
-            'sales' => 'SALES',
-            'advisor' => 'SALES ADVISOR',
-            'marketing_manager' => 'MARKETING MANAGER',
         ];
 
         $name = (string) $this->name;
-        
+
         return $map[$name] ?? strtoupper(str_replace('_', ' ', $name));
     }
 

@@ -47,7 +47,7 @@ class AttendanceWebController extends Controller
             'submissions' => $submissions,
             'today' => $today,
             'canEdit' => auth()->user()->canEditHr(),
-            'canApprove' => auth()->user()->hasRole('company_manager') || auth()->user()->hasRole('manager'),
+            'canApprove' => auth()->user()->hasRole('company_manager'),
         ]);
     }
 
@@ -98,7 +98,7 @@ class AttendanceWebController extends Controller
     public function review(Request $request, int $id, ApiAttendanceController $api): RedirectResponse
     {
         abort_unless(
-            auth()->user()?->hasRole('company_manager') || auth()->user()?->hasRole('manager'),
+            auth()->user()?->hasRole('company_manager'),
             403,
         );
 

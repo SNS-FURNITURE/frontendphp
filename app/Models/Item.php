@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\UnitOfMeasure;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -41,5 +43,13 @@ class Item extends Model
     public function stockMovements(): HasMany
     {
         return $this->hasMany(StockMovement::class, 'item_id');
+    }
+
+    protected function unitOfMeasure(): Attribute
+    {
+        return Attribute::make(
+            get: fn (?string $value) => UnitOfMeasure::normalize($value),
+            set: fn (?string $value) => UnitOfMeasure::normalize($value),
+        );
     }
 }
