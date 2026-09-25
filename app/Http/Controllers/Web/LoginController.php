@@ -62,14 +62,23 @@ class LoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
+        if ($request->boolean('idle') || $request->query('idle')) {
+            return redirect()->route('login', ['sessionExpired' => 'true']);
+        }
+
         return redirect()->route('login', ['loggedOut' => 'true']);
     }
 
     public function idleLogout(Request $request): RedirectResponse
     {
-        auth()->logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        if (auth()->check()) {
+            auth()->logout();
+        }
+
+        if ($request->hasSession()) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
 
         return redirect()->route('login', ['sessionExpired' => 'true']);
     }

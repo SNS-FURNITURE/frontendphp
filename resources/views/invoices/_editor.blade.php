@@ -2093,6 +2093,11 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
                         body: JSON.stringify(payload),
                         credentials: 'same-origin',
                     });
+                    if (res.status === 401 || res.status === 419) {
+                        const payload = await res.json().catch(function () { return null; });
+                        window.location.href = payload?.redirect || @json(route('login', ['sessionExpired' => 'true']));
+                        return;
+                    }
                     if (!res.ok) {
                         return;
                     }

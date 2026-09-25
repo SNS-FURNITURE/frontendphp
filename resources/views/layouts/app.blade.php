@@ -909,19 +909,6 @@
         });
     }
 
-    var IDLE_MS = 30 * 60 * 1000;
-    var timer;
-    function reset() {
-        clearTimeout(timer);
-        timer = setTimeout(function () {
-            window.location.href = @json(route('logout.idle'));
-        }, IDLE_MS);
-    }
-    ['mousemove','mousedown','keydown','touchstart','scroll','click'].forEach(function (ev) {
-        document.addEventListener(ev, reset, { passive: true });
-    });
-    reset();
-
     var modal = document.getElementById('logout-modal');
     if (!modal) return;
     function openLogout() {
@@ -1180,10 +1167,9 @@ document.addEventListener('submit', function (e) {
 
 @auth
 {{-- ============================================================
-     ENTERPRISE SESSION GUARD
-     - 30-min idle → auto logout (matches server SESSION_LIFETIME)
+     SESSION GUARD
+     - 30-min idle → redirect to login (matches server SESSION_LIFETIME)
      - Warning dialog at 25 min of idle (5-min countdown)
-     - Tab/browser close → session cookie cleared via sessionStorage flag
      - Activity events reset the idle timer
      ============================================================ --}}
 <script>
@@ -1193,55 +1179,7 @@ document.addEventListener('submit', function (e) {
     var IDLE_LIMIT_MS   = 30 * 60 * 1000;   // 30 minutes — must match SESSION_LIFETIME
     var WARN_BEFORE_MS  = 5  * 60 * 1000;   // show warning 5 min before expiry
     var WARN_AT_MS      = IDLE_LIMIT_MS - WARN_BEFORE_MS;  // 25 min
-    var LOGOUT_URL      = '{{ route("logout") }}';
-    var CSRF_TOKEN      = document.querySelector('meta[name="csrf-token"]')
-                            ? document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                            : '';
-
-    // ── Tab-close detection ──────────────────────────────────────────────────
-    // sessionStorage is TAB-scoped: it disappears the moment the tab closes.
-    // We use a TWO-KEY approach:
-    //   sns_erp_nav  = set in beforeunload (i.e. navigating away within the app)
-    //   sns_erp_active = presence means "we already ran the guard this session"
-    //
-    // On a fresh browser open: neither key exists → force logout + redirect to login.
-    // On page navigation within the app: sns_erp_nav is set → normal continuation.
-    var SESSION_KEY = 'sns_erp_active';
-    var NAV_KEY     = 'sns_erp_nav';
-
-    var navigatingInternally = sessionStorage.getItem(NAV_KEY);
-    var wasActive            = sessionStorage.getItem(SESSION_KEY);
-
-    // Clear nav flag immediately so the next check is clean
-    sessionStorage.removeItem(NAV_KEY);
-
-    if (!navigatingInternally && !wasActive) {
-        // True fresh open (browser closed and reopened, or brand-new tab)
-        // — fire a silent server-side logout to invalidate stale cookie
-        var token = CSRF_TOKEN;
-        if (token && navigator.sendBeacon) {
-            navigator.sendBeacon(LOGOUT_URL, new URLSearchParams({ _token: token, _method: 'POST' }));
-        }
-        sessionStorage.setItem(SESSION_KEY, '1');
-        // Redirect to login
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', function () {
-                window.location.href = '{{ route("login") }}';
-            });
-        } else {
-            window.location.href = '{{ route("login") }}';
-        }
-        return;
-    }
-
-    // Mark session as active for this tab
-    sessionStorage.setItem(SESSION_KEY, '1');
-
-    // Before any navigation/link-click within the ERP, stamp the nav key
-    // so the next page load knows it was an internal navigation (not a fresh open)
-    window.addEventListener('beforeunload', function () {
-        sessionStorage.setItem(NAV_KEY, '1');
-    });
+    var IDLE_LOGOUT_URL = @json(route('logout.idle'));
 
     // ── Build the warning dialog ─────────────────────────────────────────────
     var overlay = document.createElement('div');
@@ -1361,16 +1299,7 @@ document.addEventListener('submit', function (e) {
         clearTimeout(idleTimer);
         clearTimeout(warnTimer);
         clearInterval(countTimer);
-        sessionStorage.removeItem(SESSION_KEY);
-        // POST to Laravel logout route (requires CSRF)
-        var form = document.createElement('form');
-        form.method = 'POST';
-        form.action = LOGOUT_URL + '?idle=1';
-        var csrf = document.createElement('input');
-        csrf.type = 'hidden'; csrf.name = '_token'; csrf.value = CSRF_TOKEN;
-        form.appendChild(csrf);
-        document.body.appendChild(form);
-        form.submit();
+        window.location.href = IDLE_LOGOUT_URL;
     }
 
     // ── Activity events ──────────────────────────────────────────────────────

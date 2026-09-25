@@ -46,7 +46,11 @@ class CommercialReportWebController extends Controller
     public function generate(string $cadence): RedirectResponse
     {
         abort_unless(auth()->user()?->canViewCommercialReports(), 403);
-        abort_unless(in_array($cadence, ['weekly', 'monthly', 'yearly'], true), 404);
+        if (! in_array($cadence, ['weekly', 'monthly', 'yearly'], true)) {
+            return redirect()
+                ->route('commercial.reports.index')
+                ->withErrors(['cadence' => 'Invalid report cadence.']);
+        }
 
         $count = $this->commercialReports->generatePeriodicReports($cadence);
 
