@@ -16,6 +16,8 @@ class SalesQuota extends Model
         'quota',
         'actual',
         'period',
+        'period_type',
+        'metric',
     ];
 
     protected function casts(): array
@@ -24,6 +26,11 @@ class SalesQuota extends Model
             'quota' => 'decimal:2',
             'actual' => 'decimal:2',
         ];
+    }
+
+    public function isContactQuota(): bool
+    {
+        return ($this->metric ?? 'contacts') === 'contacts';
     }
 
     public function user(): BelongsTo

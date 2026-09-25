@@ -15,7 +15,7 @@ class AdminAuditWebController extends Controller
 
         $query = AuditLog::query()
             ->with('user:id,full_name,email')
-            ->orderByDesc('created_at')
+            ->latestFirst()
             ->limit(100);
 
         $entityType = $request->string('entity_type')->toString();

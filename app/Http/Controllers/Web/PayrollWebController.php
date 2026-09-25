@@ -17,7 +17,7 @@ class PayrollWebController extends Controller
         abort_unless(auth()->user()?->canViewPayroll(), 403);
 
         return view('finance.payroll.index', [
-            'runs' => PayrollRun::query()->orderByDesc('period')->orderByDesc('created_at')->get(),
+            'runs' => PayrollRun::query()->latestFirst('period')->get(),
             'canGenerate' => auth()->user()->canEditPayroll(),
         ]);
     }

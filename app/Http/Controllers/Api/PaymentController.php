@@ -27,6 +27,7 @@ class PaymentController extends Controller
                 'i.status as invoice_status',
             )
             ->orderByDesc('payments.paid_at')
+            ->orderByDesc('payments.id')
             ->get();
 
         $result = $rows->map(fn ($r) => [

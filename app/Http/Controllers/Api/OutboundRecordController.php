@@ -23,7 +23,7 @@ class OutboundRecordController extends Controller
 
         $query = OutboundRecord::query()
             ->with('counter')
-            ->orderByDesc('counted_at');
+            ->latestFirst('counted_at');
 
         if ($deliveryId = $request->query('delivery_id')) {
             $query->where('delivery_id', $deliveryId);

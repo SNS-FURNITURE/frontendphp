@@ -15,7 +15,7 @@ class AllocationWebController extends Controller
         $requests = FundingRequest::query()
             ->with(['requester', 'approver'])
             ->whereIn('status', FundingRequest::ALLOCATION_STATUSES)
-            ->orderByDesc('created_at')
+            ->latestFirst()
             ->get();
 
         return view('finance.allocations', [

@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Support\UnitOfMeasure;
+use Barryvdh\DomPDF\Facade\Pdf;
+
 /**
  * Port of sns-erp-backend/src/documents/render-pdf.ts (PDFKit Sofya layout).
  * DomPDF HTML is shaped to that geometry — not the Word editor sheet.
@@ -28,11 +31,12 @@ class InvoicePdfRenderer
 
     public function __construct(private EtbWordsService $etbWords) {}
 
-    public function render(array $doc): string
+    public function render(array $doc, bool $showPrices = true): string
     {
         $vm = $this->buildViewModel($doc);
         $html = view('documents.invoice-pdf', [
             'vm' => $vm,
+            'showPrices' => $showPrices,
             'page' => [
                 'w' => self::PAGE_W,
                 'h' => self::PAGE_H,
@@ -44,7 +48,7 @@ class InvoicePdfRenderer
             'logoSrc' => $this->logoDataUri(),
         ])->render();
 
-        return \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)
+        return Pdf::loadHTML($html)
             ->setPaper([0, 0, self::PAGE_W, self::PAGE_H], 'portrait')
             ->setOption('isRemoteEnabled', true)
             ->setOption('defaultFont', 'DejaVu Sans')
@@ -72,7 +76,7 @@ class InvoicePdfRenderer
                 'lineNo' => (string) ($line['line_no'] ?? ($i + 1)),
                 'name' => (string) ($line['name'] ?? ''),
                 'description' => $this->formatLineDescription($line['description'] ?? ''),
-                'uom' => (string) ($line['uom_code'] ?? ''),
+                'uom' => UnitOfMeasure::normalize($line['uom_code'] ?? null),
                 'qty' => $this->formatQty($line['quantity'] ?? 0),
                 'pieces' => ($line['unit_count'] === null || $line['unit_count'] === '')
                     ? ''
@@ -133,7 +137,16 @@ class InvoicePdfRenderer
                 'name' => (string) ($input['approved_by']['name'] ?? ''),
                 'phone' => (string) ($input['approved_by']['phone'] ?? ''),
             ],
+            'preparedName' => $this->displayPersonName($input['prepared_by']['name'] ?? ''),
+            'preparedPhone' => trim((string) ($input['prepared_by']['phone'] ?? '')),
+            'approvedName' => $this->displayPersonName($input['approved_by']['name'] ?? ''),
+            'approvedPhone' => trim((string) ($input['approved_by']['phone'] ?? '')),
         ];
+    }
+
+    private function displayPersonName(mixed $raw): string
+    {
+        return trim(preg_replace('/\s*\([^)]*\)\s*$/u', '', (string) $raw) ?? '');
     }
 
     /**

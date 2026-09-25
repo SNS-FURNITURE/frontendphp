@@ -29,8 +29,7 @@ class AttendanceController extends Controller
     {
         $query = Attendance::query()
             ->with(['employee.party'])
-            ->orderByDesc('date')
-            ->orderByDesc('check_in');
+            ->latestFirst('date');
 
         if ($request->filled('date')) {
             $query->whereDate('date', $request->query('date'));
@@ -148,7 +147,7 @@ class AttendanceController extends Controller
     {
         $rows = AttendanceSubmission::query()
             ->with(['compiler', 'approver'])
-            ->orderByDesc('period')
+            ->latestFirst('period')
             ->get()
             ->map(fn (AttendanceSubmission $s) => $s->toApiArray())
             ->values()
@@ -239,7 +238,7 @@ class AttendanceController extends Controller
             ]);
         }
 
-        foreach ($this->notify->activeUserIdsWithRolesRaw(['company_manager', 'manager']) as $managerId) {
+        foreach ($this->notify->activeUserIdsWithRolesRaw(['company_manager']) as $managerId) {
             $this->notify->notifyUser($managerId, [
                 'type' => 'attendance_payroll_review',
                 'title' => "Attendance compiled for {$period}",
@@ -261,7 +260,7 @@ class AttendanceController extends Controller
         /** @var User|null $user */
         $user = $request->attributes->get('auth_user') ?? $request->user();
 
-        if (! $user || (! $user->hasRole('company_manager') && ! $user->hasRole('manager'))) {
+        if (! $user || ! $user->hasRole('company_manager')) {
             return ApiResponse::error('Only the Company Manager can approve attendance', 'FORBIDDEN', 403);
         }
 

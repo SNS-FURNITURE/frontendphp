@@ -85,6 +85,32 @@ class User extends Authenticatable
      * Launch roles that may open sales boards (customers, orders, quota).
      * Admin is observer (view); finance is launch-allowed but not sales.
      */
+    public function isSalesRep(): bool
+    {
+        return $this->hasRole('sales');
+    }
+
+    public function isSalesSupervisor(): bool
+    {
+        return $this->hasRole('sales_supervisor');
+    }
+
+    /** Sales rep and supervisor — showroom floor roles with a trimmed workspace. */
+    public function isLimitedSalesRole(): bool
+    {
+        return $this->isSalesRep() || $this->isSalesSupervisor();
+    }
+
+    public function isMarketingManager(): bool
+    {
+        return $this->hasRole('marketing_manager');
+    }
+
+    public function canCreateCustomerContact(): bool
+    {
+        return $this->hasInvoiceLaunchRole() && $this->isSalesRep();
+    }
+
     public function canViewSales(): bool
     {
         if (! $this->hasInvoiceLaunchRole()) {
@@ -94,23 +120,78 @@ class User extends Authenticatable
         return $this->isAdmin()
             || $this->hasRole('company_manager')
             || $this->hasRole('marketing_manager')
-            || $this->hasRole('advisor')
-            || $this->hasRole('supervisor')
-            || $this->hasRole('sales_supervisor');
+            || $this->isSalesSupervisor()
+            || $this->isSalesRep()
+            || $this->hasRole('operations_customer');
     }
 
     public function canCreateSales(): bool
     {
-        return $this->canViewSales() && ! $this->isAdmin();
+        if ($this->isAdmin()
+            || $this->hasRole('marketing_manager')
+            || $this->isSalesRep()
+            || $this->hasRole('operations_customer')
+            || $this->hasRole('operations_factory')) {
+            return false;
+        }
+
+        return $this->canViewSales();
     }
 
-    /** Express party approve: supervisor, sales_supervisor, company_manager (+ advisor alias). */
+    public function canManageContactQuotas(): bool
+    {
+        return $this->hasRole('marketing_manager');
+    }
+
+    public function canViewProducts(): bool
+    {
+        return $this->isMarketingManager() || $this->isAdmin();
+    }
+
+    public function canManageProducts(): bool
+    {
+        return $this->isMarketingManager() || $this->isAdmin();
+    }
+
+    public function canReviewCustomerContacts(): bool
+    {
+        return $this->isSalesSupervisor();
+    }
+
+    public function canViewCommercialReports(): bool
+    {
+        return $this->isAdmin()
+            || $this->hasRole('marketing_manager')
+            || $this->hasRole('company_manager');
+    }
+
+    public function canManageCommercialTasks(): bool
+    {
+        return $this->hasRole('marketing_manager');
+    }
+
+    public function canViewCommercialTasks(): bool
+    {
+        return $this->hasRole('marketing_manager')
+            || $this->isSalesRep()
+            || $this->isSalesSupervisor();
+    }
+
+    public function canViewInvoicePrices(): bool
+    {
+        return $this->isAdmin() || $this->hasRole('marketing_manager');
+    }
+
+    public function canEditInvoicePrices(): bool
+    {
+        return $this->canViewInvoicePrices();
+    }
+
+    /** Express party approve: sales floor + company manager. */
     public function canApproveParty(): bool
     {
         return $this->hasRole('company_manager')
-            || $this->hasRole('supervisor')
-            || $this->hasRole('sales_supervisor')
-            || $this->hasRole('advisor');
+            || $this->isSalesSupervisor();
     }
 
     /** Funding board: company manager requests; finance/admin can observe. */
@@ -148,16 +229,29 @@ class User extends Authenticatable
             || $this->hasRole('company_manager');
     }
 
+    public function canViewPayments(): bool
+    {
+        if ($this->isMarketingManager() || $this->isLimitedSalesRole()) {
+            return false;
+        }
+
+        return $this->hasInvoiceLaunchRole() && $this->hasPermission('finance', 'view');
+    }
+
     /** Allocations read-only: finance:view (Express RoleGuard). */
     public function canViewAllocations(): bool
     {
+        if ($this->isMarketingManager() || $this->isLimitedSalesRole()) {
+            return false;
+        }
+
         return $this->hasInvoiceLaunchRole() && $this->hasPermission('finance', 'view');
     }
 
     /** Inventory boards: Express API is auth+launch; UI uses inventory:*. */
     public function canViewInventory(): bool
     {
-        if (! $this->hasInvoiceLaunchRole()) {
+        if ($this->isLimitedSalesRole() || ! $this->hasInvoiceLaunchRole()) {
             return false;
         }
 
@@ -165,10 +259,9 @@ class User extends Authenticatable
             || $this->isAdmin()
             || $this->hasRole('company_manager')
             || $this->hasRole('finance')
-            || $this->hasRole('marketing_manager')
-            || $this->hasRole('advisor')
-            || $this->hasRole('supervisor')
-            || $this->hasRole('sales_supervisor');
+            || $this->isMarketingManager()
+            || $this->hasRole('operations_customer')
+            || $this->hasRole('operations_factory');
     }
 
     public function canCreateInventory(): bool
@@ -179,21 +272,19 @@ class User extends Authenticatable
 
         return $this->hasPermission('inventory', 'create')
             || $this->hasRole('company_manager')
-            || $this->hasRole('marketing_manager')
-            || $this->hasRole('advisor')
-            || $this->hasRole('supervisor')
-            || $this->hasRole('sales_supervisor');
+            || $this->hasRole('operations_factory');
     }
 
     /** Production / manufacturing boards: production:* or inventory create roles. */
     public function canViewProduction(): bool
     {
-        if (! $this->hasInvoiceLaunchRole()) {
+        if ($this->isLimitedSalesRole() || ! $this->hasInvoiceLaunchRole() || $this->isMarketingManager() || $this->isAdmin()) {
             return false;
         }
 
         return $this->hasPermission('production', 'view')
             || $this->hasPermission('manufacturing', 'view')
+            || $this->hasRole('operations_factory')
             || $this->canViewInventory();
     }
 
@@ -205,13 +296,14 @@ class User extends Authenticatable
 
         return $this->hasPermission('production', 'create')
             || $this->hasPermission('manufacturing', 'create')
+            || $this->hasRole('operations_factory')
             || $this->canCreateInventory();
     }
 
     /** Deliveries / outbound: deliveries:*. */
     public function canViewDeliveries(): bool
     {
-        if (! $this->hasInvoiceLaunchRole()) {
+        if ($this->isLimitedSalesRole() || ! $this->hasInvoiceLaunchRole()) {
             return false;
         }
 
@@ -219,10 +311,8 @@ class User extends Authenticatable
             || $this->isAdmin()
             || $this->hasRole('company_manager')
             || $this->hasRole('finance')
-            || $this->hasRole('marketing_manager')
-            || $this->hasRole('advisor')
-            || $this->hasRole('supervisor')
-            || $this->hasRole('sales_supervisor');
+            || $this->hasRole('operations_customer')
+            || $this->hasRole('operations_factory');
     }
 
     public function canCreateDeliveries(): bool
@@ -233,10 +323,7 @@ class User extends Authenticatable
 
         return $this->hasPermission('deliveries', 'create')
             || $this->hasRole('company_manager')
-            || $this->hasRole('marketing_manager')
-            || $this->hasRole('advisor')
-            || $this->hasRole('supervisor')
-            || $this->hasRole('sales_supervisor');
+            || $this->hasRole('operations_customer');
     }
 
     /** Inventory outbound count / dispatch — deliveries:approve. PM cannot dispatch. */
@@ -246,16 +333,11 @@ class User extends Authenticatable
             return false;
         }
 
-        if ($this->hasRole('project_manager')) {
-            return false;
-        }
-
         return $this->hasPermission('deliveries', 'approve')
             || $this->hasPermission('deliveries', 'edit')
             || $this->hasRole('company_manager')
             || $this->hasRole('finance')
-            || $this->hasRole('supervisor')
-            || $this->hasRole('sales_supervisor');
+            || $this->hasRole('operations_customer');
     }
 
     public function canViewDesigns(): bool
@@ -279,7 +361,10 @@ class User extends Authenticatable
     public function canViewMachinery(): bool
     {
         return $this->hasInvoiceLaunchRole()
-            && ($this->hasPermission('machinery', 'view') || $this->isAdmin() || $this->hasRole('company_manager'));
+            && ($this->hasPermission('machinery', 'view')
+                || $this->isAdmin()
+                || $this->hasRole('company_manager')
+                || $this->hasRole('operations_factory'));
     }
 
     public function canCreateMachinery(): bool
@@ -325,14 +410,16 @@ class User extends Authenticatable
         return $this->hasInvoiceLaunchRole()
             && ($this->hasPermission('installation', 'view')
                 || $this->canViewProcurement()
-                || $this->hasRole('procurement_operations'));
+                || $this->hasRole('procurement_operations')
+                || $this->hasRole('operations_customer'));
     }
 
     public function canEditInstallation(): bool
     {
         return $this->hasPermission('installation', 'edit')
             || $this->hasRole('procurement_operations')
-            || $this->hasRole('company_manager');
+            || $this->hasRole('company_manager')
+            || $this->hasRole('operations_customer');
     }
 
     public function canViewProjects(): bool
@@ -358,8 +445,14 @@ class User extends Authenticatable
 
     public function canPostReport(): bool
     {
+        if ($this->isMarketingManager()) {
+            return false;
+        }
+
         return $this->hasInvoiceLaunchRole()
-            && ($this->hasPermission('reports', 'post_report') || $this->isAdmin() || $this->hasRole('company_manager'));
+            && ($this->hasPermission('reports', 'post_report')
+                || $this->isAdmin()
+                || $this->hasRole('company_manager'));
     }
 
     /** HR boards: Express RoleGuard hr:view. */
@@ -392,12 +485,15 @@ class User extends Authenticatable
     {
         return $this->hasPermission('hr', 'approve')
             || $this->hasRole('company_manager')
-            || $this->hasRole('manager')
             || $this->hasRole('hr');
     }
 
     public function canViewPayroll(): bool
     {
+        if ($this->isMarketingManager() || $this->isLimitedSalesRole()) {
+            return false;
+        }
+
         return $this->hasInvoiceLaunchRole()
             && ($this->hasPermission('finance', 'view')
                 || $this->isAdmin()
@@ -418,7 +514,7 @@ class User extends Authenticatable
 
     public function canViewLeads(): bool
     {
-        if (! $this->hasInvoiceLaunchRole()) {
+        if (! $this->hasInvoiceLaunchRole() || $this->isSalesRep()) {
             return false;
         }
 
@@ -442,14 +538,12 @@ class User extends Authenticatable
             || $this->hasPermission('leads', 'verify')
             || $this->hasRole('company_manager')
             || $this->hasRole('marketing_manager')
-            || $this->hasRole('advisor')
-            || $this->hasRole('supervisor')
-            || $this->hasRole('sales_supervisor');
+            || $this->isSalesSupervisor();
     }
 
     public function canViewDeals(): bool
     {
-        if (! $this->hasInvoiceLaunchRole()) {
+        if (! $this->hasInvoiceLaunchRole() || $this->isSalesRep()) {
             return false;
         }
 
@@ -470,23 +564,30 @@ class User extends Authenticatable
     public function canSalesReviewDeal(): bool
     {
         return $this->hasRole('admin')
-            || $this->hasRole('supervisor')
-            || $this->hasRole('sales_supervisor')
-            || $this->hasRole('advisor');
+            || $this->isSalesSupervisor();
     }
 
     public function canManagerReviewDeal(): bool
     {
-        return $this->hasRole('company_manager') || $this->hasRole('manager');
+        return $this->hasRole('company_manager');
     }
 
     public function canViewAllReports(): bool
     {
-        return $this->isAdmin() || $this->hasRole('company_manager');
+        if ($this->isMarketingManager()) {
+            return false;
+        }
+
+        return $this->isAdmin()
+            || $this->hasRole('company_manager');
     }
 
     public function canViewBoards(): bool
     {
+        if ($this->isMarketingManager()) {
+            return false;
+        }
+
         return $this->hasInvoiceLaunchRole()
             && ($this->hasPermission('boards', 'view')
                 || $this->hasPermission('reports', 'post_report')
@@ -505,7 +606,22 @@ class User extends Authenticatable
      */
     public function preferredHomeRouteName(): string
     {
-        if ($this->hasPermission('finance', 'view') || $this->isAdmin()) {
+        if ($this->hasRole('operations_factory') && Route::has('production.index')) {
+            return 'production.index';
+        }
+        if ($this->hasRole('operations_customer') && Route::has('production.deliveries')) {
+            return 'production.deliveries';
+        }
+        if ($this->isSalesRep() && Route::has('sales.dashboard')) {
+            return 'sales.dashboard';
+        }
+        if (($this->isMarketingManager() || $this->isAdmin()) && Route::has('commercial.reports.index')) {
+            return 'commercial.reports.index';
+        }
+        if ($this->isSalesSupervisor() && Route::has('sales.customers')) {
+            return 'sales.customers';
+        }
+        if ($this->hasPermission('finance', 'view') || ($this->canViewSales() && ! $this->isSalesRep())) {
             return 'invoices.index';
         }
         if ($this->canViewHr() && Route::has('hr.employees')) {
@@ -514,9 +630,7 @@ class User extends Authenticatable
         if ($this->canViewLeads() && Route::has('leads.index')) {
             return 'leads.index';
         }
-        if ($this->canViewSales() && Route::has('orders.requests')) {
-            return 'orders.requests';
-        }
+
         if ($this->canViewInventory() && Route::has('inventory.items')) {
             return 'inventory.items';
         }
@@ -562,17 +676,7 @@ class User extends Authenticatable
         $seen = [];
 
         $roles = $this->roles->loadMissing('permissions');
-        // Phase 1: advisor / sales_supervisor are supervisor-equivalent (Express rename).
-        $isSupervisorFamily = $this->hasRole('advisor')
-            || $this->hasRole('supervisor')
-            || $this->hasRole('sales_supervisor');
-
-        if ($isSupervisorFamily && ! $this->hasRole('supervisor')) {
-            $supervisor = Role::query()->with('permissions')->where('name', 'supervisor')->first();
-            if ($supervisor) {
-                $roles = $roles->concat([$supervisor]);
-            }
-        }
+        $isSalesFloor = $this->isSalesSupervisor();
 
         foreach ($roles as $role) {
             foreach ($role->permissions as $permission) {
@@ -593,8 +697,8 @@ class User extends Authenticatable
             }
         }
 
-        // Local DBs may still have sales_supervisor without finance grants; match Express supervisor map.
-        if ($isSupervisorFamily) {
+        // Sales floor roles receive finance view/create grants when missing from role_permissions.
+        if ($isSalesFloor) {
             foreach (['view', 'create'] as $action) {
                 $key = 'finance:'.$action;
                 if (isset($seen[$key])) {
@@ -632,6 +736,37 @@ class User extends Authenticatable
                     'module' => 'finance',
                     'action' => $action,
                 ];
+            }
+        }
+
+        // Marketing manager reviews issued orders and leads; no order creation.
+        if ($this->isMarketingManager()) {
+            $marketingGrants = [
+                ['module' => 'finance', 'actions' => ['approve']],
+                ['module' => 'leads', 'actions' => ['view', 'create', 'edit', 'verify']],
+                ['module' => 'deals', 'actions' => ['view', 'create']],
+                ['module' => 'sales', 'actions' => ['view']],
+                ['module' => 'inventory', 'actions' => ['view']],
+            ];
+
+            foreach ($marketingGrants as $grant) {
+                foreach ($grant['actions'] as $action) {
+                    $key = $grant['module'].':'.$action;
+                    if (isset($seen[$key])) {
+                        continue;
+                    }
+                    $seen[$key] = true;
+                    $perm = Permission::query()
+                        ->where('module_key', $grant['module'])
+                        ->where('action_key', $action)
+                        ->first();
+                    $rows[] = [
+                        'id' => (int) ($perm?->id ?? 0),
+                        'role_id' => 0,
+                        'module' => $grant['module'],
+                        'action' => $action,
+                    ];
+                }
             }
         }
 

@@ -10,9 +10,10 @@
     'formAction' => route('invoices.update', $invoice),
     'formMethod' => 'PUT',
     'pageTitle' => $invoice->invoice_number,
-    'pageDescription' => 'Autosaves while you edit. Click Save to move it to the invoice list.',
+    'pageDescription' => 'Autosaves while you edit. Click Save to move it to the order list.',
     'status' => $invoice->status,
     'invoiceId' => $invoice->id,
     'invoiceStatus' => $invoice->status,
+    'customers' => $customers,
 ])
 @endsection

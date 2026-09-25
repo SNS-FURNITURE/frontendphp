@@ -43,7 +43,7 @@
             </div>
             <div>
                 <label for="unit">Unit</label>
-                <input id="unit" name="unit" value="{{ old('unit', 'pcs') }}">
+                <input id="unit" name="unit" value="{{ old('unit', \App\Support\UnitOfMeasure::DEFAULT) }}">
             </div>
             <div>
                 <label for="urgency">Urgency</label>

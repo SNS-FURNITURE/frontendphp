@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
+use App\Models\Party;
 use App\Models\SalesOrder;
 use App\Services\AuditService;
 use App\Services\DocumentService;
 use App\Services\InvoiceNumberService;
+use App\Support\UnitOfMeasure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,6 +29,7 @@ class InvoiceWebController extends Controller
         $this->authorize('viewAny', Invoice::class);
 
         $user = auth()->user();
+        $isOrderReviewer = $user->isAdmin() || $user->hasRole('marketing_manager');
 
         $base = Invoice::query()
             ->when(! $user->isAdmin(), function ($query) use ($user) {
@@ -36,20 +39,48 @@ class InvoiceWebController extends Controller
                 });
             });
 
-        $drafts = (clone $base)
-            ->where('status', 'draft')
-            ->when(! $user->isAdmin(), fn ($q) => $q->where('created_by', $user->id))
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->get();
+        $drafts = collect();
+        $invoices = null;
+        $allInvoices = null;
+        $issuedInvoices = null;
+        $approvedInvoices = null;
 
-        $invoices = (clone $base)
-            ->where('status', '!=', 'draft')
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->paginate(25);
+        if ($isOrderReviewer) {
+            $allInvoices = (clone $base)
+                ->whereIn('status', ['issued', 'overdue', 'approved', 'paid'])
+                ->latestFirst()
+                ->paginate(25, ['*'], 'all_page');
 
-        return view('invoices.index', compact('invoices', 'drafts'));
+            $issuedInvoices = (clone $base)
+                ->whereIn('status', ['issued', 'overdue'])
+                ->latestFirst()
+                ->paginate(25, ['*'], 'issued_page');
+
+            $approvedInvoices = (clone $base)
+                ->whereIn('status', ['approved', 'paid'])
+                ->latestFirst()
+                ->paginate(25, ['*'], 'approved_page');
+        } else {
+            $drafts = (clone $base)
+                ->where('status', 'draft')
+                ->where('created_by', $user->id)
+                ->latestFirst()
+                ->get();
+
+            $invoices = (clone $base)
+                ->where('status', '!=', 'draft')
+                ->latestFirst()
+                ->paginate(25);
+        }
+
+        return view('invoices.index', compact(
+            'drafts',
+            'invoices',
+            'allInvoices',
+            'issuedInvoices',
+            'approvedInvoices',
+            'isOrderReviewer',
+        ));
     }
 
     public function create(): View
@@ -58,9 +89,12 @@ class InvoiceWebController extends Controller
 
         $document = $this->documents->blankDraft(auth()->user(), '');
 
+        $customers = Party::where('party_type', 'customer')->get();
+
         return view('invoices.create', [
             'document' => $document,
             'salesOrderId' => request('order'),
+            'customers' => $customers,
         ]);
     }
 
@@ -75,6 +109,9 @@ class InvoiceWebController extends Controller
             ])->withInput();
         }
 
+        $user = auth()->user();
+        $document = $this->documents->applyInvoicePriceAccess($document, $user);
+
         // Force draft-friendly defaults before save. Drafts accept any partial content.
         $document['doc_type'] = 'PROFORMA';
         $document['doc_date'] = $this->normalizeDate($document['doc_date'] ?? null) ?? date('Y-m-d');
@@ -86,14 +123,13 @@ class InvoiceWebController extends Controller
         if (! isset($document['customer']) || ! is_array($document['customer'])) {
             $document['customer'] = ['name' => '', 'address_line' => ''];
         }
-        $document['customer']['name'] = (string) ($document['customer']['name'] ?? '');
-        $document['customer']['address_line'] = (string) ($document['customer']['address_line'] ?? '');
+        $document['customer'] = $this->documents->resolveCustomerFromParty($document['customer']);
         if (! isset($document['lines']) || ! is_array($document['lines']) || $document['lines'] === []) {
             $document['lines'] = [[
                 'line_no' => 1,
                 'name' => '',
                 'description' => '',
-                'uom_code' => 'pcs',
+                'uom_code' => UnitOfMeasure::DEFAULT,
                 'quantity' => '1.000',
                 'unit_count' => null,
                 'unit_price' => '0.00',
@@ -106,7 +142,6 @@ class InvoiceWebController extends Controller
         }
 
         $assembled = $this->documents->assemble($document);
-        $user = auth()->user();
         $assembled['doc_type'] = 'PROFORMA';
         $assembled['doc_date'] = $this->normalizeDate($assembled['doc_date'] ?? null) ?? date('Y-m-d');
         $assembled['valid_until'] = $this->normalizeDate($assembled['valid_until'] ?? null) ?? date('Y-m-d');
@@ -115,12 +150,18 @@ class InvoiceWebController extends Controller
             'address_line' => DocumentService::SNS_SUPPLIER['address_line'],
         ]);
         $assembled['prepared_by'] = [
-            'name' => (string) ($user?->full_name ?: ''),
-            'phone' => (string) ($user?->phone ?: ''),
+            'name' => trim((string) ($document['prepared_by']['name'] ?? '')),
+            'phone' => trim((string) ($document['prepared_by']['phone'] ?? '')),
         ];
         $assembled['approved_by'] = ['name' => '', 'phone' => ''];
         $assembled['created_by_user_id'] = (int) $user->id;
         $invoiceStatus = $request->input('status') === 'issued' ? 'issued' : 'draft';
+        if ($invoiceStatus === 'issued') {
+            $error = $this->documents->validateDocumentRules($assembled);
+            if ($error) {
+                return back()->withErrors(['document' => $error])->withInput();
+            }
+        }
         $generatedNumber = '';
         $invoice = null;
 
@@ -203,7 +244,9 @@ class InvoiceWebController extends Controller
             $document = $this->documents->blankDraft(auth()->user(), $invoice->invoice_number);
         }
 
-        return view('invoices.edit', compact('invoice', 'document'));
+        $customers = Party::where('party_type', 'customer')->get();
+
+        return view('invoices.edit', compact('invoice', 'document', 'customers'));
     }
 
     public function update(Request $request, Invoice $invoice): RedirectResponse
@@ -219,6 +262,10 @@ class InvoiceWebController extends Controller
             return back()->withErrors(['document' => 'Could not read invoice details. Please click Save again.']);
         }
 
+        $user = auth()->user();
+        $existingSnapshot = is_array($invoice->snapshot_json) ? $invoice->snapshot_json : null;
+        $document = $this->documents->applyInvoicePriceAccess($document, $user, $existingSnapshot);
+
         // Draft updates accept any partial content.
         if ($invoice->status === 'draft') {
             $document['doc_type'] = 'PROFORMA';
@@ -227,13 +274,13 @@ class InvoiceWebController extends Controller
             if (! isset($document['customer']) || ! is_array($document['customer'])) {
                 $document['customer'] = ['name' => '', 'address_line' => ''];
             }
-            $document['customer']['name'] = (string) ($document['customer']['name'] ?? '');
+            $document['customer'] = $this->documents->resolveCustomerFromParty($document['customer']);
             if (! isset($document['lines']) || ! is_array($document['lines']) || $document['lines'] === []) {
                 $document['lines'] = [[
                     'line_no' => 1,
                     'name' => '',
                     'description' => '',
-                    'uom_code' => 'pcs',
+                    'uom_code' => UnitOfMeasure::DEFAULT,
                     'quantity' => '1.000',
                     'unit_count' => null,
                     'unit_price' => '0.00',
@@ -247,8 +294,14 @@ class InvoiceWebController extends Controller
         }
 
         $status = $request->input('status');
+        if ($status === 'issued') {
+            $error = $this->documents->validateDocumentRules($document);
+            if ($error) {
+                return back()->withErrors(['document' => $error]);
+            }
+        }
         if ($status === 'paid') {
-            return back()->withErrors(['status' => 'Mark invoices paid by recording a payment, not by status change']);
+            return back()->withErrors(['status' => 'Mark orders paid by recording a payment, not by status change']);
         }
 
         $assembled = $this->documents->assemble($document);
@@ -263,8 +316,8 @@ class InvoiceWebController extends Controller
         $assembled['doc_date'] = $this->normalizeDate($assembled['doc_date'] ?? null) ?? date('Y-m-d');
         $assembled['valid_until'] = $this->normalizeDate($assembled['valid_until'] ?? null) ?? date('Y-m-d');
         $assembled['prepared_by'] = [
-            'name' => (string) ($existing['prepared_by']['name'] ?? auth()->user()?->full_name ?? ''),
-            'phone' => (string) ($existing['prepared_by']['phone'] ?? auth()->user()?->phone ?? ''),
+            'name' => trim((string) ($document['prepared_by']['name'] ?? '')),
+            'phone' => trim((string) ($document['prepared_by']['phone'] ?? '')),
         ];
         $assembled['approved_by'] = [
             'name' => (string) ($existing['approved_by']['name'] ?? ''),
@@ -304,7 +357,7 @@ class InvoiceWebController extends Controller
             ->with('status', $nextStatus === 'draft'
                 ? 'Draft invoice updated'
                 : ($nextStatus === 'issued' && $invoice->wasChanged('status')
-                    ? 'Invoice saved to invoice list'
+                    ? 'Order saved to order list'
                     : 'Invoice updated'));
     }
 
@@ -400,7 +453,7 @@ class InvoiceWebController extends Controller
         ]);
     }
 
-    public function destroy(Request $request, Invoice $invoice): RedirectResponse
+    public function destroy(Request $request, Invoice $invoice): RedirectResponse|JsonResponse
     {
         $this->authorize('delete', $invoice);
 
@@ -412,9 +465,19 @@ class InvoiceWebController extends Controller
             'invoice_number' => $number,
         ], $request);
 
+        $message = "Draft invoice {$number} deleted";
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'id' => $id,
+            ]);
+        }
+
         return redirect()
             ->route('invoices.index')
-            ->with('status', "Draft invoice {$number} deleted");
+            ->with('status', $message);
     }
 
     public function updateStatus(Request $request, Invoice $invoice): RedirectResponse
@@ -423,19 +486,19 @@ class InvoiceWebController extends Controller
 
         $status = $request->input('status');
         if ($status === 'paid') {
-            return back()->withErrors(['status' => 'Mark invoices paid by recording a payment, not by status change']);
+            return back()->withErrors(['status' => 'Mark orders paid by recording a payment, not by status change']);
         }
         if ($status === 'approved') {
-            return back()->withErrors(['status' => 'Use the Approve action to approve an invoice']);
+            return back()->withErrors(['status' => 'Use the Approve action to approve an order']);
         }
 
         $valid = ['draft', 'issued', 'overdue', 'cancelled'];
         if (! in_array($status, $valid, true)) {
-            return back()->withErrors(['status' => 'Invalid invoice status']);
+            return back()->withErrors(['status' => 'Invalid order status']);
         }
 
         if (in_array($invoice->status, ['approved', 'paid', 'cancelled'], true) && $status !== $invoice->status) {
-            return back()->withErrors(['status' => 'Approved, paid, or cancelled invoices cannot change status this way']);
+            return back()->withErrors(['status' => 'Approved, paid, or cancelled orders cannot change status this way']);
         }
 
         $invoice->status = $status;
@@ -448,7 +511,7 @@ class InvoiceWebController extends Controller
             'status' => $status,
         ], $request);
 
-        return back()->with('status', 'Invoice status updated');
+        return back()->with('status', 'Order status updated');
     }
 
     public function approve(Request $request, Invoice $invoice): RedirectResponse
@@ -456,15 +519,30 @@ class InvoiceWebController extends Controller
         $this->authorize('approve', $invoice);
 
         if (in_array($invoice->status, ['approved', 'paid', 'cancelled'], true)) {
-            return back()->withErrors(['status' => 'This invoice cannot be approved']);
+            return back()->withErrors(['status' => 'This order cannot be approved']);
         }
 
         $user = auth()->user();
-        $approverName = $this->personDisplayName($user?->full_name ?: $user?->username);
-        $snapshot = is_array($invoice->snapshot_json) ? $invoice->snapshot_json : [];
+        $submitted = $this->parseDocument($request);
+        if ($submitted === null) {
+            return back()->withErrors(['document' => 'Could not read order details for approval']);
+        }
+
+        $approverName = $this->personDisplayName((string) ($submitted['approved_by']['name'] ?? ''));
+        $approverPhone = trim((string) ($submitted['approved_by']['phone'] ?? ''));
+
+        if ($approverName === '') {
+            return back()->withErrors(['approved_by' => 'Approved By name is required']);
+        }
+
+        if ($approverPhone === '') {
+            return back()->withErrors(['approved_by' => 'Approver contact is required']);
+        }
+
+        $snapshot = $this->assembleApprovalSnapshot($submitted, $user, $invoice);
         $snapshot['approved_by'] = [
             'name' => $approverName,
-            'phone' => (string) ($user->phone ?: ''),
+            'phone' => $approverPhone,
         ];
         $snapshot['approval'] = [
             'status' => 'approved',
@@ -474,6 +552,7 @@ class InvoiceWebController extends Controller
         ];
 
         $invoice->status = 'approved';
+        $invoice->amount = (float) ($snapshot['totals']['grand_total'] ?? $invoice->amount);
         $invoice->snapshot_json = $snapshot;
         if (! $invoice->issued_at) {
             $invoice->issued_at = now();
@@ -482,17 +561,22 @@ class InvoiceWebController extends Controller
 
         $this->audit->log($user, 'invoice', (int) $invoice->id, 'APPROVE_INVOICE', [
             'invoice_number' => $invoice->invoice_number,
-            'approved_by' => $user->full_name,
+            'approved_by' => $approverName,
         ], $request);
 
         return redirect()
             ->route('invoices.show', $invoice)
-            ->with('status', 'Invoice approved by '.$user->full_name);
+            ->with('status', 'Order approved by '.$approverName);
     }
 
     public function document(Request $request, Invoice $invoice): Response
     {
         $this->authorize('view', $invoice);
+
+        if (! in_array($invoice->status, ['approved', 'paid'], true)) {
+            abort(403, 'Order must be approved before downloading or printing the document.');
+        }
+
         $format = strtolower((string) $request->query('format', 'pdf'));
 
         try {
@@ -503,18 +587,20 @@ class InvoiceWebController extends Controller
 
         $filename = preg_replace('/[^\w.-]+/', '_', $invoice->invoice_number) ?: 'invoice';
 
+        $showPrices = auth()->user()?->canViewInvoicePrices() ?? false;
+
         if ($format === 'html') {
-            return response($this->documents->renderHtml($snapshot), 200, [
+            return response($this->documents->renderHtml($snapshot, false, $showPrices), 200, [
                 'Content-Type' => 'text/html; charset=utf-8',
             ]);
         }
 
-        $pdfData = $this->documents->renderPdf($snapshot);
+        $pdfData = $this->documents->renderPdf($snapshot, $showPrices);
         $disposition = $request->query('download') === '1' ? 'attachment' : 'inline';
-        
+
         return response($pdfData, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => $disposition . '; filename="'.$filename.'.pdf"',
+            'Content-Disposition' => $disposition.'; filename="'.$filename.'.pdf"',
             'Content-Length' => strlen($pdfData),
             'Cache-Control' => 'private, max-age=0, must-revalidate',
             'Pragma' => 'public',
@@ -530,12 +616,12 @@ class InvoiceWebController extends Controller
             $payload = json_decode($payload['document_json'], true) ?: [];
         }
 
-        $snapshot = $this->documents->assemble($payload);
         $user = auth()->user();
-        $prepName = trim((string) ($payload['prepared_by']['name'] ?? ''));
+        $payload = $this->documents->applyInvoicePriceAccess($payload, $user);
+        $snapshot = $this->documents->assemble($payload);
         $snapshot['prepared_by'] = [
-            'name' => $prepName !== '' ? $prepName : (string) ($user?->full_name ?: ''),
-            'phone' => trim((string) ($payload['prepared_by']['phone'] ?? $user?->phone ?? '')),
+            'name' => trim((string) ($payload['prepared_by']['name'] ?? '')),
+            'phone' => trim((string) ($payload['prepared_by']['phone'] ?? '')),
         ];
         $error = $this->documents->validateDocumentRules($snapshot);
         if ($error) {
@@ -544,7 +630,9 @@ class InvoiceWebController extends Controller
 
         $filename = preg_replace('/[^\w.-]+/', '_', (string) ($snapshot['doc_number'] ?: 'invoice')) ?: 'invoice';
 
-        return response($this->documents->renderPdf($snapshot), 200, [
+        $showPrices = $user?->canViewInvoicePrices() ?? false;
+
+        return response($this->documents->renderPdf($snapshot, $showPrices), 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="'.$filename.'.pdf"',
         ]);
@@ -593,25 +681,64 @@ class InvoiceWebController extends Controller
         if (! isset($document['customer']) || ! is_array($document['customer'])) {
             $document['customer'] = ['name' => '', 'address_line' => ''];
         }
-        $document['customer']['name'] = (string) ($document['customer']['name'] ?? '');
-        $document['customer']['address_line'] = (string) ($document['customer']['address_line'] ?? '');
-        if (! isset($document['lines']) || ! is_array($document['lines']) || $document['lines'] === []) {
+        $document['customer'] = $this->documents->resolveCustomerFromParty($document['customer']);
+        $lines = is_array($document['lines'] ?? null) ? $document['lines'] : [];
+        $namedLines = array_values(array_filter(
+            $lines,
+            fn ($line) => is_array($line) && trim((string) ($line['name'] ?? '')) !== ''
+        ));
+        if ($namedLines !== []) {
+            $document['lines'] = $namedLines;
+        } elseif ($lines === []) {
             $document['lines'] = [[
                 'line_no' => 1,
                 'name' => '',
                 'description' => '',
-                'uom_code' => 'pcs',
+                'uom_code' => UnitOfMeasure::DEFAULT,
                 'quantity' => '1.000',
                 'unit_count' => null,
                 'unit_price' => '0.00',
             ]];
+        } else {
+            $document['lines'] = $lines;
         }
 
         return $document;
     }
 
+    private function assembleApprovalSnapshot(array $document, $user, Invoice $invoice): array
+    {
+        $existingSnapshot = is_array($invoice->snapshot_json) ? $invoice->snapshot_json : [];
+        $merged = array_merge($existingSnapshot, [
+            'lines' => $document['lines'] ?? $existingSnapshot['lines'] ?? [],
+            'discount' => $document['discount'] ?? $existingSnapshot['discount'] ?? ['type' => 'PERCENT', 'value' => '0'],
+            'tax' => $document['tax'] ?? $existingSnapshot['tax'] ?? ['rate' => '15'],
+            'notes' => $document['notes'] ?? $existingSnapshot['notes'] ?? [],
+            'terms' => $document['terms'] ?? $existingSnapshot['terms'] ?? [],
+            'prepared_by' => $existingSnapshot['prepared_by'] ?? ['name' => '', 'phone' => ''],
+            'customer' => $existingSnapshot['customer'] ?? ['name' => '', 'address_line' => ''],
+            'doc_number' => $invoice->invoice_number,
+            'doc_type' => 'PROFORMA',
+            'doc_date' => $existingSnapshot['doc_date'] ?? date('Y-m-d'),
+            'valid_until' => $existingSnapshot['valid_until'] ?? date('Y-m-d'),
+        ]);
+
+        $merged = $this->documents->applyInvoicePriceAccess($merged, $user, $existingSnapshot);
+        $assembled = $this->documents->assemble($merged);
+        $assembled['doc_number'] = $invoice->invoice_number;
+        $assembled['created_by_user_id'] = (int) ($invoice->created_by ?: $user?->id);
+        $assembled['prepared_by'] = [
+            'name' => trim((string) ($existingSnapshot['prepared_by']['name'] ?? '')),
+            'phone' => trim((string) ($existingSnapshot['prepared_by']['phone'] ?? '')),
+        ];
+
+        return $assembled;
+    }
+
     private function assembleDraftSnapshot(array $document, $user, ?Invoice $invoice = null): array
     {
+        $existingSnapshot = $invoice && is_array($invoice->snapshot_json) ? $invoice->snapshot_json : null;
+        $document = $this->documents->applyInvoicePriceAccess($document, $user, $existingSnapshot);
         $assembled = $this->documents->assemble($document);
         $assembled['doc_type'] = 'PROFORMA';
         $assembled['doc_date'] = $this->normalizeDate($assembled['doc_date'] ?? null) ?? date('Y-m-d');
@@ -624,10 +751,6 @@ class InvoiceWebController extends Controller
         if ($invoice) {
             $existing = is_array($invoice->snapshot_json) ? $invoice->snapshot_json : [];
             $assembled['doc_number'] = $invoice->invoice_number;
-            $assembled['prepared_by'] = [
-                'name' => (string) ($existing['prepared_by']['name'] ?? $user?->full_name ?? ''),
-                'phone' => (string) ($existing['prepared_by']['phone'] ?? $user?->phone ?? ''),
-            ];
             $assembled['approved_by'] = [
                 'name' => (string) ($existing['approved_by']['name'] ?? ''),
                 'phone' => (string) ($existing['approved_by']['phone'] ?? ''),
@@ -637,13 +760,14 @@ class InvoiceWebController extends Controller
             }
             $assembled['created_by_user_id'] = (int) ($invoice->created_by ?: $user?->id);
         } else {
-            $assembled['prepared_by'] = [
-                'name' => (string) ($user?->full_name ?: ''),
-                'phone' => (string) ($user?->phone ?: ''),
-            ];
             $assembled['approved_by'] = ['name' => '', 'phone' => ''];
             $assembled['created_by_user_id'] = (int) $user->id;
         }
+
+        $assembled['prepared_by'] = [
+            'name' => trim((string) ($document['prepared_by']['name'] ?? '')),
+            'phone' => trim((string) ($document['prepared_by']['phone'] ?? '')),
+        ];
 
         return $assembled;
     }

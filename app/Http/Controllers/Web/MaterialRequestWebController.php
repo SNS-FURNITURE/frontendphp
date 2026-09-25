@@ -23,7 +23,7 @@ class MaterialRequestWebController extends Controller
         $requests = MaterialRequest::query()
             ->with(['requester', 'fulfiller'])
             ->when($status, fn ($q) => $q->where('status', $status))
-            ->orderByDesc('created_at')
+            ->latestFirst()
             ->get();
 
         return view('inventory.material-requests', [

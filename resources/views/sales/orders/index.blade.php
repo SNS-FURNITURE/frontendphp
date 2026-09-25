@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('title', 'Order requests')
+@section('title', 'Orders')
 
 @section('content')
 <div class="page-head">
     <div>
-        <h1>Order requests</h1>
+        <h1>Orders</h1>
         <p class="muted" style="margin:0.35rem 0 0">Sales order queue</p>
     </div>
     <div class="toolbar">
@@ -29,12 +29,33 @@
     <form method="POST" action="{{ route('orders.requests.store') }}">
         @csrf
         <label for="customer_id">Customer</label>
-        <select id="customer_id" name="customer_id" required>
-            <option value="">Select approved customer…</option>
-            @foreach ($customers as $c)
-                <option value="{{ $c->id }}" @selected((string) old('customer_id') === (string) $c->id)>{{ $c->name }}</option>
-            @endforeach
-        </select>
+        <div x-data='{
+            search: @json(old('customer_search') ?? ""),
+            selectedId: "{{ old('customer_id') ?? '' }}",
+            open: false,
+            customers: @json($customers->map(fn($c) => ["id" => $c->id, "name" => $c->name])->values()->toArray()),
+            get filtered() {
+                if (this.search === "") return this.customers;
+                return this.customers.filter(c => c.name.toLowerCase().startsWith(this.search.toLowerCase()));
+            },
+            selectCustomer(c) {
+                this.selectedId = c.id;
+                this.search = c.name;
+                this.open = false;
+            }
+        }' @click.outside="open = false" style="position: relative; margin-bottom: 0.9rem;">
+            <input type="hidden" name="customer_id" :value="selectedId">
+            <input type="hidden" name="customer_search" :value="search">
+            <input type="text" x-model="search" @focus="open = true" @input="open = true; selectedId = ''" placeholder="Type to search customers..." required style="margin-bottom:0; width:100%">
+            <div x-show="open && filtered.length > 0" style="position: absolute; top: 100%; left: 0; right: 0; max-height: 200px; overflow-y: auto; background: white; border: 1px solid #ccc; z-index: 10; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <template x-for="c in filtered" :key="c.id">
+                    <div @click="selectCustomer(c)" x-text="c.name" style="padding: 0.5rem 0.8rem; cursor: pointer; border-bottom: 1px solid #eee; color: #333;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'"></div>
+                </template>
+            </div>
+            <div x-show="open && filtered.length === 0" style="position: absolute; top: 100%; left: 0; right: 0; padding: 0.5rem; background: white; border: 1px solid #ccc; z-index: 10; color: #666; font-size: 0.85rem;">
+                No matching customers found.
+            </div>
+        </div>
         @if ($items->isNotEmpty())
             <div class="grid-2">
                 <div>
@@ -80,7 +101,7 @@
 
 <div class="card">
     @if ($orders->isEmpty())
-        <p class="muted" style="margin:0;text-align:center;padding:2rem">No order requests</p>
+        <p class="muted" style="margin:0;text-align:center;padding:2rem">No orders</p>
     @else
         <table class="data">
             <thead>

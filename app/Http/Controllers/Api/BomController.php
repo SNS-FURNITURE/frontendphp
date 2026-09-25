@@ -25,7 +25,7 @@ class BomController extends Controller
 
         $boms = BillOfMaterial::query()
             ->with(['finishedItem', 'lines.componentItem'])
-            ->orderByDesc('created_at')
+            ->latestFirst()
             ->get()
             ->map(fn (BillOfMaterial $bom) => $bom->toApiArray())
             ->values()

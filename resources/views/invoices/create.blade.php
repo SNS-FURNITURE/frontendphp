@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Create invoice')
+@section('title', 'Create order')
 @section('content_class', 'content-wide')
 
 @section('content')
@@ -9,9 +9,10 @@
     'readOnly' => false,
     'formAction' => route('invoices.store'),
     'formMethod' => 'POST',
-    'pageTitle' => 'Create invoice',
-    'pageDescription' => 'Autosaves as a draft if you leave. Click Save to add it to the invoice list.',
+    'pageTitle' => 'Create order',
+    'pageDescription' => 'Autosaves as a draft if you leave. Click Save to add it to the order list.',
     'salesOrderId' => $salesOrderId,
     'invoiceId' => null,
+    'customers' => $customers,
 ])
 @endsection

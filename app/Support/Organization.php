@@ -73,7 +73,7 @@ class Organization
                 'code' => 'COMM',
                 'description' => 'Marketing campaigns, client showroom sales, supplier purchasing, and warehouse inventory.',
                 'headTitle' => 'Commercial Lead & Supervisor',
-                'headRole' => 'supervisor',
+                'headRole' => 'sales_supervisor',
                 'units' => [
                     [
                         'name' => 'Marketing & Promotion Unit',
@@ -84,8 +84,20 @@ class Organization
                     [
                         'name' => 'Sales Unit',
                         'description' => 'Showroom consultations, client deal pipelines, and custom order requests.',
-                        'roleKey' => 'supervisor',
-                        'subPositions' => ['Supervisor'],
+                        'roleKey' => 'sales_supervisor',
+                        'subPositions' => ['Sales Supervisor'],
+                    ],
+                    [
+                        'name' => 'Sales Representatives',
+                        'description' => 'Showroom order capture, customer follow-up, and deal progression.',
+                        'roleKey' => 'sales',
+                        'subPositions' => ['Sales Representative'],
+                    ],
+                    [
+                        'name' => 'Customer Operations',
+                        'description' => 'Customer deliveries, site installation coordination, and order fulfillment.',
+                        'roleKey' => 'operations_customer',
+                        'subPositions' => ['Customer Operations Officer', 'Delivery Coordinator'],
                     ],
                     [
                         'name' => 'Purchasing Unit',
@@ -114,6 +126,12 @@ class Organization
                         'description' => 'CAD drafting, 3D product specifications, custom client orders, and design concepts.',
                         'roleKey' => 'designer',
                         'subPositions' => ['Furniture Designer', '3D CAD Specialist'],
+                    ],
+                    [
+                        'name' => 'Factory Operations',
+                        'description' => 'Workshop production runs, manufacturing orders, stock movements, and machinery upkeep.',
+                        'roleKey' => 'operations_factory',
+                        'subPositions' => ['Factory Operator', 'Production Technician'],
                     ],
                     [
                         'name' => 'Production Management & Quality Control',

@@ -3,11 +3,13 @@
 <head>
 <meta charset="utf-8"/>
 <title>{{ $vm['title'] }} {{ $vm['docNumber'] }}</title>
+@php($showPrices = $showPrices ?? true)
 <style>
+  @import url('https://fonts.cdnfonts.com/css/neris');
   @page { margin: 0; size: {{ $page['w'] }}pt {{ $page['h'] }}pt; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    font-family: DejaVu Sans, sans-serif;
+    font-family: 'Neris', DejaVu Sans, sans-serif;
     font-size: 9pt;
     color: #000;
     width: {{ $page['w'] }}pt;
@@ -101,12 +103,6 @@
 </style>
 </head>
 <body>
-@php
-    $preparedName = trim(preg_replace('/\s*\([^)]*\)\s*$/u', '', (string) ($vm['preparedBy']['name'] ?? '')) ?? '');
-    $preparedPhone = trim((string) ($vm['preparedBy']['phone'] ?? ''));
-    $approvedName = trim(preg_replace('/\s*\([^)]*\)\s*$/u', '', (string) ($vm['approvedBy']['name'] ?? '')) ?? '');
-    $approvedPhone = trim((string) ($vm['approvedBy']['phone'] ?? ''));
-@endphp
 <div class="page">
   <table class="header">
     <tr>
@@ -121,10 +117,10 @@
       </td>
       <td style="width:42%">
         <div class="title">{{ $vm['title'] }}</div>
-        <div class="meta-line">Invoice Id&nbsp;&nbsp;{{ $vm['docNumber'] }}</div>
+        <div class="meta-line">Order Id&nbsp;&nbsp;{{ $vm['docNumber'] }}</div>
         <div class="meta-line">Date&nbsp;&nbsp;{{ $vm['docDate'] }}</div>
         @if ($vm['showAgainstInvoice'] && $vm['parentDocNumber'])
-          <div class="meta-line">Against Invoice&nbsp;&nbsp;{{ $vm['parentDocNumber'] }}</div>
+          <div class="meta-line">Against Order&nbsp;&nbsp;{{ $vm['parentDocNumber'] }}</div>
         @endif
       </td>
     </tr>
@@ -133,6 +129,9 @@
   <div class="customer">
     <div class="label">Customer</div>
     <div class="cname">{{ $vm['customer']['name'] }}</div>
+    @if (!empty($vm['customer']['phone']))
+      <div>{{ $vm['customer']['phone'] }}</div>
+    @endif
     @if (trim((string) $vm['customer']['address_line']) !== '')
       <div>{{ $vm['customer']['address_line'] }}</div>
     @endif
@@ -146,8 +145,10 @@
         <th class="c" style="width:{{ $cols['unit'] }}pt">Unit</th>
         <th class="r" style="width:{{ $cols['qty'] }}pt">Qty</th>
         <th class="c" style="width:{{ $cols['pieces'] }}pt">Pieces</th>
+        @if ($showPrices)
         <th class="r" style="width:{{ $cols['unitPrice'] }}pt">Unit Price</th>
         <th class="r" style="width:{{ $cols['total'] }}pt">Total Price</th>
+        @endif
       </tr>
     </thead>
     <tbody>
@@ -160,8 +161,10 @@
         <td class="c">{{ $line['uom'] }}</td>
         <td class="r">{{ $line['qty'] }}</td>
         <td class="c">{{ $line['pieces'] }}</td>
+        @if ($showPrices)
         <td class="r">{{ $line['unitPrice'] }}</td>
         <td class="r">{{ $line['lineTotal'] }}</td>
+        @endif
       </tr>
     @endforeach
     </tbody>
@@ -169,7 +172,7 @@
 
   <table class="bottom">
     <tr>
-      <td style="width:58%">
+      <td style="width:{{ $showPrices ? '58' : '100' }}%">
         <div class="notes-terms">
           <div class="h">Notes:</div>
           @if (count($vm['notes']) === 0)
@@ -189,6 +192,7 @@
           <div><span class="term-lbl">Warranty:</span> {{ $vm['terms']['warranty'] }}</div>
         </div>
       </td>
+      @if ($showPrices)
       <td style="width:42%">
         <table class="totals">
           <tr><td class="lbl">Total</td><td class="amt">{{ $vm['subtotalDisplay'] }}</td></tr>
@@ -198,22 +202,23 @@
           <tr class="grand"><td class="lbl">G. Total</td><td class="amt">{{ $vm['grandTotalDisplay'] }}</td></tr>
         </table>
       </td>
+      @endif
     </tr>
   </table>
 
   <table class="sigs">
     <tr>
       <td>
-        <div>{{ $preparedName !== '' ? 'Name: '.$preparedName : '&nbsp;' }}</div>
-        @if ($preparedPhone !== '')
-          <div>Tel: {{ $preparedPhone }}</div>
+        <div>{{ ($vm['preparedName'] ?? '') !== '' ? 'Name: '.$vm['preparedName'] : '&nbsp;' }}</div>
+        @if (($vm['preparedPhone'] ?? '') !== '')
+          <div>Tel: {{ $vm['preparedPhone'] }}</div>
         @endif
         <div class="label">Prepared By</div>
       </td>
       <td>
-        <div>{{ $approvedName !== '' ? 'Name: '.$approvedName : '&nbsp;' }}</div>
-        @if ($approvedPhone !== '')
-          <div>Tel: {{ $approvedPhone }}</div>
+        <div>{{ ($vm['approvedName'] ?? '') !== '' ? 'Name: '.$vm['approvedName'] : '&nbsp;' }}</div>
+        @if (($vm['approvedPhone'] ?? '') !== '')
+          <div>Tel: {{ $vm['approvedPhone'] }}</div>
         @endif
         <div class="label">Approved By</div>
       </td>

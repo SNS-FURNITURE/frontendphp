@@ -30,12 +30,7 @@
                 <input value="{{ $user->full_name }}" readonly disabled>
                 <p class="muted" style="margin:-0.5rem 0 0.85rem;font-size:.8rem">Only an admin can change your full name.</p>
             @endif
-            <label>Username</label>
-            @if ($isAdmin)
-                <input name="username" value="{{ old('username', $user->username) }}" required>
-            @else
-                <input value="{{ $user->username }}" readonly disabled>
-            @endif
+
             <label>Email</label>
             @if ($isAdmin)
                 <input type="email" name="email" value="{{ old('email', $user->email) }}" required>

@@ -26,26 +26,14 @@ class ProfileWebController extends Controller
         }
 
         $rules = [
-            'username' => ['required', 'string', 'min:3', 'max:64', 'regex:/^[a-z0-9][a-z0-9_-]*$/i'],
             'email' => ['required', 'email'],
             'full_name' => ['required', 'string', 'min:2', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
         ];
 
         $validated = $request->validate($rules, [
-            'username.regex' => 'Username must be 3–64 characters: letters, numbers, underscores, or hyphens',
             'email.email' => 'A valid email address is required',
         ]);
-
-        $username = strtolower(ltrim($validated['username'], '@'));
-
-        $usernameTaken = \App\Models\User::query()
-            ->whereRaw('LOWER(username) = ?', [$username])
-            ->where('id', '!=', $user->id)
-            ->exists();
-        if ($usernameTaken) {
-            return back()->withErrors(['username' => 'Username is already in use'])->withInput();
-        }
 
         $emailTaken = \App\Models\User::query()
             ->whereRaw('LOWER(email) = ?', [strtolower($validated['email'])])
@@ -60,7 +48,6 @@ class ProfileWebController extends Controller
             ? $validated['phone']
             : null;
         
-        $user->username = $username;
         $user->email = strtolower($validated['email']);
         $user->save();
 
@@ -69,7 +56,7 @@ class ProfileWebController extends Controller
             'user',
             (int) $user->id,
             'UPDATE_PROFILE',
-            ['full_name' => $user->full_name, 'username' => $user->username, 'email' => $user->email],
+            ['full_name' => $user->full_name, 'email' => $user->email],
             $request,
         );
 

@@ -7,7 +7,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | Roles outside this set cannot use the ERP until the full product unlocks.
-    | Advisor is treated as supervisor-equivalent for this launch.
+    | Sales supervisor covers showroom sales for this launch.
     |
     */
     'roles' => [
@@ -15,8 +15,9 @@ return [
         'company_manager',
         'finance',
         'marketing_manager',
-        'advisor',
-        'supervisor',
         'sales_supervisor',
+        'sales',
+        'operations_customer',
+        'operations_factory',
     ],
 ];

@@ -21,7 +21,7 @@ class MaterialRequestController extends Controller
             return ApiResponse::success([]);
         }
 
-        $query = MaterialRequest::query()->orderByDesc('created_at');
+        $query = MaterialRequest::query()->latestFirst();
 
         if ($status = $request->query('status')) {
             $query->where('status', $status);

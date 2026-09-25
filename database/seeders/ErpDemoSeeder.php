@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Support\ErpRoles;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -14,24 +15,16 @@ class ErpDemoSeeder extends Seeder
 {
     public function run(): void
     {
-        $roles = [
-            'admin',
-            'company_manager',
-            'hr',
-            'finance',
-            'sales_lead_gen',
-            'sales_supervisor',
-            'procurement_operations',
-            'inventory',
-            'product_manager',
-            'designer',
-        ];
+        ErpRoles::purgeRemovedRoles();
+
+        $roles = array_merge(['admin'], ErpRoles::catalogNames());
 
         $roleIds = [];
         foreach ($roles as $name) {
             $existing = DB::table('roles')->where('name', $name)->first();
             if ($existing) {
                 $roleIds[$name] = $existing->id;
+
                 continue;
             }
             $roleIds[$name] = DB::table('roles')->insertGetId([
@@ -59,6 +52,7 @@ class ErpDemoSeeder extends Seeder
                     ->first();
                 if ($existing) {
                     $permissionIds[$key] = $existing->id;
+
                     continue;
                 }
                 $permissionIds[$key] = DB::table('permissions')->insertGetId([
@@ -79,20 +73,72 @@ class ErpDemoSeeder extends Seeder
         $adminPermKeys[] = 'reports.post_report';
 
         foreach (array_unique($adminPermKeys) as $key) {
-            if (! isset($permissionIds[$key])) {
-                continue;
-            }
-            $exists = DB::table('role_permissions')
-                ->where('role_id', $roleIds['admin'])
-                ->where('permission_id', $permissionIds[$key])
-                ->exists();
-            if (! $exists) {
-                DB::table('role_permissions')->insert([
-                    'role_id' => $roleIds['admin'],
-                    'permission_id' => $permissionIds[$key],
-                    'allowed' => true,
-                ]);
-            }
+            $this->grantRolePermission($roleIds['admin'], $key, $permissionIds);
+        }
+
+        $financeKeys = [
+            'finance.view', 'finance.create', 'finance.edit', 'finance.delete', 'finance.approve',
+        ];
+        foreach ($financeKeys as $key) {
+            $this->grantRolePermission($roleIds['finance'], $key, $permissionIds);
+        }
+
+        $marketingKeys = [
+            'finance.approve',
+            'leads.view', 'leads.create', 'leads.edit', 'leads.verify',
+            'deals.view', 'deals.create',
+            'sales.view',
+            'inventory.view',
+        ];
+        foreach ($marketingKeys as $key) {
+            $this->grantRolePermission($roleIds['marketing_manager'], $key, $permissionIds);
+        }
+
+        $salesSupervisorKeys = [
+            'finance.view', 'finance.create',
+            'leads.view', 'leads.create', 'leads.verify',
+            'deals.view', 'deals.create',
+            'sales.view',
+        ];
+        $this->syncRolePermissions($roleIds['sales_supervisor'], $salesSupervisorKeys, $permissionIds);
+
+        $salesRepKeys = [
+            'sales.view',
+        ];
+        $this->syncRolePermissions($roleIds['sales'], $salesRepKeys, $permissionIds);
+
+        $customerOpsKeys = [
+            'finance.view',
+            'order_requests.view', 'order_requests.create',
+            'leads.view',
+            'deals.view',
+            'sales.view',
+            'deliveries.view', 'deliveries.create', 'deliveries.edit', 'deliveries.approve',
+            'installation.view', 'installation.edit',
+            'inventory.view',
+        ];
+        foreach ($customerOpsKeys as $key) {
+            $this->grantRolePermission($roleIds['operations_customer'], $key, $permissionIds);
+        }
+
+        $factoryOpsKeys = [
+            'production.view', 'production.create', 'production.edit',
+            'manufacturing.view', 'manufacturing.create', 'manufacturing.edit',
+            'inventory.view', 'inventory.create', 'inventory.edit',
+            'order_requests.view',
+            'machinery.view',
+            'deliveries.view',
+        ];
+        foreach ($factoryOpsKeys as $key) {
+            $this->grantRolePermission($roleIds['operations_factory'], $key, $permissionIds);
+        }
+
+        $managerViewKeys = array_map(fn (string $module) => "{$module}.view", $modules);
+        $managerViewKeys[] = 'reports.post_report';
+        $managerViewKeys[] = 'funding.create';
+        $managerViewKeys[] = 'funding.approve';
+        foreach (array_unique($managerViewKeys) as $key) {
+            $this->grantRolePermission($roleIds['company_manager'], $key, $permissionIds);
         }
 
         $passwordHash = Hash::make('password123');
@@ -101,8 +147,11 @@ class ErpDemoSeeder extends Seeder
             ['full_name' => 'Maya Manager', 'email' => 'manager@sns.com', 'role' => 'company_manager', 'phone' => '+251911000004'],
             ['full_name' => 'Hana HR & PR Officer', 'email' => 'hr@sns.com', 'role' => 'hr', 'phone' => '+251911000008'],
             ['full_name' => 'Fiona Finance', 'email' => 'finance@sns.com', 'role' => 'finance', 'phone' => '+251911000006'],
-            ['full_name' => 'Lina Lead Gen', 'email' => 'sales@sns.com', 'role' => 'sales_lead_gen', 'phone' => '+251911000002'],
-            ['full_name' => 'Sam Supervisor', 'email' => 'advisor@sns.com', 'role' => 'sales_supervisor', 'phone' => '+251911000003'],
+            ['full_name' => 'Marta Marketing', 'email' => 'mktmanager@sns.com', 'role' => 'marketing_manager', 'phone' => '+251911000003'],
+            ['full_name' => 'Alex Supervisor', 'email' => 'advisor@sns.com', 'role' => 'sales_supervisor', 'phone' => '+251911000012'],
+            ['full_name' => 'Sam Sales', 'email' => 'sales@sns.com', 'role' => 'sales', 'phone' => '+251911000013'],
+            ['full_name' => 'Olivia Customer Ops', 'email' => 'opscustomer@sns.com', 'role' => 'operations_customer', 'phone' => '+251911000014'],
+            ['full_name' => 'Frank Factory Ops', 'email' => 'opsfactory@sns.com', 'role' => 'operations_factory', 'phone' => '+251911000015'],
             ['full_name' => 'Paul Procurement', 'email' => 'procurement@sns.com', 'role' => 'procurement_operations', 'phone' => '+251911000011'],
             ['full_name' => 'Ivan Inventory', 'email' => 'inventory@sns.com', 'role' => 'inventory', 'phone' => '+251911000007'],
             ['full_name' => 'Pete Products', 'email' => 'pm@sns.com', 'role' => 'product_manager', 'phone' => '+251911000005'],
@@ -140,6 +189,63 @@ class ErpDemoSeeder extends Seeder
             }
         }
 
+        $salesUser = DB::table('users')->where('email', 'sales@sns.com')->first();
+        if ($salesUser) {
+            $period = now()->format('Y-m');
+            $exists = DB::table('sales_quotas')
+                ->where('user_id', $salesUser->id)
+                ->where('period', $period)
+                ->exists();
+            if (! $exists) {
+                DB::table('sales_quotas')->insert([
+                    'user_id' => $salesUser->id,
+                    'quota' => 25,
+                    'actual' => 0,
+                    'period' => $period,
+                    'period_type' => 'monthly',
+                    'metric' => 'contacts',
+                ]);
+            }
+        }
+
         $this->command?->info('ERP demo roles/users seeded (password for all: password123).');
+    }
+
+    /**
+     * @param  list<string>  $keys
+     * @param  array<string, int>  $permissionIds
+     */
+    private function syncRolePermissions(int $roleId, array $keys, array $permissionIds): void
+    {
+        DB::table('role_permissions')->where('role_id', $roleId)->delete();
+
+        foreach ($keys as $key) {
+            $this->grantRolePermission($roleId, $key, $permissionIds);
+        }
+    }
+
+    /**
+     * @param  array<string, int>  $permissionIds
+     */
+    private function grantRolePermission(int $roleId, string $key, array $permissionIds): void
+    {
+        if (! isset($permissionIds[$key])) {
+            return;
+        }
+
+        $exists = DB::table('role_permissions')
+            ->where('role_id', $roleId)
+            ->where('permission_id', $permissionIds[$key])
+            ->exists();
+
+        if ($exists) {
+            return;
+        }
+
+        DB::table('role_permissions')->insert([
+            'role_id' => $roleId,
+            'permission_id' => $permissionIds[$key],
+            'allowed' => true,
+        ]);
     }
 }

@@ -36,10 +36,7 @@ class TaskController extends Controller
             });
         }
 
-        $rows = $query->orderByRaw("(status = 'done')")
-            ->orderByRaw('due_date IS NULL')
-            ->orderBy('due_date')
-            ->orderByDesc('id')
+        $rows = $query->latestFirst()
             ->get()
             ->map(fn (ProjectTask $t) => $t->toApiArray())
             ->values()

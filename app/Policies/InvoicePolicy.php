@@ -15,6 +15,7 @@ class InvoicePolicy
 
         return $user->hasPermission('finance', 'view')
             || $user->hasPermission('finance', 'create')
+            || $user->hasRole('marketing_manager')
             || $user->isAdmin();
     }
 
@@ -29,12 +30,14 @@ class InvoicePolicy
         }
 
         return $user->hasInvoiceLaunchRole()
-            && ($user->hasPermission('finance', 'view') || $user->hasPermission('finance', 'create'));
+            && ($user->hasPermission('finance', 'view')
+                || $user->hasPermission('finance', 'create')
+                || $user->hasRole('marketing_manager'));
     }
 
     public function create(User $user): bool
     {
-        if ($user->isAdmin() || $user->hasRole('finance')) {
+        if ($user->isAdmin() || $user->hasRole('finance') || $user->hasRole('marketing_manager')) {
             return false;
         }
 
@@ -43,7 +46,7 @@ class InvoicePolicy
 
     public function update(User $user, ?Invoice $invoice = null): bool
     {
-        if ($user->isAdmin() || $user->hasRole('finance')) {
+        if ($user->isAdmin() || $user->hasRole('finance') || $user->hasRole('marketing_manager')) {
             return false;
         }
 
@@ -75,7 +78,7 @@ class InvoicePolicy
             return false;
         }
 
-        return $user->isAdmin();
+        return $user->isAdmin() || $user->hasRole('marketing_manager');
     }
 
     public function recordPayment(User $user): bool

@@ -24,7 +24,7 @@ class ProjectWebController extends Controller
         abort_unless(auth()->user()?->canViewProjects(), 403);
 
         return view('projects.index', [
-            'projects' => Project::query()->with('pm')->orderByDesc('created_at')->get(),
+            'projects' => Project::query()->with('pm')->latestFirst()->get(),
             'canCreate' => auth()->user()->canViewProjects() && ! auth()->user()->isAdmin(),
         ]);
     }
@@ -59,7 +59,7 @@ class ProjectWebController extends Controller
 
         return view('projects.show', [
             'project' => $project,
-            'tasks' => $project->tasks()->with('assignee')->orderByDesc('created_at')->get(),
+            'tasks' => $project->tasks()->with('assignee')->latestFirst()->get(),
             'users' => User::query()->where('is_active', true)->orderBy('full_name')->get(['id', 'full_name']),
             'canEditTasks' => auth()->user()->canEditTasks(),
         ]);

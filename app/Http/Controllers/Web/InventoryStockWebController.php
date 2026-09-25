@@ -33,11 +33,13 @@ class InventoryStockWebController extends Controller
         $rows = [];
         if (Schema::hasTable('stock_levels')) {
             $rows = DB::select('
-                SELECT i.*, SUM(sl.quantity_on_hand) as total_stock
+                SELECT i.id, i.sku, i.name, i.item_type, i.unit_of_measure, i.reorder_level, i.created_at,
+                       COALESCE(SUM(sl.quantity_on_hand), 0) AS total_stock
                 FROM items i
                 LEFT JOIN stock_levels sl ON i.id = sl.item_id
-                GROUP BY i.id
-                HAVING total_stock <= i.reorder_level OR total_stock IS NULL
+                GROUP BY i.id, i.sku, i.name, i.item_type, i.unit_of_measure, i.reorder_level, i.created_at
+                HAVING total_stock <= i.reorder_level
+                ORDER BY i.created_at DESC, i.id DESC
             ');
         }
 

@@ -19,7 +19,7 @@ class ItemController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $query = Item::query()->orderByDesc('created_at');
+        $query = Item::query()->latestFirst();
 
         if ($itemType = $request->query('item_type')) {
             $query->where('item_type', $itemType);
@@ -33,7 +33,7 @@ class ItemController extends Controller
         $sku = $request->input('sku');
         $name = $request->input('name');
         $itemType = $request->input('item_type');
-        $uom = $request->input('unit_of_measure', 'pcs');
+        $uom = \App\Support\UnitOfMeasure::normalize($request->input('unit_of_measure'));
         $reorder = $request->input('reorder_level', 0);
         $initialStock = $request->input('initial_stock', 0);
 

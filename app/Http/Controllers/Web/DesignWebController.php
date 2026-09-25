@@ -18,7 +18,7 @@ class DesignWebController extends Controller
     {
         abort_unless(auth()->user()?->canViewDesigns(), 403);
 
-        $designs = DesignRecord::query()->with('designer')->orderByDesc('created_at')->get();
+        $designs = DesignRecord::query()->with('designer')->latestFirst()->get();
 
         $statuses = Schema::hasTable('design_records')
             ? ['concept', 'in_progress', 'ready', 'revision_needed']

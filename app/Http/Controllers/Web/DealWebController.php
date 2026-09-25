@@ -15,7 +15,7 @@ class DealWebController extends Controller
     {
         abort_unless(auth()->user()?->canViewDeals(), 403);
 
-        $query = Deal::query()->with('owner')->orderByDesc('created_at');
+        $query = Deal::query()->with('owner')->latestFirst();
 
         if ($request->query('mine') === '1') {
             $query->where('owner_id', auth()->id());

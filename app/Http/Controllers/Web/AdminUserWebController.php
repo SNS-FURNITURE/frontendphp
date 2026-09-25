@@ -6,10 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\AuditService;
+use App\Support\ErpRoles;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class AdminUserWebController extends Controller
@@ -20,23 +23,22 @@ class AdminUserWebController extends Controller
     {
         abort_unless(auth()->user()?->isAdmin(), 403);
 
-        $users = User::query()->with('roles')->orderByDesc('created_at')->get();
-        $roles = Role::query()
-            ->whereRaw('LOWER(name) != ?', ['admin'])
-            ->orderBy('name')
-            ->get();
+        $users = User::query()->with('roles')->latestFirst()->get();
+        $roleGroups = ErpRoles::assignableGrouped();
 
-        return view('admin.users', compact('users', 'roles'));
+        return view('admin.users', compact('users', 'roleGroups'));
     }
 
     public function store(Request $request): RedirectResponse
     {
         abort_unless(auth()->user()?->isAdmin(), 403);
 
+        ErpRoles::syncCatalog();
+
         $data = $request->validate([
             'full_name' => ['required', 'string', 'min:2', 'max:255'],
             'phone' => ['nullable', 'string', 'max:64'],
-            'role' => ['required', 'string'],
+            'role' => ['required', 'string', Rule::in(ErpRoles::catalogNames())],
         ]);
 
         if (strtolower($data['role']) === 'admin') {
@@ -49,14 +51,13 @@ class AdminUserWebController extends Controller
         }
 
         $fullName = trim($data['full_name']);
-        [$username, $email] = $this->uniqueCredentialsFromName($fullName);
+        $email = $this->uniqueCredentialsFromName($fullName);
 
         try {
-            DB::transaction(function () use ($data, $fullName, $email, $username, $role, $request) {
+            DB::transaction(function () use ($data, $fullName, $email, $role, $request) {
                 $user = new User;
                 $user->full_name = $fullName;
                 $user->email = $email;
-                $user->username = $username;
                 $user->phone = ($data['phone'] ?? null) ?: null;
                 $user->password_hash = Hash::make('password123');
                 $user->status = 'ACTIVE';
@@ -72,7 +73,6 @@ class AdminUserWebController extends Controller
                 $this->audit->log(auth()->user(), 'user', (int) $user->id, 'CREATE_USER_ACCOUNT', [
                     'full_name' => $fullName,
                     'email' => $email,
-                    'username' => $username,
                     'role' => $role->name,
                 ], $request);
             });
@@ -86,17 +86,19 @@ class AdminUserWebController extends Controller
 
         return redirect()
             ->route('admin.users')
-            ->with('status', 'User account created for '.$fullName.' — @'.$username.' / '.$email.' / password123');
+            ->with('status', 'User account created for '.$fullName.' — '.$email.' / password123');
     }
 
     public function update(Request $request, User $user): RedirectResponse
     {
         abort_unless(auth()->user()?->isAdmin(), 403);
 
+        ErpRoles::syncCatalog();
+
         $data = $request->validate([
             'full_name' => ['required', 'string', 'min:2', 'max:255'],
             'phone' => ['nullable', 'string', 'max:64'],
-            'role' => ['nullable', 'string'],
+            'role' => ['nullable', 'string', Rule::in(ErpRoles::catalogNames())],
         ]);
 
         $fullName = trim($data['full_name']);
@@ -106,7 +108,7 @@ class AdminUserWebController extends Controller
             : null;
         $user->save();
 
-        if (!empty($data['role']) && !$user->isAdmin()) {
+        if (! empty($data['role']) && ! $user->isAdmin()) {
             $role = Role::query()->where('name', $data['role'])->first();
             if ($role) {
                 $user->roles()->sync([$role->id => ['assigned_at' => now()]]);
@@ -124,11 +126,17 @@ class AdminUserWebController extends Controller
             ->with('status', 'Updated account for '.$fullName);
     }
 
-    public function destroy(Request $request, User $user): RedirectResponse
+    public function destroy(Request $request, User $user): RedirectResponse|JsonResponse
     {
         abort_unless(auth()->user()?->isAdmin(), 403);
-        
+
         if ($user->id === auth()->id()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'You cannot delete your own account.',
+                ], 422);
+            }
+
             return back()->withErrors(['error' => 'You cannot delete your own account.']);
         }
 
@@ -142,15 +150,22 @@ class AdminUserWebController extends Controller
             'full_name' => $fullName,
         ], $request);
 
+        $message = 'Deleted user account for '.$fullName;
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'id' => (int) $userId,
+            ]);
+        }
+
         return redirect()
             ->route('admin.users')
-            ->with('status', 'Deleted user account for '.$fullName);
+            ->with('status', $message);
     }
 
-    /**
-     * @return array{0: string, 1: string}
-     */
-    private function uniqueCredentialsFromName(string $fullName): array
+    private function uniqueCredentialsFromName(string $fullName): string
     {
         $base = $this->slugFromFullName($fullName);
         $username = $base;
@@ -158,8 +173,7 @@ class AdminUserWebController extends Controller
 
         while (
             User::query()
-                ->where('username', $username)
-                ->orWhere('email', $username.'@sns.com')
+                ->where('email', $username.'@sns.com')
                 ->exists()
         ) {
             $suffix = (string) $n;
@@ -171,7 +185,7 @@ class AdminUserWebController extends Controller
             }
         }
 
-        return [$username, $username.'@sns.com'];
+        return $username.'@sns.com';
     }
 
     private function slugFromFullName(string $fullName): string

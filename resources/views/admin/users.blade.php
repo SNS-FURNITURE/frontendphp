@@ -7,8 +7,8 @@
     <div>
         <h1>Users</h1>
         <p class="muted" style="margin:.35rem 0 0">
-            Admin only: create ERP login accounts. Username and company email are auto-built from the first name
-            (e.g. <code>abebe</code> / <code>abebe@sns.com</code>). Default password is <strong>password123</strong>.
+            Admin only: create ERP login accounts. Company email is auto-built from the first name
+            (e.g. <code>abebe@sns.com</code>). Default password is <strong>password123</strong>.
         </p>
     </div>
     <button class="btn" type="button" onclick="document.getElementById('create-user').hidden=false">Add user account</button>
@@ -23,7 +23,7 @@
                 <label for="full_name">Full name *</label>
                 <input id="full_name" name="full_name" value="{{ old('full_name') }}" required minlength="2"
                        placeholder="e.g. Abebe Kebede" autocomplete="name">
-                <p class="muted" style="margin:.35rem 0 0;font-size:.8rem" id="cred-preview">Username and company email are created from this name.</p>
+                <p class="muted" style="margin:.35rem 0 0;font-size:.8rem" id="cred-preview">Company email is created from this name.</p>
             </div>
             <div>
                 <label for="phone">Phone</label>
@@ -32,8 +32,12 @@
             <div>
                 <label for="role">ERP role *</label>
                 <select id="role" name="role" required>
-                    @foreach ($roles as $role)
-                        <option value="{{ $role->name }}" @selected(old('role') === $role->name)>{{ $role->formatted_name }}</option>
+                    @foreach ($roleGroups as $groupLabel => $groupRoles)
+                        <optgroup label="{{ $groupLabel }}">
+                            @foreach ($groupRoles as $role)
+                                <option value="{{ $role->name }}" @selected(old('role') === $role->name)>{{ $role->formatted_name }}</option>
+                            @endforeach
+                        </optgroup>
                     @endforeach
                 </select>
                 <p class="muted" style="margin:.35rem 0 0;font-size:.8rem">Admin role cannot be assigned here.</p>
@@ -60,19 +64,19 @@
         <tr>
             <th>Name</th>
             <th>Phone</th>
-            <th>Username</th>
+
             <th>Company email</th>
             <th>Roles</th>
             <th>Active</th>
             <th></th>
         </tr>
         </thead>
-        <tbody>
+        <tbody data-erp-empty-message="No user accounts yet.">
         @forelse ($users as $user)
             <tr>
                 <td>{{ $user->full_name }}</td>
                 <td>{{ $user->phone ?: '—' }}</td>
-                <td>{{ '@'.($user->username ?: '—') }}</td>
+
                 <td>{{ $user->email }}</td>
                 <td>{{ $user->roles->pluck('formatted_name')->join(', ') ?: '—' }}</td>
                 <td>
@@ -82,7 +86,12 @@
                 <td>
                     <div style="display:flex;gap:0.5rem;align-items:center">
                         <button type="button" class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; background: #000; color: #fff; border-color: #000;" onclick="document.getElementById('edit-user-{{ $user->id }}').hidden = !document.getElementById('edit-user-{{ $user->id }}').hidden">Edit</button>
-                        <form method="POST" action="{{ route('admin.users.destroy', $user) }}" onsubmit="return confirm('Are you sure you want to completely delete {{ $user->full_name }}? This cannot be undone.');" style="margin:0">
+                        <form method="POST" action="{{ route('admin.users.destroy', $user) }}"
+                              data-erp-confirm="Are you sure you want to completely delete {{ $user->full_name }}? This cannot be undone."
+                              data-erp-confirm-danger
+                              data-erp-confirm-ok="Delete"
+                              data-erp-remove-also="#edit-user-{{ $user->id }}"
+                              style="margin:0">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="btn ghost" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; color: #dc2626;">Delete</button>
@@ -107,8 +116,12 @@
                         <div>
                             <label>ERP Role</label>
                             <select name="role" required style="margin-bottom:0">
-                                @foreach ($roles as $role)
-                                    <option value="{{ $role->name }}" @selected($user->roles->contains('name', $role->name))>{{ $role->formatted_name }}</option>
+                                @foreach ($roleGroups as $groupLabel => $groupRoles)
+                                    <optgroup label="{{ $groupLabel }}">
+                                        @foreach ($groupRoles as $role)
+                                            <option value="{{ $role->name }}" @selected($user->roles->contains('name', $role->name))>{{ $role->formatted_name }}</option>
+                                        @endforeach
+                                    </optgroup>
                                 @endforeach
                             </select>
                         </div>
@@ -148,7 +161,7 @@
 
     function updatePreview() {
         const username = slugName(nameInput.value);
-        preview.textContent = 'Will create: @' + username + ' / ' + username + '@sns.com (unique suffix added if needed)';
+        preview.textContent = 'Will create company email: ' + username + '@sns.com (unique suffix added if needed)';
     }
 
     nameInput.addEventListener('input', updatePreview);

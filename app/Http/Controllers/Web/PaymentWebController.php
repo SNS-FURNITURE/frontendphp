@@ -17,16 +17,16 @@ class PaymentWebController extends Controller
 
     public function index(): View
     {
-        $this->authorize('viewAny', Invoice::class);
+        abort_unless(auth()->user()?->canViewPayments(), 403);
 
         $payments = Payment::query()
             ->with('invoice')
-            ->orderByDesc('paid_at')
+            ->latestFirst('paid_at')
             ->paginate(25);
 
         $invoices = Invoice::query()
             ->whereNotIn('status', ['cancelled', 'paid'])
-            ->orderByDesc('id')
+            ->latestFirst()
             ->limit(100)
             ->get();
 

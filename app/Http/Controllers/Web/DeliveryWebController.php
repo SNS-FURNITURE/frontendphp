@@ -24,7 +24,7 @@ class DeliveryWebController extends Controller
         $deliveries = Delivery::query()
             ->with(['creator', 'dispatcher'])
             ->when($status, fn ($q) => $q->where('status', $status))
-            ->orderByDesc('created_at')
+            ->latestFirst()
             ->get();
 
         return view('production.deliveries', [

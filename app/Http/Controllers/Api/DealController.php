@@ -25,7 +25,7 @@ class DealController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $query = Deal::query()->with('owner')->orderByDesc('created_at');
+        $query = Deal::query()->with('owner')->latestFirst();
 
         if ($request->filled('status')) {
             $query->where('status', $request->query('status'));
@@ -143,7 +143,7 @@ class DealController extends Controller
         ], $request);
 
         if ($action === 'approve') {
-            foreach ($this->notify->activeUserIdsWithRolesRaw(['company_manager', 'manager']) as $managerId) {
+            foreach ($this->notify->activeUserIdsWithRolesRaw(['company_manager']) as $managerId) {
                 $this->notify->notifyUser($managerId, [
                     'type' => 'deal_manager_review',
                     'title' => 'Deal ready for manager review: '.$deal->title,
@@ -199,7 +199,7 @@ class DealController extends Controller
 
     private function canSalesReview(User $user): bool
     {
-        foreach (['admin', 'supervisor', 'sales_supervisor', 'advisor'] as $role) {
+        foreach (['admin', 'sales_supervisor'] as $role) {
             if ($user->hasRole($role)) {
                 return true;
             }
@@ -210,6 +210,6 @@ class DealController extends Controller
 
     private function canManagerReview(User $user): bool
     {
-        return $user->hasRole('company_manager') || $user->hasRole('manager');
+        return $user->hasRole('company_manager');
     }
 }

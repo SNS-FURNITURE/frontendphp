@@ -29,12 +29,12 @@ class LoginController extends Controller
         $safeInput = $request->only(['email', 'remember_me']);
 
         if (trim($identifier) === '' || $password === '') {
-            return back()->withErrors(['email' => 'Email or username and password are required'])->withInput($safeInput);
+            return back()->withErrors(['email' => 'Company email and password are required'])->withInput($safeInput);
         }
 
         $user = $this->jwt->findUserByIdentifier($identifier);
         if (! $user || ! $this->jwt->verifyPassword($user, $password)) {
-            return back()->withErrors(['email' => 'Invalid email/username or password'])->withInput($safeInput);
+            return back()->withErrors(['email' => 'Invalid email or password'])->withInput($safeInput);
         }
 
         if (! $user->is_active) {
@@ -62,14 +62,23 @@ class LoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
+        if ($request->boolean('idle') || $request->query('idle')) {
+            return redirect()->route('login', ['sessionExpired' => 'true']);
+        }
+
         return redirect()->route('login', ['loggedOut' => 'true']);
     }
 
     public function idleLogout(Request $request): RedirectResponse
     {
-        auth()->logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        if (auth()->check()) {
+            auth()->logout();
+        }
+
+        if ($request->hasSession()) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
 
         return redirect()->route('login', ['sessionExpired' => 'true']);
     }

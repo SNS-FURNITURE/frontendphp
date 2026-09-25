@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\User;
 use App\Services\JwtService;
 use App\Support\ApiResponse;
 use Closure;

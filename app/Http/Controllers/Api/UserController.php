@@ -22,7 +22,7 @@ class UserController extends Controller
     {
         $users = User::query()
             ->with('roles')
-            ->orderByDesc('created_at')
+            ->latestFirst()
             ->get()
             ->map(fn (User $u) => [
                 'id' => (int) $u->id,

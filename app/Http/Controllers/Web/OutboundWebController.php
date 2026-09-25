@@ -20,12 +20,12 @@ class OutboundWebController extends Controller
                 $request->query('delivery_id'),
                 fn ($q, $id) => $q->where('delivery_id', $id),
             )
-            ->orderByDesc('counted_at')
+            ->latestFirst('counted_at')
             ->get();
 
         $pending = Delivery::query()
             ->where('status', 'ready_for_dispatch')
-            ->orderByDesc('created_at')
+            ->latestFirst()
             ->get();
 
         return view('inventory.outbound', [

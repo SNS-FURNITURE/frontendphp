@@ -13,7 +13,7 @@ return new class extends Migration
             $table->string('sku', 100)->unique();
             $table->string('name');
             $table->string('item_type', 50);
-            $table->string('unit_of_measure', 50)->default('pcs');
+            $table->string('unit_of_measure', 50)->default('pieces');
             $table->decimal('reorder_level', 12, 2)->default(0);
             $table->timestamp('created_at')->useCurrent();
         });

@@ -25,7 +25,7 @@ class DeliveryController extends Controller
 
         $query = Delivery::query()
             ->with(['creator', 'dispatcher'])
-            ->orderByDesc('created_at');
+            ->latestFirst();
 
         if ($status = $request->query('status')) {
             $query->where('status', $status);

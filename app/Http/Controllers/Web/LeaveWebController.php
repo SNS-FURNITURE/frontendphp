@@ -17,7 +17,7 @@ class LeaveWebController extends Controller
         abort_unless(auth()->user()?->canViewHr(), 403);
 
         return view('hr.leave.index', [
-            'leaves' => LeaveRequest::query()->with('approver')->orderByDesc('created_at')->get(),
+            'leaves' => LeaveRequest::query()->with('approver')->latestFirst()->get(),
             'employees' => Employee::query()->with('party')->active()->orderBy('id')->get(),
             'canCreate' => auth()->user()->canEditHr(),
             'canApprove' => auth()->user()->canApproveHr(),

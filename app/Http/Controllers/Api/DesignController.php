@@ -17,7 +17,7 @@ class DesignController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $query = DesignRecord::query()->with('designer')->orderByDesc('created_at');
+        $query = DesignRecord::query()->with('designer')->latestFirst();
 
         if ($status = $request->query('status')) {
             $query->where('status', $status);
