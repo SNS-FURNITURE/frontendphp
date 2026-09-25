@@ -169,11 +169,20 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 2.1rem;
-            height: 2.1rem;
+            width: 2.25rem;
+            height: 2.25rem;
             padding: 0;
-            font-size: 1.15rem;
+            font-size: 1.35rem;
+            font-weight: 700;
             line-height: 1;
+            color: var(--btn-text);
+            background: var(--accent);
+            border: 1px solid var(--accent);
+            box-shadow: var(--btn-shadow);
+        }
+        .app-back-btn:hover {
+            filter: brightness(1.08);
+            text-decoration: none;
         }
         .role-badge {
             display: inline-block;
@@ -635,7 +644,7 @@
         <header class="topbar no-print">
             <div style="display:flex;align-items:center;gap:0.65rem;min-width:0;flex:1">
                 @if ($showAppBack)
-                    <button type="button" class="btn ghost app-back-btn" id="app-back-btn" aria-label="Go back" title="Go back">&larr;</button>
+                    <button type="button" class="btn app-back-btn" id="app-back-btn" aria-label="Go back" title="Go back">&larr;</button>
                 @endif
                 <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-controls="app-sidebar" aria-expanded="false">
                     <span class="nav-toggle-bar" aria-hidden="true"></span>
