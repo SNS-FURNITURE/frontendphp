@@ -38,6 +38,9 @@
             --toast-err-bg: #fee2e2;
             --toast-err-txt: #991b1b;
             --toast-err-bd: #fecaca;
+            --toast-warn-bg: #fef3c7;
+            --toast-warn-txt: #92400e;
+            --toast-warn-bd: #fde68a;
             --input-bg: #ffffff;
             --color-scheme: var(--color-scheme);
             --badge-bg: #e0e7ff;
@@ -68,6 +71,9 @@
             --toast-err-bg: rgba(58, 21, 21, 0.96);
             --toast-err-txt: #ffb4b4;
             --toast-err-bd: #6b2a2a;
+            --toast-warn-bg: rgba(58, 45, 14, 0.96);
+            --toast-warn-txt: #fcd34d;
+            --toast-warn-bd: #78350f;
             --input-bg: #0f0d1f;
             --color-scheme: dark;
             --badge-bg: #2a2550;
@@ -159,6 +165,11 @@
         }
         .topbar-user { font-weight: 600; }
         .topbar-actions { display: flex; align-items: center; gap: 0.65rem; }
+        .app-back-btn {
+            padding: 0.35rem 0.75rem;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
         .role-badge {
             display: inline-block;
             padding: 0.2rem 0.65rem;
@@ -237,6 +248,11 @@
             background: var(--toast-err-bg);
             color: var(--toast-err-txt);
             border: 1px solid var(--toast-err-bd);
+        }
+        .toast-warn {
+            background: var(--toast-warn-bg);
+            color: var(--toast-warn-txt);
+            border: 1px solid var(--toast-warn-bd);
         }
         .toast-body { flex: 1; min-width: 0; }
         .toast-close {
@@ -418,7 +434,7 @@
             .page-head h1 { font-size: 1.25rem; }
         }
         @media print {
-            .sidebar, .topbar, .no-print, .logout-modal, .nav-toggle, .sidebar-backdrop, .toast-host, .sidebar-foot {
+            .sidebar, .topbar, .no-print, .logout-modal, #erp-confirm-modal, .nav-toggle, .sidebar-backdrop, .toast-host, .sidebar-foot {
                 display: none !important;
             }
             .shell, .main, .content {
@@ -487,7 +503,9 @@
         ->unique()
         ->values()
         ->join(' · ') ?: 'No role';
-    $username = auth()->user()->username ?: explode('@', auth()->user()->email)[0];
+    $showAppBack = !View::hasSection('hide_back')
+        && !request()->routeIs('*.index')
+        && !request()->routeIs('profile.edit');
 @endphp
 <div class="shell">
     <div class="sidebar-backdrop no-print" id="sidebar-backdrop" hidden></div>
@@ -503,9 +521,7 @@
         </div>
         @if (auth()->user()->hasPermission('finance', 'view') || auth()->user()->hasPermission('finance', 'create') || auth()->user()->canViewFunding() || auth()->user()->canViewAllocations())
             <div class="nav-section">Finance</div>
-            @if (auth()->user()->hasPermission('finance', 'view') || auth()->user()->hasPermission('finance', 'create'))
-                <a class="nav-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}" href="{{ route('invoices.index') }}">Invoices</a>
-            @endif
+
             @if (auth()->user()->hasPermission('finance', 'view'))
                 <a class="nav-link {{ request()->routeIs('payments.*') ? 'active' : '' }}" href="{{ route('payments.index') }}">Payments</a>
             @endif
@@ -519,7 +535,7 @@
         @if (auth()->user()->canViewSales())
             <div class="nav-section">Sales</div>
             <a class="nav-link {{ request()->routeIs('sales.customers*') ? 'active' : '' }}" href="{{ route('sales.customers') }}">Customers</a>
-            <a class="nav-link {{ request()->routeIs('orders.requests*') || request()->routeIs('sales.orders*') ? 'active' : '' }}" href="{{ route('orders.requests') }}">Order requests</a>
+            <a class="nav-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}" href="{{ route('invoices.index') }}">Orders</a>
             <a class="nav-link {{ request()->routeIs('sales.quota') ? 'active' : '' }}" href="{{ route('sales.quota') }}">Quota</a>
         @endif
         @if (auth()->user()->canViewInventory())
@@ -618,7 +634,7 @@
                     <span class="nav-toggle-bar" aria-hidden="true"></span>
                     <span class="nav-toggle-bar" aria-hidden="true"></span>
                 </button>
-                <div class="topbar-user">{{ '@'.$username }} {{ auth()->user()->full_name }}</div>
+                <div class="topbar-user">{{ auth()->user()->full_name }}</div>
             </div>
             <div class="topbar-actions">
                 <button type="button" class="btn ghost" id="theme-toggle" aria-label="Toggle Theme" style="padding: 0.35rem 0.5rem;" title="Toggle Dark/Light Mode">
@@ -631,6 +647,9 @@
                 </button>
                 <span class="role-badge">{{ $roleLabel }}</span>
                 <button class="btn ghost" type="button" data-logout-open>Logout</button>
+                @if ($showAppBack)
+                    <button type="button" class="btn ghost app-back-btn" id="app-back-btn" title="Go back">&larr; Back</button>
+                @endif
             </div>
         </header>
         <div class="content @yield('content_class')">
@@ -660,12 +679,12 @@
     <template x-for="t in toasts" :key="t.id">
         <div
             class="toast"
-            :class="t.type === 'error' ? 'toast-error' : 'toast-success'"
+            :class="t.type === 'error' ? 'toast-error' : (t.type === 'warn' ? 'toast-warn' : 'toast-success')"
             x-show="t.visible"
             x-transition.opacity.duration.200ms
             role="status"
         >
-            <div class="toast-body" x-text="t.text"></div>
+            <div class="toast-body" x-html="t.text"></div>
             <button type="button" class="toast-close" @click="dismiss(t.id)" aria-label="Dismiss">&times;</button>
         </div>
     </template>
@@ -685,6 +704,17 @@
     </div>
 </div>
 
+<div class="logout-modal no-print" id="erp-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="erp-confirm-title" hidden>
+    <div class="logout-dialog">
+        <h3 id="erp-confirm-title">Confirm</h3>
+        <p id="erp-confirm-message"></p>
+        <div class="logout-actions">
+            <button type="button" class="btn ghost" data-erp-confirm-cancel>Cancel</button>
+            <button type="button" class="btn" id="erp-confirm-ok-btn">Confirm</button>
+        </div>
+    </div>
+</div>
+
 <script>
 (function () {
     
@@ -693,6 +723,18 @@
         document.documentElement.setAttribute('data-theme', 'dark');
     }
     
+    var appBackBtn = document.getElementById('app-back-btn');
+    if (appBackBtn) {
+        if (window.history.length <= 1) {
+            appBackBtn.hidden = true;
+        }
+        appBackBtn.addEventListener('click', function () {
+            if (window.history.length > 1) {
+                window.history.back();
+            }
+        });
+    }
+
     var themeToggle = document.getElementById('theme-toggle');
     if (themeToggle) {
         var iconDark = document.getElementById('theme-icon-dark');
@@ -841,7 +883,8 @@ function erpToasts(initial) {
             const message = String(text || '').trim();
             if (!message) return;
             const id = Date.now() + Math.random();
-            const item = { id: id, type: type === 'error' ? 'error' : 'success', text: message, visible: true };
+            const toastType = type === 'error' ? 'error' : (type === 'warn' ? 'warn' : 'success');
+            const item = { id: id, type: toastType, text: message, visible: true };
             this.toasts.push(item);
             setTimeout(() => this.dismiss(id), 5000);
         },
@@ -858,6 +901,197 @@ function erpToasts(initial) {
 window.erpToast = function (text, type) {
     window.dispatchEvent(new CustomEvent('erp-toast', { detail: { text: text, type: type || 'success' } }));
 };
+
+window.erpConfirm = function (message, options) {
+    options = options || {};
+    return new Promise(function (resolve) {
+        var modal = document.getElementById('erp-confirm-modal');
+        if (!modal) {
+            resolve(false);
+            return;
+        }
+
+        var titleEl = document.getElementById('erp-confirm-title');
+        var msgEl = document.getElementById('erp-confirm-message');
+        var okBtn = document.getElementById('erp-confirm-ok-btn');
+        var cancelBtn = modal.querySelector('[data-erp-confirm-cancel]');
+
+        titleEl.textContent = options.title || 'Confirm';
+        msgEl.textContent = String(message || '');
+        okBtn.textContent = options.okLabel || 'Confirm';
+        okBtn.className = options.danger ? 'btn danger' : 'btn';
+
+        function cleanup() {
+            modal.hidden = true;
+            modal.classList.remove('is-open');
+            okBtn.removeEventListener('click', onOk);
+            cancelBtn.removeEventListener('click', onCancel);
+            modal.removeEventListener('click', onBackdrop);
+            document.removeEventListener('keydown', onKey);
+        }
+
+        function onOk() { cleanup(); resolve(true); }
+        function onCancel() { cleanup(); resolve(false); }
+        function onBackdrop(e) { if (e.target === modal) { onCancel(); } }
+        function onKey(e) {
+            if (e.key === 'Escape') { onCancel(); }
+        }
+
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        modal.addEventListener('click', onBackdrop);
+        document.addEventListener('keydown', onKey);
+
+        modal.hidden = false;
+        modal.classList.add('is-open');
+        if (cancelBtn) { cancelBtn.focus(); }
+    });
+};
+
+window.alert = function (message) {
+    window.erpToast(String(message || ''), 'warn');
+};
+
+function erpIsDeleteForm(form) {
+    var method = form.querySelector('input[name="_method"]');
+    return method && String(method.value).toUpperCase() === 'DELETE';
+}
+
+function erpRemoveDeleteTarget(form) {
+    var selector = form.getAttribute('data-erp-remove') || 'closest:tr';
+    var target = null;
+
+    if (selector.indexOf('closest:') === 0) {
+        target = form.closest(selector.slice(8));
+    } else if (selector.charAt(0) === '#') {
+        target = document.querySelector(selector);
+    }
+
+    if (target) {
+        target.style.transition = 'opacity 0.15s ease';
+        target.style.opacity = '0';
+        setTimeout(function () {
+            target.remove();
+        }, 150);
+    }
+
+    var also = form.getAttribute('data-erp-remove-also');
+    if (also) {
+        document.querySelectorAll(also).forEach(function (el) {
+            el.remove();
+        });
+    }
+}
+
+function erpMaybeShowEmptyState(form) {
+    var tbody = form.closest('tbody');
+    if (!tbody || tbody.querySelectorAll('tr').length > 0) {
+        return;
+    }
+
+    var cols = tbody.closest('table') ? tbody.closest('table').querySelectorAll('thead th').length : 1;
+    var msg = tbody.getAttribute('data-erp-empty-message') || 'No items';
+    tbody.innerHTML = '<tr><td colspan="' + cols + '" class="muted" style="text-align:center;padding:2rem">' + msg + '</td></tr>';
+}
+
+function erpPerformInstantDelete(form) {
+    var tokenEl = document.querySelector('meta[name="csrf-token"]');
+    var headers = {
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+    };
+    if (tokenEl) {
+        headers['X-CSRF-TOKEN'] = tokenEl.content;
+    }
+
+    var btn = form.querySelector('[type="submit"]');
+    if (btn) {
+        btn.disabled = true;
+    }
+
+    fetch(form.action, {
+        method: 'POST',
+        body: new FormData(form),
+        headers: headers,
+        credentials: 'same-origin',
+    })
+        .then(function (res) {
+            return res.json().catch(function () {
+                return {};
+            }).then(function (data) {
+                if (!res.ok) {
+                    throw data;
+                }
+                return data;
+            });
+        })
+        .then(function (data) {
+            erpRemoveDeleteTarget(form);
+            erpMaybeShowEmptyState(form);
+            window.erpToast(data.message || 'Deleted.', 'success');
+        })
+        .catch(function (err) {
+            var msg = err.message
+                || (err.errors && Object.values(err.errors).flat()[0])
+                || 'Could not delete.';
+            window.erpToast(String(msg), 'error');
+        })
+        .finally(function () {
+            if (btn) {
+                btn.disabled = false;
+            }
+        });
+}
+
+document.addEventListener('submit', function (e) {
+    var form = e.target;
+    if (!(form instanceof HTMLFormElement)) {
+        return;
+    }
+
+    var msg = form.getAttribute('data-erp-confirm');
+    var instantDelete = erpIsDeleteForm(form) || form.hasAttribute('data-erp-instant-delete');
+
+    if (!msg && !instantDelete) {
+        return;
+    }
+
+    if (!instantDelete && form.dataset.erpConfirmed === '1') {
+        delete form.dataset.erpConfirmed;
+        return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    function proceed() {
+        if (instantDelete) {
+            erpPerformInstantDelete(form);
+            return;
+        }
+
+        form.dataset.erpConfirmed = '1';
+        if (typeof form.requestSubmit === 'function') {
+            form.requestSubmit();
+        } else {
+            form.submit();
+        }
+    }
+
+    if (msg) {
+        var danger = form.hasAttribute('data-erp-confirm-danger');
+        var title = form.getAttribute('data-erp-confirm-title') || (danger ? 'Are you sure?' : 'Confirm');
+        var okLabel = form.getAttribute('data-erp-confirm-ok') || (danger ? 'Delete' : 'Confirm');
+
+        window.erpConfirm(msg, { title: title, okLabel: okLabel, danger: danger }).then(function (ok) {
+            if (ok) {
+                proceed();
+            }
+        });
+    } else {
+        proceed();
+    }
+}, true);
 </script>
 @stack('scripts')
 
