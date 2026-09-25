@@ -33,7 +33,7 @@
                 <label for="role">ERP role *</label>
                 <select id="role" name="role" required>
                     @foreach ($roles as $role)
-                        <option value="{{ $role->name }}" @selected(old('role') === $role->name)>{{ $role->name }}</option>
+                        <option value="{{ $role->name }}" @selected(old('role') === $role->name)>{{ $role->formatted_name }}</option>
                     @endforeach
                 </select>
                 <p class="muted" style="margin:.35rem 0 0;font-size:.8rem">Admin role cannot be assigned here.</p>
@@ -74,7 +74,7 @@
                 <td>{{ $user->phone ?: '—' }}</td>
                 <td>{{ '@'.($user->username ?: '—') }}</td>
                 <td>{{ $user->email }}</td>
-                <td>{{ $user->roles->pluck('name')->join(', ') ?: '—' }}</td>
+                <td>{{ $user->roles->pluck('formatted_name')->join(', ') ?: '—' }}</td>
                 <td>
                     {{ $user->is_active ? 'Active' : 'Inactive' }}
                     @if ($user->id === auth()->id()) <span class="muted" style="font-size:0.8rem"> (you)</span> @endif
@@ -108,7 +108,7 @@
                             <label>ERP Role</label>
                             <select name="role" required style="margin-bottom:0">
                                 @foreach ($roles as $role)
-                                    <option value="{{ $role->name }}" @selected($user->roles->contains('name', $role->name))>{{ $role->name }}</option>
+                                    <option value="{{ $role->name }}" @selected($user->roles->contains('name', $role->name))>{{ $role->formatted_name }}</option>
                                 @endforeach
                             </select>
                         </div>

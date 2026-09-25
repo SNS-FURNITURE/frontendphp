@@ -27,54 +27,15 @@ class CustomerWebController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
-        $leadByPhone = [];
-        $dealCounts = [];
-
-        if (Schema::hasTable('leads')) {
-            $leads = DB::table('leads')->select('id', 'name', 'phone', 'email', 'status', 'created_at')->get();
-            foreach ($leads as $lead) {
-                $key = $this->normalizePhone((string) ($lead->phone ?? ''));
-                if ($key !== '') {
-                    $leadByPhone[$key] = $lead;
-                }
-            }
-        }
-
-        if (Schema::hasTable('deals')) {
-            $dealCounts = DB::table('deals')
-                ->select('customer_name', DB::raw('COUNT(*) as deal_count'))
-                ->groupBy('customer_name')
-                ->pluck('deal_count', 'customer_name')
-                ->all();
-        }
-
-        $customers = $parties->map(function (Party $party) use ($leadByPhone, $dealCounts) {
-            $phoneKey = $this->normalizePhone((string) ($party->phone ?? ''));
-            $lead = $phoneKey !== '' ? ($leadByPhone[$phoneKey] ?? null) : null;
-            $dealCount = (int) ($dealCounts[$party->name] ?? 0);
-
+        $customers = $parties->map(function (Party $party) {
             return [
                 'party' => $party,
-                'lead' => $lead,
-                'deal_count' => $dealCount,
             ];
         });
 
-        $orphanLeads = [];
-        if (Schema::hasTable('leads')) {
-            $partyPhones = $parties->map(fn (Party $p) => $this->normalizePhone((string) ($p->phone ?? '')))
-                ->filter()
-                ->all();
-            foreach ($leadByPhone as $phone => $lead) {
-                if (! in_array($phone, $partyPhones, true)) {
-                    $orphanLeads[] = $lead;
-                }
-            }
-        }
-
         return view('sales.customers.index', [
             'customers' => $customers,
-            'orphanLeads' => $orphanLeads,
+            'orphanLeads' => [],
             'approval' => $approval,
             'canCreate' => auth()->user()->canCreateSales(),
             'canApprove' => auth()->user()->canApproveParty(),
@@ -88,26 +49,19 @@ class CustomerWebController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'min:2'],
             'phone' => ['required', 'string', 'min:8'],
-            'email' => ['nullable', 'email'],
-            'company_name' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string'],
-            'notes' => ['nullable', 'string'],
         ], [
             'name.required' => 'Customer / Contact name is required',
             'name.min' => 'Customer / Contact name is required',
             'phone.required' => 'Phone number is required',
             'phone.min' => 'Phone number is required',
-            'email.email' => 'Invalid email',
         ]);
 
         $party = Party::query()->create([
             'party_type' => 'customer',
             'name' => $validated['name'],
-            'company_name' => $validated['company_name'] ?? null,
             'phone' => $validated['phone'],
-            'email' => $validated['email'] ?? null,
             'address' => $validated['address'] ?? null,
-            'notes' => $validated['notes'] ?? null,
             'approval_status' => 'pending',
             'created_by' => auth()->id(),
         ]);

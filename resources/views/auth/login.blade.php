@@ -135,8 +135,12 @@
         }
         @media (max-width: 800px) {
             body { flex-direction: column; }
-            .left { width:100%; min-height:40vh; }
-            .right { clip-path: none; }
+            .left { width:100%; min-height:auto; padding:2rem 1rem; box-sizing:border-box; }
+            .left h1 { font-size:2rem; }
+            .logo { width:90px; height:90px; border-radius:18px; }
+            .right { clip-path: none; padding:1.5rem 1rem; align-items:flex-start; box-sizing:border-box; }
+            .card { padding:1.5rem; box-sizing:border-box; }
+            .back { position:static; transform:none; margin-top:1.5rem; display:inline-block; }
         }
     </style>
 </head>

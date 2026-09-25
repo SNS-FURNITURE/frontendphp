@@ -1,0 +1,42 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+Thank you for providing the full logs! I’ve analyzed the stack trace thoroughly. 
+
+The error (`Unknown column 'created_by' in 'where clause'`) indicates that when your server processes the `/admin/users` page, it tries to run a query that filters by a column named `created_by` on the `users` (or `roles`) table. However, neither of those tables has that column, which causes the database to crash.
+
+Because this error is **not present in the original codebase** locally, it means that one of the files on your Plesk server has been modified, or has a small typo (for instance, `created_at` might have been accidentally changed to `created_by` during a search-and-replace, or a custom global scope was added).
+
+As you offered, I need to see the exact code currently sitting on your Plesk server. Could you please open your Plesk File Manager, copy the contents of these **two files**, and paste them here for me?
+
+1. `app/Http/Controllers/Web/AdminUserWebController.php`
+2. `app/Models/User.php`
+
+Once I see what's currently in those files on your server, I will be able to spot exactly where the rogue `created_by` is hiding and give you the exact line to fix it!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

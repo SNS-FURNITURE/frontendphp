@@ -326,7 +326,7 @@
         .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
         .page-head h1 { margin: 0; font-size: 1.75rem; font-weight: 700; color: var(--text); }
         .toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
-        .table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; display: block; }
         .nav-toggle {
             display: none;
             border: 1px solid var(--border);
@@ -409,6 +409,14 @@
             .page-head { gap: 0.75rem; }
             .page-head .btn { width: 100%; text-align: center; }
         }
+        @media (max-width: 400px) {
+            .topbar { padding: 0.6rem 0.75rem; gap: 0.5rem; }
+            .topbar-user { font-size: 0.75rem; max-width: 35vw; }
+            .role-badge { display: none; }
+            .topbar-actions .btn { font-size: 0.75rem; padding: 0.4rem 0.5rem; }
+            .nav-toggle { width: 2.2rem; height: 2.2rem; }
+            .page-head h1 { font-size: 1.25rem; }
+        }
         @media print {
             .sidebar, .topbar, .no-print, .logout-modal, .nav-toggle, .sidebar-backdrop, .toast-host, .sidebar-foot {
                 display: none !important;
@@ -474,10 +482,8 @@
 @auth
 @php
     $roleLabel = auth()->user()->roles
-        ->pluck('name')
+        ->pluck('formatted_name')
         ->filter()
-        ->map(fn ($n) => str_replace('_', ' ', (string) $n))
-        ->map(fn ($n) => ucwords(strtolower($n)))
         ->unique()
         ->values()
         ->join(' · ') ?: 'No role';
@@ -854,5 +860,232 @@ window.erpToast = function (text, type) {
 };
 </script>
 @stack('scripts')
+
+@auth
+{{-- ============================================================
+     ENTERPRISE SESSION GUARD
+     - 30-min idle → auto logout (matches server SESSION_LIFETIME)
+     - Warning dialog at 25 min of idle (5-min countdown)
+     - Tab/browser close → session cookie cleared via sessionStorage flag
+     - Activity events reset the idle timer
+     ============================================================ --}}
+<script>
+(function () {
+    'use strict';
+
+    var IDLE_LIMIT_MS   = 30 * 60 * 1000;   // 30 minutes — must match SESSION_LIFETIME
+    var WARN_BEFORE_MS  = 5  * 60 * 1000;   // show warning 5 min before expiry
+    var WARN_AT_MS      = IDLE_LIMIT_MS - WARN_BEFORE_MS;  // 25 min
+    var LOGOUT_URL      = '{{ route("logout") }}';
+    var CSRF_TOKEN      = document.querySelector('meta[name="csrf-token"]')
+                            ? document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            : '';
+
+    // ── Tab-close detection ──────────────────────────────────────────────────
+    // sessionStorage is TAB-scoped: it disappears the moment the tab closes.
+    // We use a TWO-KEY approach:
+    //   sns_erp_nav  = set in beforeunload (i.e. navigating away within the app)
+    //   sns_erp_active = presence means "we already ran the guard this session"
+    //
+    // On a fresh browser open: neither key exists → force logout + redirect to login.
+    // On page navigation within the app: sns_erp_nav is set → normal continuation.
+    var SESSION_KEY = 'sns_erp_active';
+    var NAV_KEY     = 'sns_erp_nav';
+
+    var navigatingInternally = sessionStorage.getItem(NAV_KEY);
+    var wasActive            = sessionStorage.getItem(SESSION_KEY);
+
+    // Clear nav flag immediately so the next check is clean
+    sessionStorage.removeItem(NAV_KEY);
+
+    if (!navigatingInternally && !wasActive) {
+        // True fresh open (browser closed and reopened, or brand-new tab)
+        // — fire a silent server-side logout to invalidate stale cookie
+        var token = CSRF_TOKEN;
+        if (token && navigator.sendBeacon) {
+            navigator.sendBeacon(LOGOUT_URL, new URLSearchParams({ _token: token, _method: 'POST' }));
+        }
+        sessionStorage.setItem(SESSION_KEY, '1');
+        // Redirect to login
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function () {
+                window.location.href = '{{ route("login") }}';
+            });
+        } else {
+            window.location.href = '{{ route("login") }}';
+        }
+        return;
+    }
+
+    // Mark session as active for this tab
+    sessionStorage.setItem(SESSION_KEY, '1');
+
+    // Before any navigation/link-click within the ERP, stamp the nav key
+    // so the next page load knows it was an internal navigation (not a fresh open)
+    window.addEventListener('beforeunload', function () {
+        sessionStorage.setItem(NAV_KEY, '1');
+    });
+
+    // ── Build the warning dialog ─────────────────────────────────────────────
+    var overlay = document.createElement('div');
+    overlay.id  = 'sns-idle-overlay';
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('role', 'alertdialog');
+    overlay.setAttribute('aria-labelledby', 'sns-idle-title');
+    overlay.style.cssText = [
+        'display:none',
+        'position:fixed',
+        'inset:0',
+        'z-index:99999',
+        'background:rgba(0,0,0,0.65)',
+        'backdrop-filter:blur(4px)',
+        '-webkit-backdrop-filter:blur(4px)',
+        'align-items:center',
+        'justify-content:center',
+    ].join(';');
+
+    var box = document.createElement('div');
+    box.style.cssText = [
+        'background:var(--dialog-bg,#fff)',
+        'color:var(--text,#0f172a)',
+        'border:1px solid var(--border,#e2e8f0)',
+        'border-radius:14px',
+        'padding:2rem 2.25rem',
+        'max-width:380px',
+        'width:90%',
+        'text-align:center',
+        'box-shadow:0 20px 60px rgba(0,0,0,0.35)',
+        'animation:sns-idle-in .2s ease',
+    ].join(';');
+
+    box.innerHTML = [
+        '<div style="font-size:2.4rem;margin-bottom:.75rem">⏳</div>',
+        '<h2 id="sns-idle-title" style="margin:0 0 .5rem;font-size:1.15rem;font-weight:700">',
+            'Still there?',
+        '</h2>',
+        '<p style="margin:0 0 1.5rem;color:var(--muted,#64748b);font-size:.9rem">',
+            'You\'ll be signed out in <strong id="sns-idle-countdown">5:00</strong> due to inactivity.',
+        '</p>',
+        '<button id="sns-idle-stay"',
+            ' style="',
+                'background:var(--purple,#6c5ce7);',
+                'color:#fff;',
+                'border:none;',
+                'border-radius:8px;',
+                'padding:.6rem 1.6rem;',
+                'font-size:.95rem;',
+                'font-weight:600;',
+                'cursor:pointer;',
+                'width:100%;',
+            '"',
+        '>Stay signed in</button>',
+    ].join('');
+
+    overlay.appendChild(box);
+
+    // Inject keyframe animation
+    var style = document.createElement('style');
+    style.textContent = '@keyframes sns-idle-in{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}';
+    document.head.appendChild(style);
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.body.appendChild(overlay);
+    });
+
+    // ── State ────────────────────────────────────────────────────────────────
+    var idleTimer     = null;
+    var warnTimer     = null;
+    var countTimer    = null;
+    var warnShown     = false;
+    var lastActivity  = Date.now();
+
+    function resetIdleTimer() {
+        lastActivity = Date.now();
+        clearTimeout(idleTimer);
+        clearTimeout(warnTimer);
+        if (warnShown) hideWarning();
+
+        // Schedule: show warning at 25 min
+        warnTimer = setTimeout(showWarning, WARN_AT_MS);
+        // Schedule: hard logout at 30 min (fallback if user ignores dialog)
+        idleTimer = setTimeout(doLogout, IDLE_LIMIT_MS);
+    }
+
+    // ── Warning dialog controls ──────────────────────────────────────────────
+    function showWarning() {
+        warnShown = true;
+        overlay.style.display = 'flex';
+        overlay.focus();
+        startCountdown(WARN_BEFORE_MS / 1000);
+    }
+
+    function hideWarning() {
+        warnShown = false;
+        overlay.style.display = 'none';
+        clearInterval(countTimer);
+    }
+
+    function startCountdown(secondsLeft) {
+        var el = document.getElementById('sns-idle-countdown');
+        function tick() {
+            if (!el) return;
+            var m = Math.floor(secondsLeft / 60);
+            var s = Math.floor(secondsLeft % 60);
+            el.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+            if (secondsLeft <= 0) { doLogout(); return; }
+            secondsLeft--;
+        }
+        tick();
+        countTimer = setInterval(tick, 1000);
+    }
+
+    // ── Logout ───────────────────────────────────────────────────────────────
+    function doLogout() {
+        clearTimeout(idleTimer);
+        clearTimeout(warnTimer);
+        clearInterval(countTimer);
+        sessionStorage.removeItem(SESSION_KEY);
+        // POST to Laravel logout route (requires CSRF)
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = LOGOUT_URL + '?idle=1';
+        var csrf = document.createElement('input');
+        csrf.type = 'hidden'; csrf.name = '_token'; csrf.value = CSRF_TOKEN;
+        form.appendChild(csrf);
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    // ── Activity events ──────────────────────────────────────────────────────
+    var EVENTS = ['mousemove','mousedown','keydown','touchstart','scroll','click','wheel'];
+    EVENTS.forEach(function (ev) {
+        document.addEventListener(ev, resetIdleTimer, { passive: true, capture: true });
+    });
+
+    // Stay-signed-in button
+    document.addEventListener('click', function (e) {
+        if (e.target && e.target.id === 'sns-idle-stay') {
+            resetIdleTimer();
+            // Ping server to renew session (a HEAD request resets the Laravel session TTL)
+            fetch(window.location.href, { method: 'HEAD', credentials: 'same-origin' }).catch(function(){});
+        }
+    });
+
+    // Page visibility: if user hides tab for 30+ min and comes back, log out
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') {
+            var idle = Date.now() - lastActivity;
+            if (idle >= IDLE_LIMIT_MS) {
+                doLogout();
+            }
+        }
+    });
+
+    // Start the timer
+    resetIdleTimer();
+})();
+</script>
+@endauth
+
 </body>
 </html>

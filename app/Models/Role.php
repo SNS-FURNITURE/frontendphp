@@ -23,6 +23,27 @@ class Role extends Model
         ];
     }
 
+    public function getFormattedNameAttribute(): string
+    {
+        $map = [
+            'admin' => 'ADMIN',
+            'company_manager' => 'COMPANY MANAGER',
+            'hr' => 'HUMAN RESOURCE',
+            'finance' => 'FINANCE',
+            'procurement_operations' => 'PROCUREMENT OPERATIONS',
+            'inventory' => 'INVENTORY',
+            'product_manager' => 'PRODUCT MANAGER',
+            'designer' => 'DESIGNER',
+            'sales' => 'SALES',
+            'advisor' => 'SALES ADVISOR',
+            'marketing_manager' => 'MARKETING MANAGER',
+        ];
+
+        $name = (string) $this->name;
+        
+        return $map[$name] ?? strtoupper(str_replace('_', ' ', $name));
+    }
+
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'user_roles', 'role_id', 'user_id')

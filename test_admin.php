@@ -1,0 +1,1 @@
+<?php try { $users = App\Models\User::query()->with("roles")->orderByDesc("created_at")->get(); $roles = App\Models\Role::query()->whereRaw("LOWER(name) != ?", ["admin"])->orderBy("name")->get(); echo substr(view("admin.users", compact("users", "roles"))->render(), 0, 100); echo "SUCCESS"; } catch (Exception $e) { echo "ERROR: " . $e->getMessage(); }

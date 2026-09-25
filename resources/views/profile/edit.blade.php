@@ -9,9 +9,9 @@
         <h1>My Profile</h1>
         <p class="muted" style="margin:0.35rem 0 0">
             @if ($isAdmin)
-                As admin you can update your full name and phone. Other users cannot change those fields.
+                As an admin, you can update your profile details.
             @else
-                Update username, email, and password. Full name and phone are managed by admin only.
+                You can update your password below. Your profile details are managed by the admin.
             @endif
         </p>
     </div>
@@ -31,17 +31,25 @@
                 <p class="muted" style="margin:-0.5rem 0 0.85rem;font-size:.8rem">Only an admin can change your full name.</p>
             @endif
             <label>Username</label>
-            <input name="username" value="{{ old('username', $user->username) }}" required>
+            @if ($isAdmin)
+                <input name="username" value="{{ old('username', $user->username) }}" required>
+            @else
+                <input value="{{ $user->username }}" readonly disabled>
+            @endif
             <label>Email</label>
-            <input type="email" name="email" value="{{ old('email', $user->email) }}" required>
+            @if ($isAdmin)
+                <input type="email" name="email" value="{{ old('email', $user->email) }}" required>
+            @else
+                <input value="{{ $user->email }}" readonly disabled>
+            @endif
             <label>Phone</label>
             @if ($isAdmin)
                 <input name="phone" value="{{ old('phone', $user->phone) }}">
+                <button class="btn" type="submit" style="margin-top: 1rem;">Save profile</button>
             @else
                 <input value="{{ $user->phone }}" readonly disabled>
-                <p class="muted" style="margin:-0.5rem 0 0.85rem;font-size:.8rem">Only an admin can change your phone number.</p>
+                <p class="muted" style="margin:-0.5rem 0 0.85rem;font-size:.8rem">Only an admin can change your profile details.</p>
             @endif
-            <button class="btn" type="submit">Save profile</button>
         </form>
     </div>
     <div class="card">

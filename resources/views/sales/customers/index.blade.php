@@ -6,7 +6,6 @@
 <div class="page-head">
     <div>
         <h1>Customers</h1>
-        <p class="muted" style="margin:0.35rem 0 0">Parties merged with leads and deal counts.</p>
     </div>
     <div class="toolbar">
         <form method="GET" action="{{ route('sales.customers') }}" style="display:flex;gap:0.5rem;align-items:center;margin:0">
@@ -38,18 +37,10 @@
                 <input id="phone" name="phone" value="{{ old('phone') }}" required minlength="8">
             </div>
             <div>
-                <label for="email">Email</label>
-                <input id="email" name="email" type="email" value="{{ old('email') }}">
-            </div>
-            <div>
-                <label for="company_name">Company</label>
-                <input id="company_name" name="company_name" value="{{ old('company_name') }}">
+                <label for="address">Address</label>
+                <input id="address" name="address" value="{{ old('address') }}">
             </div>
         </div>
-        <label for="address">Address</label>
-        <input id="address" name="address" value="{{ old('address') }}">
-        <label for="notes">Notes</label>
-        <textarea id="notes" name="notes" rows="2">{{ old('notes') }}</textarea>
         <p class="muted" style="margin:0 0 0.75rem">New customers always start as <strong>pending</strong> until an advisor approves.</p>
         <div class="toolbar">
             <button class="btn" type="submit">Save</button>
@@ -68,10 +59,8 @@
             <tr>
                 <th>Name</th>
                 <th>Phone</th>
-                <th>Email</th>
+                <th>Address</th>
                 <th>Status</th>
-                <th>Deals</th>
-                <th>Lead</th>
                 <th></th>
             </tr>
             </thead>
@@ -79,18 +68,10 @@
             @foreach ($customers as $row)
                 @php $party = $row['party']; @endphp
                 <tr>
-                    <td>{{ $party->name }}@if($party->company_name)<div class="muted">{{ $party->company_name }}</div>@endif</td>
+                    <td>{{ $party->name }}</td>
                     <td>{{ $party->phone ?? '—' }}</td>
-                    <td>{{ $party->email ?? '—' }}</td>
+                    <td>{{ $party->address ?? '—' }}</td>
                     <td><span class="badge">{{ $party->approval_status }}</span></td>
-                    <td>{{ $row['deal_count'] }}</td>
-                    <td>
-                        @if ($row['lead'])
-                            <span class="badge">{{ $row['lead']->status }}</span>
-                        @else
-                            —
-                        @endif
-                    </td>
                     <td style="white-space:nowrap">
                         @if ($canApprove && $party->approval_status === 'pending')
                             <form method="POST" action="{{ route('sales.customers.approve', $party) }}" style="display:inline">
@@ -113,10 +94,8 @@
                 <tr>
                     <td>{{ $lead->name }} <span class="muted">(lead only)</span></td>
                     <td>{{ $lead->phone ?? '—' }}</td>
-                    <td>{{ $lead->email ?? '—' }}</td>
-                    <td><span class="badge">lead</span></td>
                     <td>—</td>
-                    <td><span class="badge">{{ $lead->status }}</span></td>
+                    <td><span class="badge">lead</span></td>
                     <td></td>
                 </tr>
             @endforeach

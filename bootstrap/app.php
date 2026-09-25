@@ -4,6 +4,7 @@ use App\Http\Middleware\LoadUserRbac;
 use App\Http\Middleware\RequirePermission;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -52,13 +53,27 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/v1/*',
         ]);
 
-        $middleware->redirectGuestsTo(fn () => route('login'));
+        // Do NOT redirect guests to login — unauthenticated requests get 404
+        // so the ERP is completely invisible to anyone who doesn't know /login.
+        $middleware->redirectGuestsTo(fn () => abort(404));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
 
+        // Unauthenticated requests return 404 — the ERP doesn't reveal itself.
+        // Only /login is a known public endpoint.
+        $exceptions->render(function (AuthenticationException $e, Request $request) {
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return null; // Let the JSON handler deal with it.
+            }
+
+            abort(404);
+        });
+
+        // Authorisation failures: logged-in users who lack permission
+        // are sent back to their home page (not exposed externally).
         $exceptions->render(function (AuthorizationException $e, Request $request) {
             if ($request->expectsJson() || $request->is('api/*')) {
                 return null;
@@ -71,6 +86,6 @@ return Application::configure(basePath: dirname(__DIR__))
                     ->with('status', 'You do not have access to that page.');
             }
 
-            return redirect()->route('login');
+            abort(404);
         });
     })->create();

@@ -21,14 +21,16 @@ class ProfileWebController extends Controller
         $user = auth()->user();
         $isAdmin = (bool) $user?->isAdmin();
 
+        if (!$isAdmin) {
+            return back()->withErrors(['general' => 'You do not have permission to update profile details.']);
+        }
+
         $rules = [
             'username' => ['required', 'string', 'min:3', 'max:64', 'regex:/^[a-z0-9][a-z0-9_-]*$/i'],
             'email' => ['required', 'email'],
+            'full_name' => ['required', 'string', 'min:2', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:50'],
         ];
-        if ($isAdmin) {
-            $rules['full_name'] = ['required', 'string', 'min:2', 'max:255'];
-            $rules['phone'] = ['nullable', 'string', 'max:50'];
-        }
 
         $validated = $request->validate($rules, [
             'username.regex' => 'Username must be 3–64 characters: letters, numbers, underscores, or hyphens',
@@ -53,13 +55,11 @@ class ProfileWebController extends Controller
             return back()->withErrors(['email' => 'Email is already in use'])->withInput();
         }
 
-        if ($isAdmin) {
-            $user->full_name = trim($validated['full_name']);
-            $user->phone = ($validated['phone'] ?? null) !== null && $validated['phone'] !== ''
-                ? $validated['phone']
-                : null;
-        }
-
+        $user->full_name = trim($validated['full_name']);
+        $user->phone = ($validated['phone'] ?? null) !== null && $validated['phone'] !== ''
+            ? $validated['phone']
+            : null;
+        
         $user->username = $username;
         $user->email = strtolower($validated['email']);
         $user->save();

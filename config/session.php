@@ -32,9 +32,17 @@ return [
     |
     */
 
-    'lifetime' => (int) env('SESSION_LIFETIME', 120),
+    /*
+     * 30-minute idle timeout. Matches banking / enterprise ERP standard.
+     * Users are warned at 25 min and auto-logged-out at 30 min via JS.
+     */
+    'lifetime' => (int) env('SESSION_LIFETIME', 30),
 
-    'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', false),
+    /*
+     * Session cookie has NO expiry date → browser removes it the moment
+     * the browser window (all tabs) is fully closed.
+     */
+    'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', true),
 
     /*
     |--------------------------------------------------------------------------
@@ -169,7 +177,7 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE', env('APP_ENV') === 'production'),
+    'secure' => env('SESSION_SECURE_COOKIE', true),   // Always HTTPS-only on production
 
     /*
     |--------------------------------------------------------------------------
@@ -199,7 +207,7 @@ return [
     |
     */
 
-    'same_site' => env('SESSION_SAME_SITE', 'lax'),
+    'same_site' => env('SESSION_SAME_SITE', 'strict'),  // Blocks cross-site cookie sending entirely
 
     /*
     |--------------------------------------------------------------------------

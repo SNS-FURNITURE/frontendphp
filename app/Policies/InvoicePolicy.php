@@ -34,7 +34,7 @@ class InvoicePolicy
 
     public function create(User $user): bool
     {
-        if ($user->isAdmin()) {
+        if ($user->isAdmin() || $user->hasRole('finance')) {
             return false;
         }
 
@@ -43,7 +43,7 @@ class InvoicePolicy
 
     public function update(User $user, ?Invoice $invoice = null): bool
     {
-        if ($user->isAdmin()) {
+        if ($user->isAdmin() || $user->hasRole('finance')) {
             return false;
         }
 
@@ -60,7 +60,7 @@ class InvoicePolicy
 
     public function delete(User $user, Invoice $invoice): bool
     {
-        if ($user->isAdmin()) {
+        if ($user->isAdmin() || $user->hasRole('finance')) {
             return false;
         }
 

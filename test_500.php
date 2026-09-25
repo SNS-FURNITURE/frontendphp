@@ -1,0 +1,1 @@
+<?php $user = App\Models\User::where("email", "finance@sns.com")->first(); auth()->login($user); echo route("hr.employees"); $controller = app()->make(App\Http\Controllers\Web\EmployeeWebController::class); $view = $controller->index(); echo substr($view->render(), 0, 100); echo "SUCCESS\n";
