@@ -47,6 +47,7 @@ class InvoiceWebController extends Controller
 
         if ($isOrderReviewer) {
             $allInvoices = (clone $base)
+                ->whereIn('status', ['issued', 'overdue', 'approved', 'paid'])
                 ->latestFirst()
                 ->paginate(25, ['*'], 'all_page');
 
