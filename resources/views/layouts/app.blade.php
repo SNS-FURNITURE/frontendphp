@@ -616,7 +616,7 @@
                 <a class="nav-link {{ request()->routeIs('commercial.tasks*') ? 'active' : '' }}" href="{{ route('commercial.tasks.index') }}">Tasks</a>
             @endif
         @endif
-        @if ($isMarketingManager && auth()->user()->canViewProducts())
+        @if (auth()->user()->canViewProducts())
             <div class="nav-section">Catalog</div>
             <a class="nav-link {{ request()->routeIs('products.*') ? 'active' : '' }}" href="{{ route('products.index') }}">Products</a>
         @elseif (! auth()->user()->isLimitedSalesRole() && auth()->user()->canViewInventory())

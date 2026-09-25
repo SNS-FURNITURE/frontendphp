@@ -145,12 +145,12 @@ class User extends Authenticatable
 
     public function canViewProducts(): bool
     {
-        return $this->isMarketingManager();
+        return $this->isMarketingManager() || $this->isAdmin();
     }
 
     public function canManageProducts(): bool
     {
-        return $this->isMarketingManager();
+        return $this->isMarketingManager() || $this->isAdmin();
     }
 
     public function canReviewCustomerContacts(): bool
