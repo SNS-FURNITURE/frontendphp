@@ -179,20 +179,27 @@
             font-weight: 600;
             line-height: 1;
             letter-spacing: -0.04em;
-            color: var(--text);
-            background: var(--panel);
-            border: 1px solid var(--border);
+            color: #fff;
+            background: var(--accent);
+            border: 1px solid var(--accent);
             border-radius: 11px;
-            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+            box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 42%, transparent);
             cursor: pointer;
-            transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+            transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease, filter 0.15s ease;
+        }
+        [data-theme="dark"] .app-back-btn {
+            color: var(--btn-text);
         }
         .app-back-btn:hover {
-            color: var(--accent);
-            background: color-mix(in srgb, var(--accent) 10%, var(--panel));
-            border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
-            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+            color: #fff;
+            background: color-mix(in srgb, var(--accent) 88%, #000);
+            border-color: color-mix(in srgb, var(--accent) 88%, #000);
+            box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 50%, transparent);
+            filter: brightness(1.05);
             transform: translateX(-1px);
+        }
+        [data-theme="dark"] .app-back-btn:hover {
+            color: var(--btn-text);
         }
         .app-back-btn:active {
             transform: translateX(-1px) scale(0.96);
