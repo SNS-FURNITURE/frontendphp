@@ -1,22 +1,28 @@
 @extends('layouts.app')
 
-@section('title', 'Invoice log')
+@section('title', 'Order log')
 
 @section('content')
+<style>
+    .clickable-row { cursor: pointer; transition: background-color 0.15s ease; }
+    .clickable-row:hover { background-color: #f1f5f9; }
+    html[data-theme="dark"] .clickable-row:hover { background-color: #334155; }
+</style>
 @php
     $drafts = $drafts ?? collect();
     $tab = request('tab') === 'drafts' ? 'drafts' : 'saved';
+    $canViewPrices = auth()->user()?->canViewInvoicePrices() ?? false;
 @endphp
 
 <div class="page-head">
     <div>
-        <h1>Invoice log</h1>
+        <h1>Order log</h1>
         <p class="muted" style="margin:0.35rem 0 0">
-            Drafts autosave while you work. Click Save to move an invoice into Saved.
+            Drafts autosave while you work. Click Save to move an order into Saved.
         </p>
     </div>
     @can('create', App\Models\Invoice::class)
-        <a class="btn" href="{{ route('invoices.create') }}">Create invoice</a>
+        <a class="btn" href="{{ route('invoices.create') }}">Create order</a>
     @endcan
 </div>
 
@@ -51,9 +57,9 @@
     <div x-show="tab === 'saved'" role="tabpanel">
         @if ($invoices->isEmpty())
             <div style="min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.75rem">
-                <p class="muted" style="margin:0">No saved invoices yet</p>
+                <p class="muted" style="margin:0">No saved orders yet</p>
                 @can('create', App\Models\Invoice::class)
-                    <a class="btn" href="{{ route('invoices.create') }}">Create invoice</a>
+                    <a class="btn" href="{{ route('invoices.create') }}">Create order</a>
                 @endcan
             </div>
         @else
@@ -63,7 +69,9 @@
                     <tr>
                         <th>Number</th>
                         <th>Customer</th>
+                        @if ($canViewPrices)
                         <th>Amount</th>
+                        @endif
                         <th>Status</th>
                         <th></th>
                     </tr>
@@ -74,10 +82,12 @@
                             $snap = is_array($invoice->snapshot_json) ? $invoice->snapshot_json : [];
                             $customer = $snap['customer']['name'] ?? '—';
                         @endphp
-                        <tr>
+                        <tr class="clickable-row" onclick="if(!event.target.closest('a, button, select, form')) window.location.href='{{ route('invoices.show', $invoice) }}'">
                             <td>{{ $invoice->invoice_number }}</td>
                             <td>{{ $customer }}</td>
+                            @if ($canViewPrices)
                             <td>{{ number_format((float) $invoice->amount, 2) }} ETB</td>
+                            @endif
                             <td>
                                 @if (auth()->user()->can('update', $invoice) && !in_array($invoice->status, ['approved','paid','cancelled'], true))
                                     <form method="POST" action="{{ route('invoices.status', $invoice) }}" style="display:inline">
@@ -94,18 +104,14 @@
                                 @endif
                             </td>
                             <td style="white-space:nowrap">
-                                <a href="{{ route('invoices.show', $invoice) }}">View</a>
                                 @can('update', $invoice)
                                     @if (!in_array($invoice->status, ['approved','paid','cancelled'], true))
-                                        · <a href="{{ route('invoices.edit', $invoice) }}">Edit</a>
+                                        <a href="{{ route('invoices.edit', $invoice) }}">Edit</a>
                                     @endif
                                 @endcan
                                 @can('approve', $invoice)
-                                    · <form method="POST" action="{{ route('invoices.approve', $invoice) }}" style="display:inline;margin:0"
-                                            onsubmit="return confirm('Approve this invoice? Your name will appear as Approved By.');">
-                                        @csrf
-                                        <button type="submit" class="btn" style="padding:0.2rem 0.55rem;font-size:0.8rem">Approve</button>
-                                    </form>
+                                    @if (!in_array($invoice->status, ['approved','paid','cancelled'], true) && auth()->user()->can('update', $invoice)) · @endif
+                                    <a href="{{ route('invoices.show', $invoice) }}" style="font-size:0.8rem">Review &amp; approve</a>
                                 @endcan
                             </td>
                         </tr>
@@ -120,7 +126,7 @@
     <div x-show="tab === 'drafts'" role="tabpanel">
         @if ($drafts->isEmpty())
             <div style="min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.75rem">
-                <p class="muted" style="margin:0">No drafts yet. Start an invoice — it autosaves here until you click Save.</p>
+                <p class="muted" style="margin:0">No drafts yet. Start an order — it autosaves here until you click Save.</p>
             </div>
         @else
             <div class="table-wrap">
@@ -129,29 +135,32 @@
                     <tr>
                         <th>Number</th>
                         <th>Customer</th>
+                        @if ($canViewPrices)
                         <th>Amount</th>
+                        @endif
                         <th>Updated</th>
                         <th></th>
                     </tr>
                     </thead>
-                    <tbody>
+                    <tbody data-erp-empty-message="No drafts yet. Start an order — it autosaves here until you click Save.">
                     @foreach ($drafts as $invoice)
                         @php
                             $snap = is_array($invoice->snapshot_json) ? $invoice->snapshot_json : [];
                             $customer = $snap['customer']['name'] ?? '—';
                         @endphp
-                        <tr>
+                        <tr class="clickable-row" onclick="if(!event.target.closest('a, button, select, form')) window.location.href='{{ route('invoices.edit', $invoice) }}'">
                             <td>{{ $invoice->invoice_number }}</td>
                             <td>{{ $customer }}</td>
+                            @if ($canViewPrices)
                             <td>{{ number_format((float) $invoice->amount, 2) }} ETB</td>
+                            @endif
                             <td>{{ optional($invoice->updated_at)->format('Y-m-d H:i') ?? '—' }}</td>
                             <td style="white-space:nowrap">
-                                @can('update', $invoice)
-                                    <a href="{{ route('invoices.edit', $invoice) }}">Edit</a>
-                                @endcan
                                 @can('delete', $invoice)
-                                    · <form method="POST" action="{{ route('invoices.destroy', $invoice) }}" style="display:inline;margin:0"
-                                            onsubmit="return confirm('Delete this draft invoice? This cannot be undone.');">
+                                    <form method="POST" action="{{ route('invoices.destroy', $invoice) }}" style="display:inline;margin:0"
+                                            data-erp-confirm="Delete this draft order? This cannot be undone."
+                                            data-erp-confirm-danger
+                                            data-erp-confirm-ok="Delete">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn ghost" style="padding:0.15rem 0.5rem;font-size:0.8rem;color:#fca5a5;border-color:#7f1d1d">Delete</button>

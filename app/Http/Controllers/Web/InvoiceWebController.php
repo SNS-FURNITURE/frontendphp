@@ -493,11 +493,26 @@ class InvoiceWebController extends Controller
         }
 
         $user = auth()->user();
-        $approverName = $this->personDisplayName($user?->full_name ?: $user?->username);
-        $snapshot = is_array($invoice->snapshot_json) ? $invoice->snapshot_json : [];
+        $submitted = $this->parseDocument($request);
+        if ($submitted === null) {
+            return back()->withErrors(['document' => 'Could not read order details for approval']);
+        }
+
+        $approverName = $this->personDisplayName((string) ($submitted['approved_by']['name'] ?? ''));
+        $approverPhone = trim((string) ($submitted['approved_by']['phone'] ?? ''));
+
+        if ($approverName === '') {
+            return back()->withErrors(['approved_by' => 'Approved By name is required']);
+        }
+
+        if ($approverPhone === '') {
+            return back()->withErrors(['approved_by' => 'Approver contact is required']);
+        }
+
+        $snapshot = $this->assembleApprovalSnapshot($submitted, $user, $invoice);
         $snapshot['approved_by'] = [
             'name' => $approverName,
-            'phone' => (string) ($user->phone ?: ''),
+            'phone' => $approverPhone,
         ];
         $snapshot['approval'] = [
             'status' => 'approved',
@@ -507,6 +522,7 @@ class InvoiceWebController extends Controller
         ];
 
         $invoice->status = 'approved';
+        $invoice->amount = (float) ($snapshot['totals']['grand_total'] ?? $invoice->amount);
         $invoice->snapshot_json = $snapshot;
         if (! $invoice->issued_at) {
             $invoice->issued_at = now();
@@ -515,12 +531,12 @@ class InvoiceWebController extends Controller
 
         $this->audit->log($user, 'invoice', (int) $invoice->id, 'APPROVE_INVOICE', [
             'invoice_number' => $invoice->invoice_number,
-            'approved_by' => $user->full_name,
+            'approved_by' => $approverName,
         ], $request);
 
         return redirect()
             ->route('invoices.show', $invoice)
-            ->with('status', 'Order approved by '.$user->full_name);
+            ->with('status', 'Order approved by '.$approverName);
     }
 
     public function document(Request $request, Invoice $invoice): Response
@@ -653,6 +669,35 @@ class InvoiceWebController extends Controller
         }
 
         return $document;
+    }
+
+    private function assembleApprovalSnapshot(array $document, $user, Invoice $invoice): array
+    {
+        $existingSnapshot = is_array($invoice->snapshot_json) ? $invoice->snapshot_json : [];
+        $merged = array_merge($existingSnapshot, [
+            'lines' => $document['lines'] ?? $existingSnapshot['lines'] ?? [],
+            'discount' => $document['discount'] ?? $existingSnapshot['discount'] ?? ['type' => 'PERCENT', 'value' => '0'],
+            'tax' => $document['tax'] ?? $existingSnapshot['tax'] ?? ['rate' => '15'],
+            'notes' => $document['notes'] ?? $existingSnapshot['notes'] ?? [],
+            'terms' => $document['terms'] ?? $existingSnapshot['terms'] ?? [],
+            'prepared_by' => $existingSnapshot['prepared_by'] ?? ['name' => '', 'phone' => ''],
+            'customer' => $existingSnapshot['customer'] ?? ['name' => '', 'address_line' => ''],
+            'doc_number' => $invoice->invoice_number,
+            'doc_type' => 'PROFORMA',
+            'doc_date' => $existingSnapshot['doc_date'] ?? date('Y-m-d'),
+            'valid_until' => $existingSnapshot['valid_until'] ?? date('Y-m-d'),
+        ]);
+
+        $merged = $this->documents->applyInvoicePriceAccess($merged, $user, $existingSnapshot);
+        $assembled = $this->documents->assemble($merged);
+        $assembled['doc_number'] = $invoice->invoice_number;
+        $assembled['created_by_user_id'] = (int) ($invoice->created_by ?: $user?->id);
+        $assembled['prepared_by'] = [
+            'name' => trim((string) ($existingSnapshot['prepared_by']['name'] ?? '')),
+            'phone' => trim((string) ($existingSnapshot['prepared_by']['phone'] ?? '')),
+        ];
+
+        return $assembled;
     }
 
     private function assembleDraftSnapshot(array $document, $user, ?Invoice $invoice = null): array

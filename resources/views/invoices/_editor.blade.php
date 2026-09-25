@@ -1,6 +1,8 @@
 @php
     $editorId = $editorId ?? 'invoice-editor';
     $readOnly = $readOnly ?? false;
+    $approvalMode = (bool) ($approvalMode ?? false);
+    $approveAction = $approveAction ?? null;
     $formAction = $formAction ?? null;
     $formMethod = $formMethod ?? 'POST';
     $submitStatus = $submitStatus ?? null;
@@ -886,7 +888,7 @@
 
 <div
     id="{{ $editorId }}"
-    x-data="invoiceEditor(@js($document), {{ $readOnly ? 'true' : 'false' }}, {{ isset($invoiceId) && $invoiceId ? (int) $invoiceId : 'null' }}, @js($invoiceStatus ?? ($status ?? null)), @js($catalogProducts), @js($catalogCategories), @js($canViewPrices), @js($canEditPrices), @js($customerOptions))"
+    x-data="invoiceEditor(@js($document), {{ $readOnly ? 'true' : 'false' }}, {{ isset($invoiceId) && $invoiceId ? (int) $invoiceId : 'null' }}, @js($invoiceStatus ?? ($status ?? null)), @js($catalogProducts), @js($catalogCategories), @js($canViewPrices), @js($canEditPrices), @js($customerOptions), {{ $approvalMode ? 'true' : 'false' }})"
     x-cloak
 >
     @if ($formAction)
@@ -1130,10 +1132,10 @@
                             @if($canViewPrices)
                             <td class="r">
                                 @if($canEditPrices)
-                                <template x-if="paperFieldsEditable">
+                                <template x-if="paperFieldsEditable || approvalFieldsEditable">
                                     <input type="number" step="0.01" min="0" class="ghost paper-editable" x-model="line.unit_price" style="width:5.5rem">
                                 </template>
-                                <template x-if="!paperFieldsEditable">
+                                <template x-if="!paperFieldsEditable && !approvalFieldsEditable">
                                     <span x-text="money(line.unit_price)"></span>
                                 </template>
                                 @else
@@ -1237,10 +1239,10 @@
                             <span class="lbl">
                                 Discount (
                                 @if($canEditPrices)
-                                <template x-if="paperFieldsEditable">
+                                <template x-if="paperFieldsEditable || approvalFieldsEditable">
                                     <input type="number" step="0.01" min="0" max="100" class="ghost paper-editable" x-model="doc.discount.value">
                                 </template>
-                                <template x-if="!paperFieldsEditable">
+                                <template x-if="!paperFieldsEditable && !approvalFieldsEditable">
                                     <span x-text="doc.discount?.value || '0'"></span>
                                 </template>
                                 @else
@@ -1295,13 +1297,23 @@
                     </div>
                     <div class="inv-sig-col">
                         <div class="inv-sig-val">
-                            <span x-text="personName(doc.approved_by.name)"></span>
+                            <template x-if="approvalFieldsEditable">
+                                <input type="text" id="approved-by-name-input" class="ghost paper-editable" x-model="doc.approved_by.name" placeholder="—">
+                            </template>
+                            <template x-if="!approvalFieldsEditable">
+                                <span x-text="personName(doc.approved_by.name)"></span>
+                            </template>
                         </div>
                         <div class="inv-sig-lbl">Approved By</div>
                     </div>
                     <div class="inv-sig-col">
                         <div class="inv-sig-val">
-                            <span x-text="doc.approved_by.phone"></span>
+                            <template x-if="approvalFieldsEditable">
+                                <input type="text" id="approved-by-phone-input" class="ghost paper-editable" x-model="doc.approved_by.phone" placeholder="—">
+                            </template>
+                            <template x-if="!approvalFieldsEditable">
+                                <span x-text="doc.approved_by.phone"></span>
+                            </template>
                         </div>
                         <div class="inv-sig-lbl">Contact</div>
                     </div>
@@ -1313,11 +1325,20 @@
     @if ($formAction)
     </form>
     @endif
+
+    @if ($approvalMode && $approveAction)
+        <form method="POST" action="{{ $approveAction }}" id="invoice-approve-form" class="no-print" style="display:none"
+              @submit="if(prepareApprovalSubmit($event) === false) { $event.preventDefault(); return false; }">
+            @csrf
+            <input type="hidden" name="document_json" id="approve-document-json" value="">
+            <input type="hidden" name="amount" id="approve-amount-field" value="">
+        </form>
+    @endif
 </div>
 
 @push('scripts')
 <script>
-function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogProducts, catalogCategories, canViewPrices, canEditPrices, customerCatalog) {
+function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogProducts, catalogCategories, canViewPrices, canEditPrices, customerCatalog, approvalMode) {
     const customers = Array.isArray(customerCatalog) ? customerCatalog : [];
     const DEFAULT_UNIT = @js(\App\Support\UnitOfMeasure::DEFAULT);
     const snsSupplier = @js(\App\Services\DocumentService::SNS_SUPPLIER);
@@ -1379,6 +1400,7 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
         formatUnitLabel,
         canViewPrices: !!canViewPrices,
         canEditPrices: !!canEditPrices,
+        approvalMode: !!approvalMode,
         readOnly: readOnly,
         invoiceId: invoiceId || null,
         invoiceStatus: invoiceStatus || null,
@@ -1416,6 +1438,9 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
         },
         get paperFieldsEditable() {
             return !this.readOnly && !this.showCatalog;
+        },
+        get approvalFieldsEditable() {
+            return this.approvalMode && this.readOnly && this.canEditPrices;
         },
         get discountLabel() {
             return (this.doc.discount?.type || 'PERCENT') === 'PERCENT'
@@ -2118,6 +2143,65 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
         setStatus(status) {
             const el = document.getElementById('invoice-status-field');
             if (el) el.value = status;
+        },
+        prepareApprovalSubmit(e) {
+            const name = String(this.doc.approved_by?.name || '').trim();
+            const phone = String(this.doc.approved_by?.phone || '').trim();
+            if (!name) {
+                window.erpToast('<b>Approved By name is required before approval.</b>', 'warn');
+                setTimeout(() => {
+                    const input = document.getElementById('approved-by-name-input');
+                    if (input) {
+                        input.focus();
+                    }
+                }, 10);
+
+                return false;
+            }
+            if (!phone) {
+                window.erpToast('<b>Approver contact is required before approval.</b>', 'warn');
+                setTimeout(() => {
+                    const input = document.getElementById('approved-by-phone-input');
+                    if (input) {
+                        input.focus();
+                    }
+                }, 10);
+
+                return false;
+            }
+
+            this.normalizeLinesForSave();
+            const t = this.totals;
+            this.doc.discount = this.doc.discount || { type: 'PERCENT', value: '0' };
+            this.doc.discount.type = 'PERCENT';
+            this.doc.tax = this.doc.tax || { rate: '15' };
+            this.doc.discount.amount = String(t.discountAmount.toFixed(2));
+            this.doc.tax.amount = String(t.taxAmount.toFixed(2));
+            this.doc.totals = {
+                subtotal: String(t.subtotal.toFixed(2)),
+                after_discount: String(t.afterDiscount.toFixed(2)),
+                grand_total: String(t.grandTotal.toFixed(2)),
+            };
+            this.doc.lines = this.doc.lines.map((line, i) => ({
+                ...line,
+                line_no: i + 1,
+                line_total: String((t.lineTotals[i] || 0).toFixed(2)),
+            }));
+            this.doc.approved_by = { name, phone };
+
+            const form = e && e.target ? e.target : document.getElementById('invoice-approve-form');
+            if (form) {
+                const jsonInput = form.querySelector('#approve-document-json') || form.querySelector('[name="document_json"]');
+                const amountInput = form.querySelector('#approve-amount-field') || form.querySelector('[name="amount"]');
+                if (jsonInput) {
+                    jsonInput.value = JSON.stringify(this.doc);
+                }
+                if (amountInput) {
+                    amountInput.value = String(t.grandTotal);
+                }
+            }
+
+            return true;
         },
         validatePreparedByForSave() {
             const name = String(this.doc.prepared_by?.name || '').trim();

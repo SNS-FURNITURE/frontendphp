@@ -4,19 +4,21 @@
 @section('content_class', 'content-wide')
 
 @section('content')
+@php($canViewPrices = auth()->user()?->canViewInvoicePrices() ?? false)
 <div class="toolbar no-print" style="margin-bottom:1rem">
     @if ($canEdit)
         <a class="btn" href="{{ route('invoices.edit', $invoice) }}">Edit document</a>
     @endif
-    <button type="button" class="btn ghost" id="invoice-print-btn">Print</button>
-    <button type="button" class="btn ghost" id="invoice-pdf-btn">Download PDF</button>
+    @if ($canViewPrices)
+        <button type="button" class="btn ghost" id="invoice-print-btn">Print</button>
+        <button type="button" class="btn ghost" id="invoice-pdf-btn">Download PDF</button>
+    @endif
     <a class="btn ghost" href="{{ route('invoices.index') }}">Back to log</a>
     @if ($canApprove ?? false)
-        <form method="POST" action="{{ route('invoices.approve', $invoice) }}" style="display:inline;margin:0"
-              onsubmit="return confirm('Approve this invoice? Your name will appear as Approved By.');">
-            @csrf
-            <button type="submit" class="btn">Approve invoice</button>
-        </form>
+        <button type="submit" form="invoice-approve-form" class="btn"
+                data-erp-confirm="Set prices and approver details, then approve this order?"
+                data-erp-confirm-title="Approve order"
+                data-erp-confirm-ok="Approve">Approve order</button>
     @endif
     <span class="badge" @if($invoice->status === 'approved') style="background:#166534;color:#bbf7d0" @endif>
         {{ $invoice->status }}
@@ -29,12 +31,18 @@
     'formAction' => null,
     'pageTitle' => $invoice->invoice_number,
     'pageDescription' => $invoice->status === 'approved'
-        ? 'Approved invoice — signed by '.($document['approved_by']['name'] ?? 'admin').'.'
-        : 'Saved invoice document.',
+        ? 'Approved order — signed by '.($document['approved_by']['name'] ?? 'admin').'.'
+        : (($canApprove ?? false)
+            ? 'Review prices and fill in Approved By details, then click Approve order.'
+            : 'Saved order document.'),
     'invoiceStatus' => $invoice->status,
+    'invoiceId' => $invoice->id,
+    'approvalMode' => $canApprove ?? false,
+    'approveAction' => ($canApprove ?? false) ? route('invoices.approve', $invoice) : null,
 ])
 @endsection
 
+@if ($canViewPrices ?? auth()->user()?->canViewInvoicePrices())
 @push('scripts')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -98,7 +106,7 @@
             'box-shadow:none',
             'border:0',
             'transform:none',
-            'font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif',
+            "font-family:'Neris','NotoSans','NotoEthiopic',DejaVu Sans,sans-serif",
             'font-size:13px',
             'line-height:1.375',
         ].join(';');
@@ -143,10 +151,12 @@
         });
 
         doc.open();
-        doc.write('<!DOCTYPE html><html><head><meta charset="utf-8">' + styles +
+        doc.write('<!DOCTYPE html><html><head><meta charset="utf-8">' +
+            '<link href="https://fonts.cdnfonts.com/css/neris" rel="stylesheet">' + styles +
             '<style>' +
-            'html,body{margin:0;padding:0;background:#fff;color:#171717;}' +
+            'html,body{margin:0;padding:0;background:#fff;color:#171717;font-family:\'Neris\',\'NotoSans\',\'NotoEthiopic\',DejaVu Sans,sans-serif;}' +
             '.invoice-desk{background:#fff!important;padding:0!important;display:block!important;}' +
+            '.invoice-a4,.invoice-a4 *{font-family:\'Neris\',\'NotoSans\',\'NotoEthiopic\',DejaVu Sans,sans-serif!important;}' +
             '.invoice-a4{box-shadow:none!important;border:0!important;margin:0 auto!important;' +
             'width:210mm!important;min-width:210mm!important;max-width:210mm!important;' +
             'height:297mm!important;min-height:297mm!important;max-height:297mm!important;' +
@@ -166,7 +176,7 @@
     async function downloadPdf() {
         var source = sheet();
         if (!source || typeof html2canvas === 'undefined' || !(window.jspdf && window.jspdf.jsPDF)) {
-            alert('PDF download is not available right now.');
+            window.erpToast('PDF download is not available right now.', 'warn');
             return;
         }
 
@@ -227,7 +237,7 @@
             
         } catch (err) {
             console.error(err);
-            alert('Could not create PDF from the paper. Please try again.');
+            window.erpToast('Could not create PDF from the paper. Please try again.', 'error');
         } finally {
             if (capture && capture.host && capture.host.parentNode) {
                 capture.host.parentNode.removeChild(capture.host);
@@ -246,3 +256,4 @@
 })();
 </script>
 @endpush
+@endif

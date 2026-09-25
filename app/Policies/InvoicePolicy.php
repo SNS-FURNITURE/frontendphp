@@ -75,7 +75,7 @@ class InvoicePolicy
             return false;
         }
 
-        return $user->isAdmin();
+        return $user->isAdmin() || $user->hasRole('marketing_manager');
     }
 
     public function recordPayment(User $user): bool
