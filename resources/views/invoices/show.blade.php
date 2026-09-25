@@ -4,12 +4,15 @@
 @section('content_class', 'content-wide')
 
 @section('content')
-@php($canViewPrices = auth()->user()?->canViewInvoicePrices() ?? false)
+@php
+    $canViewPrices = auth()->user()?->canViewInvoicePrices() ?? false;
+    $canPrintDocument = $canViewPrices && in_array($invoice->status, ['approved', 'paid'], true);
+@endphp
 <div class="toolbar no-print" style="margin-bottom:1rem">
     @if ($canEdit)
         <a class="btn" href="{{ route('invoices.edit', $invoice) }}">Edit document</a>
     @endif
-    @if ($canViewPrices)
+    @if ($canPrintDocument)
         <button type="button" class="btn ghost" id="invoice-print-btn">Print</button>
         <button type="button" class="btn ghost" id="invoice-pdf-btn">Download PDF</button>
     @endif
@@ -42,7 +45,7 @@
 ])
 @endsection
 
-@if ($canViewPrices ?? auth()->user()?->canViewInvoicePrices())
+@if ($canPrintDocument ?? false)
 @push('scripts')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>

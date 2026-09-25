@@ -919,7 +919,7 @@
                     <button type="button" class="btn catalog-back-btn" x-show="doc.customer.is_valid" @click="showCatalog = true">&larr; Back to products</button>
                     <a class="btn ghost" href="{{ route('invoices.index') }}" x-show="!doc.customer.is_valid">Back to log</a>
                 @endif
-                @if ($readOnly && $canViewPrices)
+                @if ($readOnly && $canViewPrices && in_array($invoiceStatus ?? null, ['approved', 'paid'], true))
                     <button type="button" class="btn ghost" @click="printDoc()">Print</button>
                 @elseif (!$readOnly)
                     <button type="submit" class="btn">Save</button>
@@ -2310,6 +2310,11 @@ function invoiceEditor(initialDoc, readOnly, invoiceId, invoiceStatus, catalogPr
             return true;
         },
         printDoc() {
+            if (!['approved', 'paid'].includes(this.invoiceStatus)) {
+                window.erpToast('<b>This order must be approved before printing.</b>', 'warn');
+
+                return;
+            }
             window.print();
         },
     }

@@ -542,6 +542,11 @@ class InvoiceWebController extends Controller
     public function document(Request $request, Invoice $invoice): Response
     {
         $this->authorize('view', $invoice);
+
+        if (! in_array($invoice->status, ['approved', 'paid'], true)) {
+            abort(403, 'Order must be approved before downloading or printing the document.');
+        }
+
         $format = strtolower((string) $request->query('format', 'pdf'));
 
         try {
