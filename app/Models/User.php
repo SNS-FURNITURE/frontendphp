@@ -333,7 +333,7 @@ class User extends Authenticatable
     /** Inventory boards: Express API is auth+launch; UI uses inventory:*. */
     public function canViewInventory(): bool
     {
-        if ($this->isLimitedSalesRole() || ! $this->hasInvoiceLaunchRole()) {
+        if ($this->isLimitedSalesRole() || ! $this->hasInvoiceLaunchRole() || $this->isOms() || $this->isOmf()) {
             return false;
         }
 
@@ -341,20 +341,17 @@ class User extends Authenticatable
             || $this->isAdmin()
             || $this->hasRole('company_manager')
             || $this->hasRole('finance')
-            || $this->isMarketingManager()
-            || $this->hasRole('operations_manager_showroom')
-            || $this->hasRole('operations_manager_factory');
+            || $this->isMarketingManager();
     }
 
     public function canCreateInventory(): bool
     {
-        if (! $this->canViewInventory() || $this->isAdmin()) {
+        if (! $this->canViewInventory() || $this->isAdmin() || $this->isOms() || $this->isOmf()) {
             return false;
         }
 
         return $this->hasPermission('inventory', 'create')
-            || $this->hasRole('company_manager')
-            || $this->hasRole('operations_manager_factory');
+            || $this->hasRole('company_manager');
     }
 
     /** Production / manufacturing boards: production:* or inventory create roles. */
