@@ -22,7 +22,9 @@
             <tr>
                 <th>Invoice</th>
                 <th>Designer</th>
+                <th>PM</th>
                 <th>Design</th>
+                <th>Factory</th>
                 <th>Materials</th>
                 <th>Assembly</th>
                 <th>Delivery</th>
@@ -30,7 +32,7 @@
             </tr>
             </thead>
             <tbody id="pipeline-body">
-            <tr><td colspan="7" class="muted">Loading…</td></tr>
+            <tr><td colspan="9" class="muted">Loading…</td></tr>
             </tbody>
         </table>
     </div>
@@ -43,6 +45,14 @@
     const stamp = document.getElementById('pipeline-stamp');
     let timer = null;
 
+    function findPhase(phases, key) {
+        if (!phases) return null;
+        if (Array.isArray(phases)) {
+            return phases.find(function (p) { return p.key === key; }) || null;
+        }
+        return phases[key] || null;
+    }
+
     function phaseLabel(phase) {
         if (!phase) return '—';
         let text = phase.status || '—';
@@ -54,20 +64,22 @@
 
     function render(rows) {
         if (!rows.length) {
-            body.innerHTML = '<tr><td colspan="7" class="muted">No accepted orders in pipeline</td></tr>';
+            body.innerHTML = '<tr><td colspan="9" class="muted">No accepted orders in pipeline</td></tr>';
             return;
         }
         body.innerHTML = rows.map(function (row) {
             return '<tr>'
                 + '<td>' + row.invoice_number + '</td>'
                 + '<td>' + (row.designer || '—') + '</td>'
-                + '<td><span class="badge">' + phaseLabel(row.phases.design) + '</span></td>'
-                + '<td><span class="badge">' + phaseLabel(row.phases.materials) + '</span>'
+                + '<td>' + (row.product_manager || '—') + '</td>'
+                + '<td><span class="badge">' + phaseLabel(findPhase(row.phases, 'design')) + '</span></td>'
+                + '<td><span class="badge">' + phaseLabel(findPhase(row.phases, 'factory_coloring')) + '</span></td>'
+                + '<td><span class="badge">' + phaseLabel(findPhase(row.phases, 'materials')) + '</span>'
                 + (row.materials_pending ? ' · pend ' + row.materials_pending : '')
                 + (row.procurement_open ? ' · proc ' + row.procurement_open : '')
                 + '</td>'
-                + '<td><span class="badge">' + phaseLabel(row.phases.assembly) + '</span></td>'
-                + '<td><span class="badge">' + phaseLabel(row.phases.delivery) + '</span>'
+                + '<td><span class="badge">' + phaseLabel(findPhase(row.phases, 'assembly')) + '</span></td>'
+                + '<td><span class="badge">' + phaseLabel(findPhase(row.phases, 'delivery')) + '</span>'
                 + (row.delivery_status ? ' · ' + row.delivery_status : '')
                 + '</td>'
                 + '<td><a class="btn ghost" href="' + row.url + '">Open</a></td>'

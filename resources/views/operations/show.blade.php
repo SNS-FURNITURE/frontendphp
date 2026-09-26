@@ -18,60 +18,49 @@
             Status <span class="badge">{{ $intake->status }}</span>
             · Source {{ $intake->source_type }}
             @if ($intake->sourceUser) · {{ $intake->sourceUser->full_name }} @endif
+            @if (($hidePrices ?? false) && $designDaysLeft !== null)
+                · <strong>{{ $designDaysLeft }} day{{ $designDaysLeft === 1 ? '' : 's' }} left</strong> on design deadline
+            @endif
         </p>
     </div>
     <div class="toolbar">
         @if ($user->canReviewOrderIntake())
-            <a class="btn ghost" href="{{ route('operations.oms.dashboard') }}">OMS queue</a>
+            <a class="btn ghost" href="{{ route('operations.oms.check-invoice') }}">Check invoice</a>
+            <a class="btn ghost" href="{{ route('operations.oms.schedule') }}">Schedule</a>
         @elseif ($user->isOmf() || $user->isAssembler())
             <a class="btn ghost" href="{{ route('operations.omf.dashboard') }}">OMF board</a>
         @elseif ($user->isDesigner())
             <a class="btn ghost" href="{{ route('operations.designer.dashboard') }}">Design board</a>
+        @elseif ($user->isProductManager())
+            <a class="btn ghost" href="{{ route('operations.product-manager.dashboard') }}">PM board</a>
         @elseif ($user->isProcurement())
             <a class="btn ghost" href="{{ route('operations.procurement.dashboard') }}">Procurement</a>
         @elseif ($user->hasRole('company_manager'))
             <a class="btn ghost" href="{{ route('operations.manager.dashboard') }}">Manager board</a>
         @endif
+        <a class="btn ghost" href="{{ route('operations.orders.invoice-document', $intake) }}" target="_blank" rel="noopener">Invoice document</a>
     </div>
 </div>
 
 @if ($user->canReviewOrderIntake() && in_array($intake->status, [\App\Support\OrderOperations::INTAKE_PENDING, \App\Support\OrderOperations::INTAKE_UNDER_REVIEW, \App\Support\OrderOperations::INTAKE_RESUBMITTED], true))
-@php
-    $snapshot = is_array($intake->snapshot_json) ? $intake->snapshot_json : (json_decode((string) $intake->snapshot_json, true) ?: []);
-    $live = $intake->invoice;
-    $liveSnapshot = is_array($live?->snapshot_json) ? $live->snapshot_json : (json_decode((string) ($live?->snapshot_json ?? ''), true) ?: []);
-    $snapTotal = $snapshot['totals']['grand_total'] ?? ($snapshot['grand_total'] ?? null);
-    $liveTotal = $liveSnapshot['totals']['grand_total'] ?? ($live?->amount);
-    $snapCustomer = $snapshot['customer']['name'] ?? ($snapshot['customer_name'] ?? '—');
-    $liveCustomer = $liveSnapshot['customer']['name'] ?? ($liveSnapshot['customer_name'] ?? '—');
-    $approvedAfterSnap = $live && $live->status === 'approved' && $intake->source_type !== 'approved_invoice';
-@endphp
 <div class="card" style="margin-bottom:1.25rem">
-    <h2 style="margin:0 0 1rem;font-size:1.1rem">OMS cross-check</h2>
-    <p class="muted" style="margin:0 0 1rem">
-        Source: <strong>{{ $intake->source_type }}</strong>
-        @if ($approvedAfterSnap)
-            <span class="badge" style="margin-left:0.5rem">Live invoice is now approved — snapshot may be outdated</span>
-        @endif
-    </p>
+    <h2 style="margin:0 0 1rem;font-size:1.1rem">Check invoice — side by side</h2>
+    <p class="muted" style="margin:0 0 1rem">Sales supervisor issued document vs marketing/admin approved document.</p>
     <div class="grid-2" style="gap:1rem;margin-bottom:1rem">
-        <div style="border:1px solid var(--border, #333);padding:0.75rem;border-radius:8px">
-            <h3 style="margin:0 0 0.5rem;font-size:0.95rem">Frozen at intake</h3>
-            <p style="margin:0.25rem 0">Invoice {{ $intake->invoice_number }}</p>
-            <p style="margin:0.25rem 0">Customer: {{ $snapCustomer }}</p>
-            <p style="margin:0.25rem 0">Total: {{ $snapTotal !== null ? number_format((float) $snapTotal, 2) : '—' }}</p>
-        </div>
-        <div style="border:1px solid var(--border, #333);padding:0.75rem;border-radius:8px">
-            <h3 style="margin:0 0 0.5rem;font-size:0.95rem">Live invoice</h3>
-            @if ($live)
-                <p style="margin:0.25rem 0">
-                    <a href="{{ route('invoices.show', $live) }}">{{ $live->invoice_number }}</a>
-                    <span class="badge">{{ $live->status }}</span>
-                </p>
-                <p style="margin:0.25rem 0">Customer: {{ $liveCustomer }}</p>
-                <p style="margin:0.25rem 0">Total: {{ $liveTotal !== null ? number_format((float) $liveTotal, 2) : '—' }}</p>
+        <div style="border:1px solid var(--border, #333);padding:0.75rem;border-radius:8px;max-height:28rem;overflow:auto">
+            <h3 style="margin:0 0 0.5rem;font-size:0.95rem">Sales supervisor — issued</h3>
+            @if (! empty($issuedHtml))
+                {!! $issuedHtml !!}
             @else
-                <p class="muted" style="margin:0">No linked invoice</p>
+                <p class="muted" style="margin:0">No issued snapshot on file</p>
+            @endif
+        </div>
+        <div style="border:1px solid var(--border, #333);padding:0.75rem;border-radius:8px;max-height:28rem;overflow:auto">
+            <h3 style="margin:0 0 0.5rem;font-size:0.95rem">Marketing / admin — approved</h3>
+            @if (! empty($approvedHtml))
+                {!! $approvedHtml !!}
+            @else
+                <p class="muted" style="margin:0">No approved snapshot on file</p>
             @endif
         </div>
     </div>
@@ -157,42 +146,80 @@
 @endif
 
 @if ($intake->status === \App\Support\OrderOperations::INTAKE_ACCEPTED)
+@php
+    $factoryPhase = $intake->phase(\App\Support\OrderOperations::PHASE_FACTORY_COLORING);
+    $canSupervise = $user->canSuperviseProductManager() || $user->isProductManager() || $user->isOms() || $user->isAdmin();
+@endphp
 <div class="card" style="margin-bottom:1.25rem">
-    <h2 style="margin:0 0 1rem;font-size:1.1rem">Phases &amp; deadlines</h2>
+    <h2 style="margin:0 0 1rem;font-size:1.1rem">
+        @if ($user->canManageOrderSchedule())
+            Schedule production
+        @else
+            Schedule (OMS-owned, read-only)
+        @endif
+    </h2>
     <table class="data">
         <thead>
         <tr>
             <th>Phase</th>
             <th>Status</th>
             <th>Due</th>
-            <th>Reminder (h)</th>
             @if ($user->canManageOrderSchedule())
-                <th>Update</th>
+                <th>Rename / deadline</th>
+            @elseif ($canSupervise)
+                <th>Supervise</th>
             @endif
         </tr>
         </thead>
         <tbody>
         @foreach ($intake->phases as $phase)
             <tr>
-                <td>{{ $phase->phase_key }}</td>
+                <td>{{ $phase->displayLabel() }}</td>
                 <td><span class="badge">{{ $phase->status }}</span></td>
                 <td>{{ optional($phase->due_at)->format('Y-m-d H:i') ?? '—' }}</td>
-                <td>{{ $phase->reminder_hours_before ?? 24 }}</td>
                 @if ($user->canManageOrderSchedule())
                     <td>
+                        <form method="POST" action="{{ route('operations.orders.phases.label', [$intake, $phase]) }}" style="display:flex;gap:0.35rem;align-items:end;margin:0 0 0.4rem;flex-wrap:wrap">
+                            @csrf
+                            @method('PATCH')
+                            <input type="text" name="label" required value="{{ $phase->displayLabel() }}" style="min-width:8rem">
+                            <button class="btn ghost" type="submit" style="padding:0.35rem 0.6rem">Rename</button>
+                        </form>
                         <form method="POST" action="{{ route('operations.orders.deadlines.update', [$intake, $phase]) }}" style="display:flex;gap:0.4rem;align-items:end;margin:0;flex-wrap:wrap">
                             @csrf
                             @method('PATCH')
                             <input type="datetime-local" name="due_at" required value="{{ optional($phase->due_at)->format('Y-m-d\TH:i') }}">
                             <input type="number" name="reminder_hours_before" min="1" value="{{ $phase->reminder_hours_before ?? 24 }}" style="width:5rem" title="Reminder hours">
-                            <button class="btn ghost" type="submit" style="padding:0.35rem 0.6rem">Save</button>
+                            <button class="btn ghost" type="submit" style="padding:0.35rem 0.6rem">Save due</button>
                         </form>
                     </td>
+                @elseif ($canSupervise && $phase->phase_key !== \App\Support\OrderOperations::PHASE_DESIGN && $phase->status !== \App\Support\OrderOperations::PHASE_COMPLETED)
+                    <td>
+                        <form method="POST" action="{{ route('operations.orders.phases.complete', [$intake, $phase]) }}" style="margin:0">@csrf
+                            <button class="btn ghost" type="submit" style="padding:0.35rem 0.6rem">Mark complete</button>
+                        </form>
+                    </td>
+                @elseif ($canSupervise)
+                    <td class="muted">—</td>
                 @endif
             </tr>
         @endforeach
         </tbody>
     </table>
+    @if ($user->canManageOrderSchedule())
+        <form method="POST" action="{{ route('operations.orders.phases.add', $intake) }}" style="display:flex;gap:0.5rem;align-items:end;margin-top:1rem;flex-wrap:wrap">
+            @csrf
+            <div>
+                <label>New phase name</label>
+                <input type="text" name="label" required maxlength="120" placeholder="Phase name" value="{{ old('label') }}">
+            </div>
+            <div>
+                <label>Deadline</label>
+                <input type="datetime-local" name="due_at" value="{{ old('due_at') }}">
+            </div>
+            <button class="btn" type="submit">+ Add phase</button>
+        </form>
+    @endif
 </div>
 
 <div class="card" style="margin-bottom:1.25rem">
@@ -234,6 +261,29 @@
                     <input type="number" min="1" name="reminder_hours_before" value="{{ old('reminder_hours_before', $design?->reminder_hours_before ?? 24) }}">
                 </div>
                 <button class="btn" type="submit">Assign designer</button>
+            </form>
+        @endif
+        @if ($user->canAssignProductManager())
+            <form method="POST" action="{{ route('operations.orders.assign-product-manager', $intake) }}" style="display:flex;gap:0.5rem;align-items:end;margin:0;flex-wrap:wrap">
+                @csrf
+                <div>
+                    <label>Product manager</label>
+                    <select name="user_id" required>
+                        <option value="">Select</option>
+                        @foreach ($productManagers as $pm)
+                            <option value="{{ $pm->id }}">{{ $pm->full_name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label>Factory coloring deadline *</label>
+                    <input type="datetime-local" name="due_at" required value="{{ old('pm_due_at', optional($factoryPhase?->due_at)->format('Y-m-d\TH:i')) }}">
+                </div>
+                <div>
+                    <label>Remind (h before)</label>
+                    <input type="number" min="1" name="reminder_hours_before" value="{{ old('pm_reminder_hours_before', $factoryPhase?->reminder_hours_before ?? 24) }}">
+                </div>
+                <button class="btn" type="submit">Assign product manager</button>
             </form>
         @endif
         @if ($user->canAssignAssembler())
