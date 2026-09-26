@@ -6,7 +6,7 @@
 <div class="page-head">
     <div>
         <h1>Payroll</h1>
-        <p class="muted" style="margin:0.35rem 0 0">Ethiopia PAYE · pension 7%/11% of salary_month</p>
+        <p class="muted" style="margin:0.35rem 0 0">After CM approves attendance · generate → send to CM for final decision</p>
     </div>
 </div>
 
@@ -15,7 +15,7 @@
     <form method="POST" action="{{ route('finance.payroll.generate') }}" class="toolbar">
         @csrf
         <input type="month" name="period" value="{{ now()->format('Y-m') }}">
-        <button class="btn" type="submit">Generate payroll</button>
+        <button class="btn" type="submit">Generate payroll draft</button>
     </form>
 </div>
 @endif
@@ -37,6 +37,9 @@
                         <a href="{{ route('finance.payroll.show', $run->id) }}">Open</a>
                         ·
                         <a href="{{ route('finance.payroll.csv', $run->id) }}">CSV</a>
+                        @if ($canFinalize && $run->status === \App\Models\PayrollRun::STATUS_PENDING_MANAGER)
+                            <span class="muted"> · awaiting your decision</span>
+                        @endif
                     </td>
                 </tr>
             @endforeach
