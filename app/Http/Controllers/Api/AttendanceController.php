@@ -13,7 +13,6 @@ use App\Services\Payroll\PayrollGenerationService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Throwable;
 
 class AttendanceController extends Controller
 {
@@ -274,6 +273,10 @@ class AttendanceController extends Controller
             return ApiResponse::error('Submission not found', 'NOT_FOUND', 404);
         }
 
+        if ($submission->status !== 'pending_manager') {
+            return ApiResponse::error('This submission is not awaiting manager review', 'CONFLICT', 409);
+        }
+
         $submission->fill([
             'status' => $status,
             'approved_by' => $user->id,
@@ -281,35 +284,26 @@ class AttendanceController extends Controller
         ]);
         $submission->save();
 
-        $payroll = null;
         if ($status === 'approved') {
-            try {
-                $factors = $this->payroll->attendanceFactorsForPeriod($submission->period);
-                $payroll = $this->payroll->generatePayrollRunForPeriod(
-                    $submission->period,
-                    $factors,
-                    (int) $submission->id,
-                );
-                $submission->payroll_run_id = $payroll['id'];
-                $submission->save();
-            } catch (Throwable $e) {
-                report($e);
-                $code = $e->getCode() === 400 ? 'NOT_FOUND' : 'REQUEST_FAILED';
-                $http = $e->getCode() === 400 ? 400 : 500;
-
-                return ApiResponse::error($e->getMessage() ?: 'Payroll generation failed', $code, $http);
+            foreach ($this->notify->activeUserIdsWithRolesRaw(['finance']) as $financeId) {
+                $this->notify->notifyUser($financeId, [
+                    'type' => 'attendance_calendar_approved',
+                    'title' => "Attendance approved for {$submission->period}",
+                    'message' => "Company Manager approved the {$submission->period} attendance calendar. Generate payroll when ready.",
+                    'entityType' => 'attendance_submission',
+                    'entityId' => (int) $submission->id,
+                ]);
             }
         }
 
         $this->audit->log($user, 'attendance_submission', (int) $submission->id, 'REVIEW_ATTENDANCE', [
             'status' => $status,
             'period' => $submission->period,
-            'payroll_run_id' => $payroll['id'] ?? null,
         ], $request);
 
         $updated = AttendanceSubmission::query()->with(['compiler', 'approver'])->find($id);
 
-        return ApiResponse::success($updated?->toApiArray($payroll));
+        return ApiResponse::success($updated?->toApiArray());
     }
 
     private function normalizeSession(mixed $value): string

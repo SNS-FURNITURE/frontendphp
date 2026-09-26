@@ -19,6 +19,7 @@ class PayrollWebController extends Controller
         return view('finance.payroll.index', [
             'runs' => PayrollRun::query()->latestFirst('period')->get(),
             'canGenerate' => auth()->user()->canEditPayroll(),
+            'canFinalize' => auth()->user()->canFinalizePayroll(),
         ]);
     }
 
@@ -27,10 +28,19 @@ class PayrollWebController extends Controller
         abort_unless(auth()->user()?->canViewPayroll(), 403);
 
         $run = PayrollRun::query()->with('lines')->findOrFail($id);
+        $user = auth()->user();
+        $editable = $user->canEditPayroll()
+            && in_array($run->status, [PayrollRun::STATUS_DRAFT, PayrollRun::STATUS_REJECTED], true);
 
         return view('finance.payroll.show', [
             'run' => $run,
-            'canEdit' => auth()->user()->canEditPayroll() && $run->status === 'draft',
+            'canEdit' => $editable,
+            'canSendToManager' => $user->canEditPayroll()
+                && in_array($run->status, [PayrollRun::STATUS_DRAFT, PayrollRun::STATUS_REJECTED], true),
+            'canFinalize' => $user->canFinalizePayroll()
+                && $run->status === PayrollRun::STATUS_PENDING_MANAGER,
+            'canMarkPaid' => $user->canEditPayroll()
+                && $run->status === PayrollRun::STATUS_PROCESSED,
         ]);
     }
 
@@ -49,12 +59,21 @@ class PayrollWebController extends Controller
 
         return redirect()
             ->route('finance.payroll.show', $payload['data']['id'])
-            ->with('status', 'Payroll processed for '.$period);
+            ->with('status', 'Payroll draft ready for '.$period.'. Review, then send to Company Manager.');
     }
 
     public function updateStatus(Request $request, int $id, ApiPayrollRunController $api): RedirectResponse
     {
-        abort_unless(auth()->user()?->canEditPayroll(), 403);
+        $user = auth()->user();
+        $status = (string) $request->input('status');
+
+        $allowed = $user?->canEditPayroll()
+            || ($user?->canFinalizePayroll() && in_array($status, [
+                PayrollRun::STATUS_PROCESSED,
+                PayrollRun::STATUS_REJECTED,
+            ], true));
+
+        abort_unless($allowed, 403);
 
         $response = $api->updateStatus($request, $id);
         $payload = $response->getData(true);
@@ -63,17 +82,24 @@ class PayrollWebController extends Controller
             return back()->withErrors(['status' => $payload['error']['message'] ?? 'Status update failed']);
         }
 
-        $status = $request->input('status');
+        $message = match ($status) {
+            PayrollRun::STATUS_PENDING_MANAGER => 'Payroll sent to Company Manager for final decision',
+            PayrollRun::STATUS_PROCESSED => 'Payroll approved',
+            PayrollRun::STATUS_REJECTED => 'Payroll rejected — Finance can revise and resubmit',
+            PayrollRun::STATUS_PAID => 'Payroll marked paid',
+            PayrollRun::STATUS_DRAFT => 'Payroll returned to draft',
+            default => 'Payroll status updated',
+        };
 
-        return back()->with(
-            'status',
-            $status === 'paid' ? 'Payroll marked paid' : 'Payroll processed',
-        );
+        return back()->with('status', $message);
     }
 
     public function updateLine(Request $request, int $id, int $lineId, ApiPayrollRunController $api): RedirectResponse
     {
         abort_unless(auth()->user()?->canEditPayroll(), 403);
+
+        $run = PayrollRun::query()->findOrFail($id);
+        abort_unless(in_array($run->status, [PayrollRun::STATUS_DRAFT, PayrollRun::STATUS_REJECTED], true), 403);
 
         $response = $api->updateLine($request, $id, $lineId);
         $payload = $response->getData(true);
