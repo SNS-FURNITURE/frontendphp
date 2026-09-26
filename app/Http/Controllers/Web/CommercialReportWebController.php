@@ -7,6 +7,7 @@ use App\Models\Report;
 use App\Services\CommercialDealsReportService;
 use App\Services\CommercialOrdersReportService;
 use App\Services\CommercialReportService;
+use App\Services\OrderMaterialUsageService;
 use App\Services\SalesContactService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,6 +20,7 @@ class CommercialReportWebController extends Controller
         private CommercialReportService $commercialReports,
         private CommercialOrdersReportService $ordersReport,
         private CommercialDealsReportService $dealsReport,
+        private OrderMaterialUsageService $materialUsage,
     ) {}
 
     public function index(Request $request): View
@@ -39,6 +41,7 @@ class CommercialReportWebController extends Controller
             'reports' => $reports,
             'orderReport' => $this->ordersReport->orderReport($periodType),
             'dealReport' => $this->dealsReport->dealReport($periodType),
+            'materialReport' => $this->materialUsage->usageReport($periodType),
             'periodType' => $periodType,
         ]);
     }

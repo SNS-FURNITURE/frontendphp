@@ -19,6 +19,7 @@
 
 @include('commercial._orders-report-chart')
 @include('commercial._deals-report-chart')
+@include('commercial._materials-report')
 
 <div class="card">
     <h2 style="margin:0 0 1rem;font-size:1.1rem">Report log</h2>

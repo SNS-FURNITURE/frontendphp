@@ -18,6 +18,7 @@ class OrderProcurementService
     public function __construct(
         private AuditService $audit,
         private NotifyService $notify,
+        private OrderMaterialUsageService $materialUsage,
     ) {}
 
     /**
@@ -323,6 +324,8 @@ class OrderProcurementService
                 $line->stock_status = OrderOperations::STOCK_RELEASED;
                 $line->save();
             }
+
+            $this->materialUsage->logRelease($intake, $actor, $lines);
 
             $materials = $intake->phases()->where('phase_key', OrderOperations::PHASE_MATERIALS)->first();
             if ($materials) {

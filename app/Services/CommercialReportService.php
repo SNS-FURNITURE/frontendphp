@@ -12,6 +12,7 @@ class CommercialReportService
         private DirectedReportService $directedReports,
         private NotifyService $notify,
         private SalesContactService $contacts,
+        private OrderMaterialUsageService $materialUsage,
     ) {}
 
     public function reportContactSubmitted(Party $party): void
@@ -113,7 +114,45 @@ class CommercialReportService
             }
         }
 
+        $materialBody = $this->materialUsage->summaryBody($cadence);
+        $materialTitle = ucfirst($cadence).' material usage — '.$period['label'];
+        if ($this->sendToAdminsAndManagers($materialTitle, $materialBody, 'commercial_'.$cadence.'_materials')) {
+            $count++;
+        }
+
         return $count;
+    }
+
+    private function sendToAdminsAndManagers(
+        string $title,
+        string $body,
+        string $reportType,
+        ?string $entityType = null,
+        ?int $entityId = null,
+    ): bool {
+        $recipients = User::query()
+            ->where('is_active', true)
+            ->whereHas('roles', fn ($q) => $q->whereIn('name', ['admin', 'marketing_manager', 'company_manager']))
+            ->get();
+
+        if ($recipients->isEmpty()) {
+            return false;
+        }
+
+        foreach ($recipients as $recipient) {
+            $this->directedReports->insertDirectedReport(
+                $title,
+                $body,
+                $reportType,
+                null,
+                (int) $recipient->id,
+                (string) $recipient->full_name,
+                $entityType,
+                $entityId,
+            );
+        }
+
+        return true;
     }
 
     private function sendToMarketingManagers(

@@ -47,6 +47,42 @@
 </div>
 @endif
 
+<div class="card" style="margin-bottom:1.25rem">
+    <h2 style="margin:0 0 .75rem;font-size:1rem">Material usage (your orders)</h2>
+    <p class="muted" style="margin:0 0 1rem">Materials released to production for invoices you sourced — {{ $report['period']['label'] }}</p>
+    <div class="grid-2" style="gap:1rem;margin-bottom:1rem">
+        <div>
+            <div class="muted" style="font-size:0.75rem;text-transform:uppercase">Lines</div>
+            <div style="font-size:1.4rem;font-weight:700">{{ $materialUsage['lines'] }}</div>
+        </div>
+        <div>
+            <div class="muted" style="font-size:0.75rem;text-transform:uppercase">Quantity</div>
+            <div style="font-size:1.4rem;font-weight:700">{{ number_format($materialUsage['quantity'], 2) }}</div>
+        </div>
+        <div>
+            <div class="muted" style="font-size:0.75rem;text-transform:uppercase">Orders</div>
+            <div style="font-size:1.4rem;font-weight:700">{{ $materialUsage['orders'] }}</div>
+        </div>
+    </div>
+    @if ($materialUsage['rows']->isEmpty())
+        <p class="muted" style="margin:0">No materials used on your orders this period.</p>
+    @else
+        <table class="data">
+            <thead><tr><th>When</th><th>Invoice</th><th>Item</th><th>Qty</th></tr></thead>
+            <tbody>
+            @foreach ($materialUsage['rows'] as $log)
+                <tr>
+                    <td>{{ optional($log->used_at)->format('M j, Y') }}</td>
+                    <td>{{ $log->invoice_number }}</td>
+                    <td>{{ $log->item_name }}</td>
+                    <td>{{ number_format((float) $log->quantity, 2) }} {{ $log->unit ?? 'pcs' }}</td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+    @endif
+</div>
+
 <div class="card">
     <h2 style="margin:0 0 1rem;font-size:1.1rem">Recent contacts</h2>
     @if ($recent->isEmpty())
