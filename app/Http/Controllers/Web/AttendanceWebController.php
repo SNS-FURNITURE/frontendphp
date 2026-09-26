@@ -34,7 +34,7 @@ class AttendanceWebController extends Controller
             ->get()
             ->groupBy(fn (Attendance $a) => $a->employee_id.'|'.$a->date?->format('Y-m-d').'|'.$a->session);
 
-        $submissions = AttendanceSubmission::query()->latestFirst('period')->limit(12)->get();
+        $submissions = AttendanceSubmission::query()->with('compiler')->latestFirst('period')->limit(12)->get();
         $today = now()->toDateString();
 
         return view('hr.attendance.index', [
@@ -92,7 +92,7 @@ class AttendanceWebController extends Controller
         $period = $request->input('period') ?: now()->format('Y-m');
         $label = \DateTimeImmutable::createFromFormat('Y-m', $period)?->format('F Y') ?: $period;
 
-        return back()->with('status', "Attendance for {$label} sent to Company Manager");
+        return back()->with('status', "Attendance calendar for {$label} sent to Company Manager");
     }
 
     public function review(Request $request, int $id, ApiAttendanceController $api): RedirectResponse
@@ -113,7 +113,9 @@ class AttendanceWebController extends Controller
 
         return back()->with(
             'status',
-            $status === 'approved' ? 'Approved — payroll draft is in Finance' : 'Submission rejected',
+            $status === 'approved'
+                ? 'Attendance calendar approved — sent to Finance for payroll'
+                : 'Attendance submission rejected',
         );
     }
 }

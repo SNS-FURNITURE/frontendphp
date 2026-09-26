@@ -615,6 +615,12 @@ class User extends Authenticatable
             || $this->hasRole('finance');
     }
 
+    /** Final payroll decision after finance generates and submits the run. */
+    public function canFinalizePayroll(): bool
+    {
+        return $this->hasRole('company_manager') || $this->isAdmin();
+    }
+
     public function canViewLeads(): bool
     {
         if (! $this->hasInvoiceLaunchRole() || $this->isSalesRep()) {

@@ -14,6 +14,7 @@ return [
         'admin',
         'company_manager',
         'finance',
+        'hr',
         'marketing_manager',
         'sales_supervisor',
         'sales',
@@ -22,5 +23,6 @@ return [
         'assembler',
         'procurement',
         'designer',
+        'product_manager',
     ],
 ];

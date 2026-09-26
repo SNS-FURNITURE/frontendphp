@@ -11,12 +11,23 @@
     <div class="toolbar">
         <a class="btn ghost" href="{{ route('finance.payroll.csv', $run->id) }}">CSV</a>
         <a class="btn ghost" href="{{ route('finance.payroll') }}">Back</a>
-        @if ($canEdit && $run->status === 'draft')
+        @if ($canSendToManager)
+            <form method="POST" action="{{ route('finance.payroll.status', $run->id) }}">@csrf @method('PATCH')
+                <input type="hidden" name="status" value="pending_manager">
+                <button class="btn" type="submit">Send to Company Manager</button>
+            </form>
+        @endif
+        @if ($canFinalize)
             <form method="POST" action="{{ route('finance.payroll.status', $run->id) }}">@csrf @method('PATCH')
                 <input type="hidden" name="status" value="processed">
-                <button class="btn" type="submit">Mark processed</button>
+                <button class="btn" type="submit">Approve payroll</button>
             </form>
-        @elseif (auth()->user()->canEditPayroll() && $run->status === 'processed')
+            <form method="POST" action="{{ route('finance.payroll.status', $run->id) }}">@csrf @method('PATCH')
+                <input type="hidden" name="status" value="rejected">
+                <button class="btn ghost" type="submit">Reject</button>
+            </form>
+        @endif
+        @if ($canMarkPaid)
             <form method="POST" action="{{ route('finance.payroll.status', $run->id) }}">@csrf @method('PATCH')
                 <input type="hidden" name="status" value="paid">
                 <button class="btn" type="submit">Mark paid</button>

@@ -9,7 +9,18 @@ class PayrollRun extends Model
 {
     protected $table = 'payroll_runs';
 
-    public const STATUSES = ['draft', 'processed', 'paid'];
+    /** draft → pending_manager (finance sends) → processed (CM approves) | rejected → paid */
+    public const STATUSES = ['draft', 'pending_manager', 'processed', 'rejected', 'paid'];
+
+    public const STATUS_DRAFT = 'draft';
+
+    public const STATUS_PENDING_MANAGER = 'pending_manager';
+
+    public const STATUS_PROCESSED = 'processed';
+
+    public const STATUS_REJECTED = 'rejected';
+
+    public const STATUS_PAID = 'paid';
 
     protected $fillable = [
         'period',

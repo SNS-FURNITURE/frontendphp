@@ -8,6 +8,7 @@ use App\Models\PayrollLine;
 use App\Models\PayrollRun;
 use App\Models\User;
 use App\Services\AuditService;
+use App\Services\NotifyService;
 use App\Services\Payroll\EthiopiaPayrollCalculator;
 use App\Services\Payroll\PayrollGenerationService;
 use App\Support\ApiResponse;
@@ -23,6 +24,7 @@ class PayrollRunController extends Controller
 {
     public function __construct(
         private AuditService $audit,
+        private NotifyService $notify,
         private PayrollGenerationService $payroll,
     ) {}
 
@@ -52,7 +54,7 @@ class PayrollRunController extends Controller
 
         if (! $submission) {
             return ApiResponse::error(
-                "Company Manager must approve this month's attendance before payroll can be generated",
+                "Company Manager must approve this month's attendance calendar before payroll can be generated",
                 'ATTENDANCE_NOT_APPROVED',
                 409,
             );
@@ -71,6 +73,11 @@ class PayrollRunController extends Controller
             report($e);
 
             return ApiResponse::error('Payroll generation failed', 'REQUEST_FAILED', 500);
+        }
+
+        if (! ($created['reused'] ?? false)) {
+            $submission->payroll_run_id = $created['id'];
+            $submission->save();
         }
 
         /** @var User|null $user */
@@ -104,22 +111,92 @@ class PayrollRunController extends Controller
             return ApiResponse::error('Payroll run not found', 'NOT_FOUND', 404);
         }
 
+        /** @var User|null $user */
+        $user = $request->attributes->get('auth_user') ?? $request->user();
+
+        $from = (string) $run->status;
+        $allowed = $this->allowedStatusTransition($user, $from, $status);
+        if ($allowed !== true) {
+            return ApiResponse::error($allowed, 'FORBIDDEN', 403);
+        }
+
         $run->status = $status;
-        if ($status === 'processed') {
+        if ($status === PayrollRun::STATUS_PROCESSED) {
             $run->processed_at = now();
         }
-        if ($status === 'paid') {
+        if ($status === PayrollRun::STATUS_PAID) {
             $run->paid_at = now();
         }
         $run->save();
 
-        /** @var User|null $user */
-        $user = $request->attributes->get('auth_user') ?? $request->user();
+        if ($status === PayrollRun::STATUS_PENDING_MANAGER) {
+            foreach ($this->notify->activeUserIdsWithRolesRaw(['company_manager']) as $managerId) {
+                $this->notify->notifyUser($managerId, [
+                    'type' => 'payroll_final_review',
+                    'title' => "Payroll ready for {$run->period}",
+                    'message' => ($user?->full_name ?: 'Finance')." submitted {$run->period} payroll for final decision.",
+                    'entityType' => 'payroll_run',
+                    'entityId' => (int) $run->id,
+                ]);
+            }
+        }
+
+        if (in_array($status, [PayrollRun::STATUS_PROCESSED, PayrollRun::STATUS_REJECTED], true)) {
+            foreach ($this->notify->activeUserIdsWithRolesRaw(['finance']) as $financeId) {
+                $this->notify->notifyUser($financeId, [
+                    'type' => 'payroll_final_decision',
+                    'title' => $status === PayrollRun::STATUS_PROCESSED
+                        ? "Payroll approved for {$run->period}"
+                        : "Payroll rejected for {$run->period}",
+                    'message' => $status === PayrollRun::STATUS_PROCESSED
+                        ? "Company Manager approved {$run->period} payroll."
+                        : "Company Manager rejected {$run->period} payroll. Revise and resubmit.",
+                    'entityType' => 'payroll_run',
+                    'entityId' => (int) $run->id,
+                ]);
+            }
+        }
+
         $this->audit->log($user, 'payroll_run', (int) $run->id, 'UPDATE_PAYROLL_STATUS', [
+            'from' => $from,
             'status' => $status,
         ], $request);
 
         return ApiResponse::success(['id' => (int) $run->id, 'status' => $status]);
+    }
+
+    /**
+     * @return true|string
+     */
+    private function allowedStatusTransition(?User $user, string $from, string $to): bool|string
+    {
+        if (! $user) {
+            return 'Authentication required';
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        $financeTransitions = [
+            PayrollRun::STATUS_DRAFT => [PayrollRun::STATUS_PENDING_MANAGER],
+            PayrollRun::STATUS_REJECTED => [PayrollRun::STATUS_PENDING_MANAGER, PayrollRun::STATUS_DRAFT],
+            PayrollRun::STATUS_PROCESSED => [PayrollRun::STATUS_PAID],
+        ];
+
+        $managerTransitions = [
+            PayrollRun::STATUS_PENDING_MANAGER => [PayrollRun::STATUS_PROCESSED, PayrollRun::STATUS_REJECTED],
+        ];
+
+        if ($user->canEditPayroll() && in_array($to, $financeTransitions[$from] ?? [], true)) {
+            return true;
+        }
+
+        if ($user->canFinalizePayroll() && in_array($to, $managerTransitions[$from] ?? [], true)) {
+            return true;
+        }
+
+        return 'You cannot move this payroll to that status';
     }
 
     public function updateLine(Request $request, int $id, int $lineId): JsonResponse

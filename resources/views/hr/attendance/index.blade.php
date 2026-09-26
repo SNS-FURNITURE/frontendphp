@@ -6,7 +6,7 @@
 <div class="page-head">
     <div>
         <h1>Attendance</h1>
-        <p class="muted" style="margin:0.35rem 0 0">AM/PM marks · compile for Company Manager · period {{ $period }}</p>
+        <p class="muted" style="margin:0.35rem 0 0">Monthly calendar → Company Manager → Finance payroll · period {{ $period }}</p>
     </div>
     <form method="GET" class="toolbar">
         <input type="month" name="period" value="{{ $period }}" onchange="this.form.submit()">
@@ -22,7 +22,7 @@
         </form>
         <form method="POST" action="{{ route('hr.attendance.compile') }}">@csrf
             <input type="hidden" name="period" value="{{ $period }}">
-            <button class="btn" type="submit">Compile for manager</button>
+            <button class="btn" type="submit">Send month to Company Manager</button>
         </form>
     </div>
 </div>
@@ -90,7 +90,7 @@
 </div>
 
 <div class="card">
-    <h2 style="margin:0 0 0.75rem;font-size:1.05rem">Submissions</h2>
+    <h2 style="margin:0 0 0.75rem;font-size:1.05rem">Monthly submissions</h2>
     @if ($submissions->isEmpty())
         <p class="muted" style="margin:0">No submissions yet</p>
     @else
@@ -106,12 +106,14 @@
                         @if ($canApprove && $sub->status === 'pending_manager')
                             <form method="POST" action="{{ route('hr.attendance.review', $sub->id) }}" style="display:inline">@csrf @method('PATCH')
                                 <input type="hidden" name="status" value="approved">
-                                <button class="btn" type="submit">Approve</button>
+                                <button class="btn" type="submit">Approve calendar</button>
                             </form>
                             <form method="POST" action="{{ route('hr.attendance.review', $sub->id) }}" style="display:inline">@csrf @method('PATCH')
                                 <input type="hidden" name="status" value="rejected">
                                 <button class="btn ghost" type="submit">Reject</button>
                             </form>
+                        @elseif ($sub->status === 'approved')
+                            <span class="muted">With Finance</span>
                         @endif
                     </td>
                 </tr>
