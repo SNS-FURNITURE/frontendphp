@@ -11,3 +11,4 @@ Artisan::command('inspire', function () {
 Schedule::command('commercial:reports weekly')->weeklyOn(1, '6:00');
 Schedule::command('commercial:reports monthly')->monthlyOn(1, '6:30');
 Schedule::command('commercial:reports yearly')->yearlyOn(1, 1, '7:00');
+Schedule::command('orders:send-deadline-alerts')->everyFifteenMinutes();
