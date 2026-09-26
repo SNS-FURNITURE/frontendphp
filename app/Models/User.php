@@ -179,12 +179,12 @@ class User extends Authenticatable
 
     public function canViewInvoicePrices(): bool
     {
-        return $this->isAdmin() || $this->hasRole('marketing_manager');
+        return $this->isAdmin() || $this->hasRole('marketing_manager') || $this->isSalesSupervisor();
     }
 
     public function canEditInvoicePrices(): bool
     {
-        return $this->canViewInvoicePrices();
+        return $this->isAdmin() || $this->hasRole('marketing_manager');
     }
 
     /** Express party approve: sales floor + company manager. */
