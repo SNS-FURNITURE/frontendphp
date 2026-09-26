@@ -22,6 +22,7 @@ class OrderMaterialUsageReportTest extends FeatureTestCase
         $designer = $this->createUserWithRole(OrderOperations::ROLE_DESIGNER);
         $cm = $this->createUserWithRole(OrderOperations::ROLE_COMPANY_MANAGER);
         $sales = $this->createUserWithRole('sales');
+        $pm = $this->createUserWithRole(OrderOperations::ROLE_PRODUCT_MANAGER);
         $this->createUserWithRole('admin');
 
         $invoice = Invoice::query()->create([
@@ -41,7 +42,13 @@ class OrderMaterialUsageReportTest extends FeatureTestCase
             $oms,
             Carbon::now()->addDays(2),
         );
+        app(OrderScheduleService::class)->setPhaseDeadline(
+            $intake->fresh(['phases'])->phase(OrderOperations::PHASE_FACTORY_COLORING),
+            $oms,
+            Carbon::now()->addDays(6),
+        );
         app(OrderScheduleService::class)->assignUser($intake->fresh(['phases']), $oms, $designer, OrderOperations::ROLE_DESIGNER);
+        app(OrderScheduleService::class)->assignUser($intake->fresh(['phases']), $oms, $pm, OrderOperations::ROLE_PRODUCT_MANAGER);
 
         $design = $intake->fresh(['phases.checkpoints'])->phase(OrderOperations::PHASE_DESIGN);
         foreach ($design->checkpoints as $checkpoint) {
@@ -52,6 +59,7 @@ class OrderMaterialUsageReportTest extends FeatureTestCase
             ['item_name' => 'Oak plank', 'quantity' => 12, 'unit' => 'pcs'],
         ]);
         app(OrderProcurementService::class)->verifyStockAvailable($lines[0], $cm);
+        app(OrderProcurementService::class)->requestMaterialRelease($intake->fresh(), $pm);
         app(OrderProcurementService::class)->releaseMaterials($intake->fresh(), $cm);
 
         $this->assertDatabaseHas('order_material_usage_logs', [
