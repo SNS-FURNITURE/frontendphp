@@ -14,6 +14,8 @@ final class OrderOperations
 
     public const ROLE_DESIGNER = 'designer';
 
+    public const ROLE_PRODUCT_MANAGER = 'product_manager';
+
     public const ROLE_COMPANY_MANAGER = 'company_manager';
 
     public const INTAKE_PENDING = 'pending';
@@ -30,6 +32,8 @@ final class OrderOperations
 
     public const PHASE_DESIGN = 'design';
 
+    public const PHASE_FACTORY_COLORING = 'factory_coloring';
+
     public const PHASE_MATERIALS = 'materials';
 
     public const PHASE_ASSEMBLY = 'assembly';
@@ -45,6 +49,8 @@ final class OrderOperations
     public const CHECKPOINT_3D = '3d_completed';
 
     public const CHECKPOINT_2D = '2d_converted';
+
+    public const CHECKPOINT_MEASUREMENT = 'measurement_done';
 
     public const STOCK_PENDING = 'pending';
 
@@ -113,9 +119,26 @@ final class OrderOperations
     {
         return [
             self::PHASE_DESIGN,
+            self::PHASE_FACTORY_COLORING,
             self::PHASE_MATERIALS,
             self::PHASE_ASSEMBLY,
             self::PHASE_DELIVERY,
+        ];
+    }
+
+    /**
+     * Default seeded phase labels for a new accepted intake.
+     *
+     * @return array<string, string>
+     */
+    public static function defaultPhaseLabels(): array
+    {
+        return [
+            self::PHASE_DESIGN => 'Designing',
+            self::PHASE_FACTORY_COLORING => 'Factory coloring',
+            self::PHASE_MATERIALS => 'Materials',
+            self::PHASE_ASSEMBLY => 'Assembly',
+            self::PHASE_DELIVERY => 'Delivery',
         ];
     }
 

@@ -49,7 +49,12 @@ class OrderIntakeService
             if ($sourceType === 'approved_invoice') {
                 $existing->source_type = 'approved_invoice';
                 $existing->snapshot_json = $invoice->snapshot_json;
+                $existing->approved_snapshot_json = $invoice->snapshot_json;
                 $existing->invoice_number = $invoice->invoice_number;
+                $existing->save();
+            } elseif ($sourceType === 'sales_supervisor_issue' && blank($existing->issued_snapshot_json)) {
+                $existing->issued_snapshot_json = $invoice->snapshot_json;
+                $existing->snapshot_json = $invoice->snapshot_json;
                 $existing->save();
             }
 
@@ -63,14 +68,24 @@ class OrderIntakeService
             return null;
         }
 
-        $intake = OrderIntake::query()->create([
+        $payload = [
             'invoice_id' => $invoice->id,
             'invoice_number' => $invoice->invoice_number,
             'source_type' => $sourceType,
             'source_user_id' => $invoice->created_by ?? $actor->id,
             'status' => OrderOperations::INTAKE_PENDING,
             'snapshot_json' => $invoice->snapshot_json,
-        ]);
+        ];
+
+        if ($sourceType === 'sales_supervisor_issue') {
+            $payload['issued_snapshot_json'] = $invoice->snapshot_json;
+        }
+
+        if ($sourceType === 'approved_invoice') {
+            $payload['approved_snapshot_json'] = $invoice->snapshot_json;
+        }
+
+        $intake = OrderIntake::query()->create($payload);
 
         $this->recordReview($intake, $actor, 'enqueued', null, OrderOperations::INTAKE_PENDING, 'Invoice entered OMS queue');
 

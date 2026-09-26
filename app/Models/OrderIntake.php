@@ -19,6 +19,8 @@ class OrderIntake extends Model
         'rejection_reason',
         'resubmit_comment',
         'snapshot_json',
+        'issued_snapshot_json',
+        'approved_snapshot_json',
         'reviewed_by',
         'reviewed_at',
         'accepted_at',
@@ -33,6 +35,8 @@ class OrderIntake extends Model
     {
         return [
             'snapshot_json' => 'array',
+            'issued_snapshot_json' => 'array',
+            'approved_snapshot_json' => 'array',
             'reviewed_at' => 'datetime',
             'accepted_at' => 'datetime',
             'company_manager_notified_at' => 'datetime',

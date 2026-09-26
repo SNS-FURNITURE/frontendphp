@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\OrderOperations;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,6 +14,8 @@ class OrderPhase extends Model
     protected $fillable = [
         'order_intake_id',
         'phase_key',
+        'label',
+        'sort_order',
         'status',
         'due_at',
         'reminder_hours_before',
@@ -25,6 +28,7 @@ class OrderPhase extends Model
     protected function casts(): array
     {
         return [
+            'sort_order' => 'integer',
             'due_at' => 'datetime',
             'reminder_hours_before' => 'integer',
             'reminder_sent_at' => 'datetime',
@@ -34,6 +38,16 @@ class OrderPhase extends Model
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
+    }
+
+    public function displayLabel(): string
+    {
+        if (filled($this->label)) {
+            return (string) $this->label;
+        }
+
+        return OrderOperations::defaultPhaseLabels()[$this->phase_key]
+            ?? strtoupper(str_replace('_', ' ', (string) $this->phase_key));
     }
 
     public function intake(): BelongsTo
