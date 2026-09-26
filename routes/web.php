@@ -220,13 +220,17 @@ Route::middleware(['auth', EnsureWebInvoiceAccess::class])->group(function () {
 
     Route::prefix('operations')->name('operations.')->group(function () {
         Route::get('/oms', [OperationsWebController::class, 'omsDashboard'])->name('oms.dashboard');
+        Route::get('/oms/check-invoice', [OperationsWebController::class, 'omsCheckInvoice'])->name('oms.check-invoice');
+        Route::get('/oms/schedule', [OperationsWebController::class, 'omsSchedule'])->name('oms.schedule');
         Route::get('/oms/pipeline', [OperationsWebController::class, 'omsPipeline'])->name('oms.pipeline');
         Route::get('/oms/pipeline.json', [OperationsWebController::class, 'omsPipelineJson'])->name('oms.pipeline.json');
         Route::get('/omf', [OperationsWebController::class, 'omfDashboard'])->name('omf.dashboard');
         Route::get('/manager', [OperationsWebController::class, 'managerDashboard'])->name('manager.dashboard');
         Route::get('/designer', [OperationsWebController::class, 'designerDashboard'])->name('designer.dashboard');
+        Route::get('/product-manager', [OperationsWebController::class, 'productManagerDashboard'])->name('product-manager.dashboard');
         Route::get('/procurement', [OperationsWebController::class, 'procurementDashboard'])->name('procurement.dashboard');
         Route::get('/orders/{intake}', [OperationsWebController::class, 'show'])->name('orders.show');
+        Route::get('/orders/{intake}/invoice-document', [OperationsWebController::class, 'invoiceDocument'])->name('orders.invoice-document');
 
         Route::post('/orders/{intake}/start-review', [OperationsWebController::class, 'startReview'])->name('orders.start-review');
         Route::post('/orders/{intake}/accept', [OperationsWebController::class, 'accept'])->name('orders.accept');
@@ -237,7 +241,11 @@ Route::middleware(['auth', EnsureWebInvoiceAccess::class])->group(function () {
         Route::post('/orders/{intake}/resubmit', [OperationsWebController::class, 'resubmit'])->name('orders.resubmit');
 
         Route::patch('/orders/{intake}/phases/{phase}/deadline', [OperationsWebController::class, 'updateDeadline'])->name('orders.deadlines.update');
+        Route::patch('/orders/{intake}/phases/{phase}/label', [OperationsWebController::class, 'updatePhaseLabel'])->name('orders.phases.label');
+        Route::post('/orders/{intake}/phases', [OperationsWebController::class, 'addPhase'])->name('orders.phases.add');
+        Route::post('/orders/{intake}/phases/{phase}/complete', [OperationsWebController::class, 'completePhase'])->name('orders.phases.complete');
         Route::post('/orders/{intake}/assign-designer', [OperationsWebController::class, 'assignDesigner'])->name('orders.assign-designer');
+        Route::post('/orders/{intake}/assign-product-manager', [OperationsWebController::class, 'assignProductManager'])->name('orders.assign-product-manager');
         Route::post('/orders/{intake}/assign-assembler', [OperationsWebController::class, 'assignAssembler'])->name('orders.assign-assembler');
         Route::patch('/orders/{intake}/checkpoints/{checkpoint}', [OperationsWebController::class, 'toggleCheckpoint'])->name('orders.checkpoints.toggle');
 

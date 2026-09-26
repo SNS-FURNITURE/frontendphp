@@ -11,6 +11,7 @@ use App\Models\OrderPhase;
 use App\Models\OrderProcurementRequest;
 use App\Models\OrderSupplierQuote;
 use App\Models\User;
+use App\Services\DocumentService;
 use App\Services\OrderIntakeService;
 use App\Services\OrderMessageService;
 use App\Services\OrderProcurementService;
@@ -20,6 +21,7 @@ use App\Support\OrderOperations;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
@@ -33,9 +35,15 @@ class OperationsWebController extends Controller
         private OrderWorkflowService $workflowService,
         private OrderProcurementService $procurementService,
         private OrderMessageService $messageService,
+        private DocumentService $documents,
     ) {}
 
     public function omsDashboard(): View
+    {
+        return $this->omsCheckInvoice();
+    }
+
+    public function omsCheckInvoice(): View
     {
         abort_unless(auth()->user()?->canReviewOrderIntake() || auth()->user()?->canViewOrderOperations(), 403);
 
@@ -47,7 +55,23 @@ class OperationsWebController extends Controller
 
         return view('operations.oms-dashboard', [
             'intakes' => $intakes,
-            'tab' => 'queue',
+            'tab' => 'check',
+        ]);
+    }
+
+    public function omsSchedule(): View
+    {
+        abort_unless(auth()->user()?->canManageOrderSchedule() || auth()->user()?->canViewOrderOperations(), 403);
+
+        $intakes = OrderIntake::query()
+            ->with(['phases', 'assignments.user', 'sourceUser'])
+            ->where('status', OrderOperations::INTAKE_ACCEPTED)
+            ->latest('id')
+            ->get();
+
+        return view('operations.oms-schedule', [
+            'intakes' => $intakes,
+            'tab' => 'schedule',
         ]);
     }
 
@@ -78,26 +102,26 @@ class OperationsWebController extends Controller
             ->get();
 
         $rows = $intakes->map(function (OrderIntake $intake): array {
-            $phaseSummary = [];
-            foreach (OrderOperations::phaseKeys() as $key) {
-                $phase = $intake->phases->firstWhere('phase_key', $key);
-                $phaseSummary[$key] = [
-                    'status' => $phase?->status ?? '—',
-                    'due_at' => optional($phase?->due_at)->toIso8601String(),
-                    'checkpoints_done' => $phase
-                        ? $phase->checkpoints->where('is_completed', true)->count()
-                        : 0,
-                    'checkpoints_total' => $phase ? $phase->checkpoints->count() : 0,
+            $phases = $intake->phases->sortBy('sort_order')->values()->map(function (OrderPhase $phase): array {
+                return [
+                    'key' => $phase->phase_key,
+                    'label' => $phase->displayLabel(),
+                    'status' => $phase->status ?? '—',
+                    'due_at' => optional($phase->due_at)->toIso8601String(),
+                    'checkpoints_done' => $phase->checkpoints->where('is_completed', true)->count(),
+                    'checkpoints_total' => $phase->checkpoints->count(),
                 ];
-            }
+            })->all();
 
             $designer = $intake->assignments->firstWhere('role_key', OrderOperations::ROLE_DESIGNER);
+            $productManager = $intake->assignments->firstWhere('role_key', OrderOperations::ROLE_PRODUCT_MANAGER);
 
             return [
                 'id' => (int) $intake->id,
                 'invoice_number' => $intake->invoice_number,
                 'status' => $intake->status,
                 'designer' => $designer?->user?->full_name,
+                'product_manager' => $productManager?->user?->full_name,
                 'materials_pending' => $intake->materialLines->where('stock_status', OrderOperations::STOCK_PENDING)->count(),
                 'procurement_open' => $intake->procurementRequests->whereIn('status', [
                     OrderOperations::PROCUREMENT_OPEN,
@@ -105,7 +129,7 @@ class OperationsWebController extends Controller
                     OrderOperations::PROCUREMENT_PENDING_APPROVAL,
                 ])->count(),
                 'delivery_status' => optional($intake->deliveries->sortByDesc('id')->first())->status,
-                'phases' => $phaseSummary,
+                'phases' => $phases,
                 'url' => route('operations.orders.show', $intake),
             ];
         })->values();
@@ -123,8 +147,15 @@ class OperationsWebController extends Controller
         $intakes = OrderIntake::query()
             ->with(['phases', 'assignments.user', 'deliveries'])
             ->where('status', OrderOperations::INTAKE_ACCEPTED)
-            ->whereHas('phases', function ($q) {
-                $q->whereIn('phase_key', [OrderOperations::PHASE_ASSEMBLY, OrderOperations::PHASE_DELIVERY]);
+            ->where(function ($q) {
+                $q->whereHas('assignments', fn ($a) => $a->where('role_key', OrderOperations::ROLE_PRODUCT_MANAGER))
+                    ->orWhereHas('phases', function ($p) {
+                        $p->whereIn('phase_key', [
+                            OrderOperations::PHASE_FACTORY_COLORING,
+                            OrderOperations::PHASE_ASSEMBLY,
+                            OrderOperations::PHASE_DELIVERY,
+                        ]);
+                    });
             })
             ->latest('id')
             ->get();
@@ -187,6 +218,29 @@ class OperationsWebController extends Controller
         ]);
     }
 
+    public function productManagerDashboard(): View
+    {
+        $user = auth()->user();
+        abort_unless($user?->isProductManager() || $user?->isOmf() || $user?->isOms() || $user?->canViewOrderOperations(), 403);
+
+        $query = OrderIntake::query()
+            ->with(['phases', 'assignments.user'])
+            ->where('status', OrderOperations::INTAKE_ACCEPTED);
+
+        if ($user->isProductManager() && ! $user->isOmf() && ! $user->isOms() && ! $user->isAdmin()) {
+            $query->whereHas('assignments', function ($q) use ($user) {
+                $q->where('role_key', OrderOperations::ROLE_PRODUCT_MANAGER)
+                    ->where('user_id', $user->id);
+            });
+        } else {
+            $query->whereHas('assignments', fn ($q) => $q->where('role_key', OrderOperations::ROLE_PRODUCT_MANAGER));
+        }
+
+        return view('operations.product-manager-dashboard', [
+            'intakes' => $query->latest('id')->get(),
+        ]);
+    }
+
     public function procurementDashboard(): View
     {
         abort_unless(auth()->user()?->isProcurement() || auth()->user()?->canApproveOrderProcurement() || auth()->user()?->canViewOrderOperations(), 403);
@@ -229,15 +283,51 @@ class OperationsWebController extends Controller
             'deliveries',
         ]);
 
+        $intake->setRelation('phases', $intake->phases->sortBy('sort_order')->values());
+
         if (auth()->user()->canMessageOpsPeer()) {
             $this->messageService->markRead($intake, auth()->user());
+        }
+
+        $user = auth()->user();
+        $hidePrices = $user->isDesigner() || $user->isProductManager();
+        $design = $intake->phase(OrderOperations::PHASE_DESIGN);
+        $daysLeft = null;
+        if ($design?->due_at) {
+            $daysLeft = (int) now()->startOfDay()->diffInDays($design->due_at->copy()->startOfDay(), false);
         }
 
         return view('operations.show', [
             'intake' => $intake,
             'designers' => $this->usersWithRole(OrderOperations::ROLE_DESIGNER),
+            'productManagers' => $this->usersWithRole(OrderOperations::ROLE_PRODUCT_MANAGER),
             'assemblers' => $this->usersWithRole(OrderOperations::ROLE_ASSEMBLER),
             'destinations' => Delivery::DESTINATIONS,
+            'hidePrices' => $hidePrices,
+            'designDaysLeft' => $daysLeft,
+            'issuedHtml' => $this->snapshotHtml($intake->issued_snapshot_json ?? null, ! $hidePrices),
+            'approvedHtml' => $this->snapshotHtml($intake->approved_snapshot_json ?? null, ! $hidePrices),
+        ]);
+    }
+
+    public function invoiceDocument(OrderIntake $intake): Response
+    {
+        abort_unless(auth()->user()?->canViewOrderOperations(), 403);
+
+        $user = auth()->user();
+        $showPrices = ! ($user->isDesigner() || $user->isProductManager());
+
+        $snapshot = $intake->snapshot_json
+            ?? $intake->approved_snapshot_json
+            ?? $intake->issued_snapshot_json
+            ?? $intake->invoice?->snapshot_json;
+
+        if (! is_array($snapshot) || $snapshot === []) {
+            abort(404, 'Invoice document not available');
+        }
+
+        return response($this->documents->renderHtml($snapshot, false, $showPrices), 200, [
+            'Content-Type' => 'text/html; charset=UTF-8',
         ]);
     }
 
@@ -297,7 +387,7 @@ class OperationsWebController extends Controller
 
         return redirect()
             ->route('operations.orders.show', $intake)
-            ->with('status', 'Order approved — OMS can assign a designer');
+            ->with('status', 'Order approved — OMS can schedule production');
     }
 
     public function cmReject(Request $request, OrderIntake $intake): RedirectResponse
@@ -376,6 +466,64 @@ class OperationsWebController extends Controller
         return back()->with('status', 'Deadline updated');
     }
 
+    public function updatePhaseLabel(Request $request, OrderIntake $intake, OrderPhase $phase): RedirectResponse
+    {
+        abort_unless(auth()->user()?->canManageOrderSchedule(), 403);
+        abort_unless((int) $phase->order_intake_id === (int) $intake->id, 404);
+
+        $validated = $request->validate([
+            'label' => ['required', 'string', 'min:1', 'max:120'],
+        ]);
+
+        try {
+            $this->scheduleService->updatePhaseLabel($phase, auth()->user(), $validated['label'], $request);
+        } catch (InvalidArgumentException $e) {
+            return back()->withErrors(['status' => $e->getMessage()]);
+        }
+
+        return back()->with('status', 'Phase renamed');
+    }
+
+    public function addPhase(Request $request, OrderIntake $intake): RedirectResponse
+    {
+        abort_unless(auth()->user()?->canManageOrderSchedule(), 403);
+
+        $validated = $request->validate([
+            'label' => ['required', 'string', 'min:1', 'max:120'],
+            'due_at' => ['nullable', 'date'],
+            'reminder_hours_before' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        try {
+            $this->scheduleService->addCustomPhase(
+                $intake,
+                auth()->user(),
+                $validated['label'],
+                isset($validated['due_at']) ? Carbon::parse($validated['due_at']) : null,
+                (int) ($validated['reminder_hours_before'] ?? 24),
+                $request,
+            );
+        } catch (InvalidArgumentException $e) {
+            return back()->withErrors(['status' => $e->getMessage()])->withInput();
+        }
+
+        return back()->with('status', 'Phase added');
+    }
+
+    public function completePhase(Request $request, OrderIntake $intake, OrderPhase $phase): RedirectResponse
+    {
+        abort_unless(auth()->user()?->canViewOrderOperations(), 403);
+        abort_unless((int) $phase->order_intake_id === (int) $intake->id, 404);
+
+        try {
+            $this->workflowService->completeProductionPhase($intake, $phase, auth()->user(), $request);
+        } catch (InvalidArgumentException $e) {
+            return back()->withErrors(['status' => $e->getMessage()]);
+        }
+
+        return back()->with('status', 'Phase completed');
+    }
+
     public function assignDesigner(Request $request, OrderIntake $intake): RedirectResponse
     {
         abort_unless(auth()->user()?->canAssignDesigner(), 403);
@@ -417,6 +565,49 @@ class OperationsWebController extends Controller
         }
 
         return back()->with('status', 'Designer assigned with deadline');
+    }
+
+    public function assignProductManager(Request $request, OrderIntake $intake): RedirectResponse
+    {
+        abort_unless(auth()->user()?->canAssignProductManager(), 403);
+
+        $validated = $request->validate([
+            'user_id' => ['required', 'integer', 'exists:users,id'],
+            'due_at' => ['required', 'date', 'after:now'],
+            'reminder_hours_before' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $assignee = User::query()->findOrFail($validated['user_id']);
+
+        try {
+            $factory = $intake->phase(OrderOperations::PHASE_FACTORY_COLORING)
+                ?? $intake->phases()->where('phase_key', OrderOperations::PHASE_FACTORY_COLORING)->first();
+            if (! $factory) {
+                $this->scheduleService->initializePhases($intake);
+                $intake->load('phases');
+                $factory = $intake->phase(OrderOperations::PHASE_FACTORY_COLORING);
+            }
+
+            $this->scheduleService->setPhaseDeadline(
+                $factory,
+                auth()->user(),
+                Carbon::parse($validated['due_at']),
+                (int) ($validated['reminder_hours_before'] ?? 24),
+                $request,
+            );
+
+            $this->scheduleService->assignUser(
+                $intake->fresh(['phases']),
+                auth()->user(),
+                $assignee,
+                OrderOperations::ROLE_PRODUCT_MANAGER,
+                $request,
+            );
+        } catch (InvalidArgumentException $e) {
+            return back()->withErrors(['status' => $e->getMessage()])->withInput();
+        }
+
+        return back()->with('status', 'Product manager assigned with deadline');
     }
 
     public function assignAssembler(Request $request, OrderIntake $intake): RedirectResponse
@@ -683,5 +874,23 @@ class OperationsWebController extends Controller
             ->whereHas('roles', fn ($q) => $q->whereIn('name', $names))
             ->orderBy('full_name')
             ->get();
+    }
+
+    private function snapshotHtml(mixed $snapshot, bool $showPrices): ?string
+    {
+        if (is_string($snapshot)) {
+            $decoded = json_decode($snapshot, true);
+            $snapshot = is_array($decoded) ? $decoded : null;
+        }
+
+        if (! is_array($snapshot) || $snapshot === []) {
+            return null;
+        }
+
+        try {
+            return $this->documents->renderHtml($snapshot, false, $showPrices);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }

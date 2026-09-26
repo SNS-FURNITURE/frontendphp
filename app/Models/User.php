@@ -96,6 +96,11 @@ class User extends Authenticatable
         return $this->hasRole(OrderOperations::ROLE_DESIGNER);
     }
 
+    public function isProductManager(): bool
+    {
+        return $this->hasRole(OrderOperations::ROLE_PRODUCT_MANAGER);
+    }
+
     public function isProcurement(): bool
     {
         return $this->hasRole(OrderOperations::ROLE_PROCUREMENT);
@@ -108,6 +113,7 @@ class User extends Authenticatable
             || $this->isOmf()
             || $this->isAssembler()
             || $this->isDesigner()
+            || $this->isProductManager()
             || $this->isProcurement()
             || $this->hasRole('company_manager')
             || $this->isAdmin()
@@ -122,7 +128,7 @@ class User extends Authenticatable
 
     public function canManageOrderSchedule(): bool
     {
-        return $this->isOms() || $this->hasPermission('order_operations', 'edit');
+        return $this->isOms();
     }
 
     public function canAssignDesigner(): bool
@@ -130,9 +136,19 @@ class User extends Authenticatable
         return $this->isOms();
     }
 
+    public function canAssignProductManager(): bool
+    {
+        return $this->isOms();
+    }
+
     public function canAssignAssembler(): bool
     {
         return $this->isOmf();
+    }
+
+    public function canSuperviseProductManager(): bool
+    {
+        return $this->isOmf() || $this->isAdmin();
     }
 
     public function canMonitorProductionDelivery(): bool
@@ -701,6 +717,9 @@ class User extends Authenticatable
         }
         if ($this->isDesigner() && Route::has('operations.designer.dashboard')) {
             return 'operations.designer.dashboard';
+        }
+        if ($this->isProductManager() && Route::has('operations.product-manager.dashboard')) {
+            return 'operations.product-manager.dashboard';
         }
         if ($this->isProcurement() && Route::has('operations.procurement.dashboard')) {
             return 'operations.procurement.dashboard';

@@ -45,15 +45,12 @@ class OrderWorkflowService
         $checkpoint->completed_at = $completed ? now() : null;
         $checkpoint->save();
 
-        foreach ($this->notify->activeUserIdsWithRoles([OrderOperations::ROLE_OMS]) as $omsUserId) {
-            $this->notify->notifyUser($omsUserId, [
-                'type' => 'order_checkpoint',
-                'title' => $completed ? 'Checkpoint completed' : 'Checkpoint reopened',
-                'message' => "{$checkpoint->label} on {$intake->invoice_number}.",
-                'entityType' => 'order_intake',
-                'entityId' => (int) $intake->id,
-            ]);
-        }
+        $this->notifyLiveAudience(
+            $intake,
+            'order_checkpoint',
+            $completed ? 'Checkpoint completed' : 'Checkpoint reopened',
+            "{$checkpoint->label} on {$intake->invoice_number}."
+        );
 
         $this->audit->log($actor, 'order_checkpoint', (int) $checkpoint->id, $completed ? 'COMPLETE_CHECKPOINT' : 'REOPEN_CHECKPOINT', [
             'checkpoint_key' => $checkpoint->checkpoint_key,
@@ -64,9 +61,58 @@ class OrderWorkflowService
         return $checkpoint->fresh();
     }
 
+    public function completeProductionPhase(
+        OrderIntake $intake,
+        OrderPhase $phase,
+        User $actor,
+        ?Request $request = null,
+    ): OrderPhase {
+        if ((int) $phase->order_intake_id !== (int) $intake->id) {
+            throw new InvalidArgumentException('Phase does not belong to this order.');
+        }
+
+        $isPmAssignee = $intake->assignments()
+            ->where('role_key', OrderOperations::ROLE_PRODUCT_MANAGER)
+            ->where('user_id', $actor->id)
+            ->exists();
+
+        if (! $actor->canSuperviseProductManager() && ! $isPmAssignee && ! $actor->isOms() && ! $actor->isAdmin()) {
+            throw new InvalidArgumentException('Not authorized to update production phase progress.');
+        }
+
+        if (in_array($phase->phase_key, [OrderOperations::PHASE_DESIGN], true)) {
+            throw new InvalidArgumentException('Use design checkpoints to complete the design phase.');
+        }
+
+        if ($phase->phase_key === OrderOperations::PHASE_ASSEMBLY) {
+            return $this->completeAssembly($intake, $actor, $request);
+        }
+
+        if ($phase->phase_key === OrderOperations::PHASE_DELIVERY) {
+            return $this->completeDelivery($intake, $actor, $request);
+        }
+
+        $phase->status = OrderOperations::PHASE_COMPLETED;
+        $phase->completed_at = now();
+        $phase->save();
+
+        $this->notifyLiveAudience(
+            $intake,
+            'order_progress',
+            'Phase completed',
+            "{$phase->displayLabel()} completed for {$intake->invoice_number}."
+        );
+
+        $this->audit->log($actor, 'order_phase', (int) $phase->id, 'COMPLETE_PRODUCTION_PHASE', [
+            'phase_key' => $phase->phase_key,
+        ], $request);
+
+        return $phase->fresh();
+    }
+
     public function completeAssembly(OrderIntake $intake, User $actor, ?Request $request = null): OrderPhase
     {
-        if (! $actor->canMonitorProductionDelivery()) {
+        if (! $actor->canMonitorProductionDelivery() && ! $actor->canSuperviseProductManager()) {
             throw new InvalidArgumentException('Not authorized to complete assembly.');
         }
 
@@ -82,7 +128,7 @@ class OrderWorkflowService
             $delivery->save();
         }
 
-        $this->notifyOps($intake, 'Assembly completed', "Assembly completed for {$intake->invoice_number}.");
+        $this->notifyLiveAudience($intake, 'order_progress', 'Assembly completed', "Assembly completed for {$intake->invoice_number}.");
         $this->audit->log($actor, 'order_phase', (int) $phase->id, 'COMPLETE_ASSEMBLY', null, $request);
 
         return $phase->fresh();
@@ -90,7 +136,7 @@ class OrderWorkflowService
 
     public function completeDelivery(OrderIntake $intake, User $actor, ?Request $request = null): OrderPhase
     {
-        if (! $actor->canMonitorProductionDelivery()) {
+        if (! $actor->canMonitorProductionDelivery() && ! $actor->canSuperviseProductManager()) {
             throw new InvalidArgumentException('Not authorized to complete delivery.');
         }
 
@@ -106,16 +152,7 @@ class OrderWorkflowService
         $phase->completed_at = now();
         $phase->save();
 
-        $this->notifyOps($intake, 'Order delivered', "Delivery completed for {$intake->invoice_number}.");
-        if ($intake->source_user_id) {
-            $this->notify->notifyUser((int) $intake->source_user_id, [
-                'type' => 'order_delivered',
-                'title' => 'Order delivered',
-                'message' => "Invoice {$intake->invoice_number} was delivered.",
-                'entityType' => 'order_intake',
-                'entityId' => (int) $intake->id,
-            ]);
-        }
+        $this->notifyLiveAudience($intake, 'order_delivered', 'Order delivered', "Delivery completed for {$intake->invoice_number}.");
 
         $this->audit->log($actor, 'order_phase', (int) $phase->id, 'COMPLETE_DELIVERY', null, $request);
 
@@ -144,7 +181,14 @@ class OrderWorkflowService
                 $materials->save();
             }
 
-            foreach ($this->notify->activeUserIdsWithRoles([OrderOperations::ROLE_OMS, OrderOperations::ROLE_COMPANY_MANAGER]) as $userId) {
+            $this->notifyLiveAudience(
+                $phase->intake,
+                'design_completed',
+                'Design phase completed',
+                "Design completed for {$phase->intake->invoice_number}."
+            );
+
+            foreach ($this->notify->activeUserIdsWithRoles([OrderOperations::ROLE_COMPANY_MANAGER]) as $userId) {
                 $this->notify->notifyUser($userId, [
                     'type' => 'design_completed',
                     'title' => 'Design phase completed',
@@ -158,11 +202,25 @@ class OrderWorkflowService
         });
     }
 
-    private function notifyOps(OrderIntake $intake, string $title, string $message): void
+    /**
+     * Live progress audience: OMS, OMF, admin, sales_supervisor, and sales who brought the customer.
+     */
+    private function notifyLiveAudience(OrderIntake $intake, string $type, string $title, string $message): void
     {
-        foreach ($this->notify->activeUserIdsWithRoles([OrderOperations::ROLE_OMS, OrderOperations::ROLE_OMF]) as $userId) {
-            $this->notify->notifyUser($userId, [
-                'type' => 'order_progress',
+        $ids = $this->notify->activeUserIdsWithRoles([
+            OrderOperations::ROLE_OMS,
+            OrderOperations::ROLE_OMF,
+            'admin',
+            'sales_supervisor',
+        ]);
+
+        if ($intake->source_user_id) {
+            $ids[] = (int) $intake->source_user_id;
+        }
+
+        foreach (array_unique($ids) as $userId) {
+            $this->notify->notifyUser((int) $userId, [
+                'type' => $type,
                 'title' => $title,
                 'message' => $message,
                 'entityType' => 'order_intake',
