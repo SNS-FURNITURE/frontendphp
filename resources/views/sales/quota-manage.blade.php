@@ -6,18 +6,27 @@
 <div class="page-head">
     <div>
         <h1>Sales quotas</h1>
-        <p class="muted" style="margin:.35rem 0 0">Set monthly sales targets for each sales rep — {{ $period['label'] }}</p>
+        <p class="muted" style="margin:.35rem 0 0">Set sales targets for each sales rep — {{ $period['label'] }}</p>
     </div>
+    <form method="GET" action="{{ route('sales.quota.manage') }}" class="toolbar">
+        <select name="period_type" onchange="this.form.submit()" style="margin:0;max-width:120px">
+            <option value="daily" {{ $periodType === 'daily' ? 'selected' : '' }}>Daily</option>
+            <option value="weekly" {{ $periodType === 'weekly' ? 'selected' : '' }}>Weekly</option>
+            <option value="monthly" {{ $periodType === 'monthly' ? 'selected' : '' }}>Monthly</option>
+            <option value="yearly" {{ $periodType === 'yearly' ? 'selected' : '' }}>Yearly</option>
+        </select>
+    </form>
 </div>
 
 <form method="POST" action="{{ route('sales.quota.store') }}">
     @csrf
+    <input type="hidden" name="period_type" value="{{ $periodType }}">
     <div class="card">
         <table class="data">
             <thead>
             <tr>
                 <th>Sales rep</th>
-                <th>Monthly quota (contacts)</th>
+                <th>Target quota (contacts)</th>
                 <th>Submitted</th>
                 <th>Approved</th>
                 <th>Pending</th>

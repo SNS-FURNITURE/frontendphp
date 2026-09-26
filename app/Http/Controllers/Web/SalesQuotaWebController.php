@@ -23,18 +23,21 @@ class SalesQuotaWebController extends Controller
             return redirect()->route('sales.quota.manage');
         }
 
-        $stats = $this->contacts->dashboardStats($user);
+        $periodType = request('period_type', 'monthly');
+        $stats = $this->contacts->dashboardStats($user, $periodType);
 
         return view('sales.quota', [
             'stats' => $stats,
+            'periodType' => $periodType,
         ]);
     }
 
-    public function manage(): View
+    public function manage(Request $request): View
     {
         abort_unless(auth()->user()?->canManageContactQuotas(), 403);
 
-        $period = $this->contacts->currentPeriod('monthly');
+        $periodType = $request->query('period_type', 'monthly');
+        $period = $this->contacts->currentPeriod($periodType);
         $salesUsers = User::query()
             ->where('is_active', true)
             ->whereHas('roles', fn ($q) => $q->where('name', 'sales'))
@@ -43,7 +46,7 @@ class SalesQuotaWebController extends Controller
 
         $quotas = [];
         foreach ($salesUsers as $salesUser) {
-            $row = $this->contacts->quotaForUser($salesUser, 'monthly');
+            $row = $this->contacts->quotaForUser($salesUser, $periodType);
             $counts = $this->contacts->contactCountsForUser(
                 (int) $salesUser->id,
                 $period['start'],
@@ -59,6 +62,7 @@ class SalesQuotaWebController extends Controller
         return view('sales.quota-manage', [
             'quotas' => $quotas,
             'period' => $period,
+            'periodType' => $periodType,
         ]);
     }
 
@@ -67,12 +71,14 @@ class SalesQuotaWebController extends Controller
         abort_unless(auth()->user()?->canManageContactQuotas(), 403);
 
         $validated = $request->validate([
+            'period_type' => ['required', 'in:daily,weekly,monthly,yearly'],
             'quotas' => ['required', 'array'],
             'quotas.*.user_id' => ['required', 'integer'],
             'quotas.*.quota' => ['required', 'integer', 'min:0', 'max:10000'],
         ]);
 
-        $period = $this->contacts->currentPeriod('monthly');
+        $periodType = $validated['period_type'];
+        $period = $this->contacts->currentPeriod($periodType);
 
         foreach ($validated['quotas'] as $entry) {
             $user = User::query()
@@ -88,7 +94,7 @@ class SalesQuotaWebController extends Controller
                 [
                     'user_id' => $user->id,
                     'period' => $period['period'],
-                    'period_type' => 'monthly',
+                    'period_type' => $periodType,
                 ],
                 [
                     'quota' => $entry['quota'],
@@ -99,7 +105,7 @@ class SalesQuotaWebController extends Controller
         }
 
         return redirect()
-            ->route('sales.quota.manage')
+            ->route('sales.quota.manage', ['period_type' => $periodType])
             ->with('status', 'Sales quotas updated for '.$period['label'].'.');
     }
 }

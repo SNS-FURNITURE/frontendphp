@@ -38,7 +38,7 @@ class CustomerWebController extends Controller
 
         return view('sales.customers.index', [
             'customers' => $parties,
-            'canCreate' => $user->canCreateCustomerContact(),
+            'canCreate' => $user->canCreateCustomerContact() || $user->canReviewCustomerContacts(),
             'canReview' => $user->canReviewCustomerContacts(),
             'filter' => $request->query('filter'),
         ]);
@@ -46,7 +46,8 @@ class CustomerWebController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        abort_unless(auth()->user()?->canCreateCustomerContact(), 403);
+        $user = auth()->user();
+        abort_unless($user?->canCreateCustomerContact() || $user?->canReviewCustomerContacts(), 403);
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'min:2'],
@@ -65,13 +66,17 @@ class CustomerWebController extends Controller
         }
 
         try {
+            $isReviewer = auth()->user()?->canReviewCustomerContacts();
+            $status = $isReviewer ? 'approved' : 'pending';
+
             $party = $this->customerIdentity->createCustomer([
                 'name' => $validated['name'],
                 'phone' => $validated['phone'],
                 'address' => $validated['address'] ?? null,
                 'notes' => $validated['notes'] ?? null,
-                'approval_status' => 'pending',
+                'approval_status' => $status,
                 'created_by' => auth()->id(),
+                'approved_by' => $isReviewer ? auth()->id() : null,
             ]);
         } catch (\InvalidArgumentException $exception) {
             return back()
@@ -82,14 +87,18 @@ class CustomerWebController extends Controller
         $this->audit->log(auth()->user(), 'party', (int) $party->id, 'CREATE_PARTY', [
             'name' => $party->name,
             'party_type' => 'customer',
-            'approval_status' => 'pending',
+            'approval_status' => $status,
         ], $request);
 
-        $this->commercialReports->reportContactSubmitted($party);
+        if (!$isReviewer) {
+            $this->commercialReports->reportContactSubmitted($party);
+        }
+
+        $msg = $isReviewer ? 'Customer added and approved automatically.' : 'Contact submitted for supervisor review.';
 
         return redirect()
             ->route('sales.dashboard')
-            ->with('status', 'Contact submitted for supervisor review.');
+            ->with('status', $msg);
     }
 
     public function approve(Request $request, Party $party): RedirectResponse
@@ -127,7 +136,7 @@ class CustomerWebController extends Controller
         $label = $validated['approval_status'] === 'approved' ? 'approved' : 'rejected';
 
         return redirect()
-            ->route('sales.customers', ['filter' => 'pending'])
+            ->route('sales.customers')
             ->with('status', "Contact {$label}.");
     }
 }

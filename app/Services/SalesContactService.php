@@ -18,6 +18,13 @@ class SalesContactService
         $now = now();
 
         return match ($periodType) {
+            'daily' => [
+                'start' => $now->copy()->startOfDay(),
+                'end' => $now->copy()->endOfDay(),
+                'label' => $now->format('M j, Y'),
+                'period' => $now->format('Y-m-d'),
+                'period_type' => 'daily',
+            ],
             'weekly' => [
                 'start' => $now->copy()->startOfWeek(),
                 'end' => $now->copy()->endOfWeek(),
@@ -84,7 +91,7 @@ class SalesContactService
 
     public function normalizePeriodType(?string $periodType): string
     {
-        return in_array($periodType, ['weekly', 'monthly', 'yearly'], true) ? $periodType : 'monthly';
+        return in_array($periodType, ['daily', 'weekly', 'monthly', 'yearly'], true) ? $periodType : 'monthly';
     }
 
     /**
@@ -130,7 +137,7 @@ class SalesContactService
         $counts = $this->contactCountsForUser((int) $user->id, $period['start'], $period['end']);
         $target = (float) $quotaRow->quota;
         $approved = $counts['approved'];
-        $pct = $target > 0 ? min(100, round(($approved / $target) * 100, 1)) : 0;
+        $pct = $target > 0 ? round(($approved / $target) * 100, 1) : 0;
 
         return [
             'quota' => $target,
@@ -169,7 +176,7 @@ class SalesContactService
                         'pending' => $counts['pending'],
                         'rejected' => $counts['rejected'],
                         'total' => $counts['total'],
-                        'pct' => $target > 0 ? min(100, round(($counts['approved'] / $target) * 100, 1)) : 0,
+                        'pct' => $target > 0 ? round(($counts['approved'] / $target) * 100, 1) : 0,
                     ],
                 ];
             });

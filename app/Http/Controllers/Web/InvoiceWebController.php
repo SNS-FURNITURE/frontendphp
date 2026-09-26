@@ -89,7 +89,7 @@ class InvoiceWebController extends Controller
 
         $document = $this->documents->blankDraft(auth()->user(), '');
 
-        $customers = Party::where('party_type', 'customer')->get();
+        $customers = Party::where('party_type', 'customer')->where('approval_status', 'approved')->get();
 
         return view('invoices.create', [
             'document' => $document,
@@ -244,7 +244,7 @@ class InvoiceWebController extends Controller
             $document = $this->documents->blankDraft(auth()->user(), $invoice->invoice_number);
         }
 
-        $customers = Party::where('party_type', 'customer')->get();
+        $customers = Party::where('party_type', 'customer')->where('approval_status', 'approved')->get();
 
         return view('invoices.edit', compact('invoice', 'document', 'customers'));
     }
