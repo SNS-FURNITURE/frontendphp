@@ -122,7 +122,8 @@ class User extends Authenticatable
             || $this->hasRole('marketing_manager')
             || $this->isSalesSupervisor()
             || $this->isSalesRep()
-            || $this->hasRole('operations_customer');
+            || $this->hasRole('operations_customer')
+            || $this->hasRole('operations_manager_showroom');
     }
 
     public function canCreateSales(): bool
@@ -131,7 +132,9 @@ class User extends Authenticatable
             || $this->hasRole('marketing_manager')
             || $this->isSalesRep()
             || $this->hasRole('operations_customer')
-            || $this->hasRole('operations_factory')) {
+            || $this->hasRole('operations_manager_showroom')
+            || $this->hasRole('operations_factory')
+            || $this->hasRole('operations_manager_factory')) {
             return false;
         }
 
@@ -261,7 +264,9 @@ class User extends Authenticatable
             || $this->hasRole('finance')
             || $this->isMarketingManager()
             || $this->hasRole('operations_customer')
-            || $this->hasRole('operations_factory');
+            || $this->hasRole('operations_manager_showroom')
+            || $this->hasRole('operations_factory')
+            || $this->hasRole('operations_manager_factory');
     }
 
     public function canCreateInventory(): bool
@@ -272,7 +277,8 @@ class User extends Authenticatable
 
         return $this->hasPermission('inventory', 'create')
             || $this->hasRole('company_manager')
-            || $this->hasRole('operations_factory');
+            || $this->hasRole('operations_factory')
+            || $this->hasRole('operations_manager_factory');
     }
 
     /** Production / manufacturing boards: production:* or inventory create roles. */
@@ -285,6 +291,7 @@ class User extends Authenticatable
         return $this->hasPermission('production', 'view')
             || $this->hasPermission('manufacturing', 'view')
             || $this->hasRole('operations_factory')
+            || $this->hasRole('operations_manager_factory')
             || $this->canViewInventory();
     }
 
@@ -297,6 +304,7 @@ class User extends Authenticatable
         return $this->hasPermission('production', 'create')
             || $this->hasPermission('manufacturing', 'create')
             || $this->hasRole('operations_factory')
+            || $this->hasRole('operations_manager_factory')
             || $this->canCreateInventory();
     }
 
@@ -312,7 +320,9 @@ class User extends Authenticatable
             || $this->hasRole('company_manager')
             || $this->hasRole('finance')
             || $this->hasRole('operations_customer')
-            || $this->hasRole('operations_factory');
+            || $this->hasRole('operations_manager_showroom')
+            || $this->hasRole('operations_factory')
+            || $this->hasRole('operations_manager_factory');
     }
 
     public function canCreateDeliveries(): bool
@@ -323,7 +333,8 @@ class User extends Authenticatable
 
         return $this->hasPermission('deliveries', 'create')
             || $this->hasRole('company_manager')
-            || $this->hasRole('operations_customer');
+            || $this->hasRole('operations_customer')
+            || $this->hasRole('operations_manager_showroom');
     }
 
     /** Inventory outbound count / dispatch — deliveries:approve. PM cannot dispatch. */
@@ -337,7 +348,8 @@ class User extends Authenticatable
             || $this->hasPermission('deliveries', 'edit')
             || $this->hasRole('company_manager')
             || $this->hasRole('finance')
-            || $this->hasRole('operations_customer');
+            || $this->hasRole('operations_customer')
+            || $this->hasRole('operations_manager_showroom');
     }
 
     public function canViewDesigns(): bool
@@ -364,7 +376,8 @@ class User extends Authenticatable
             && ($this->hasPermission('machinery', 'view')
                 || $this->isAdmin()
                 || $this->hasRole('company_manager')
-                || $this->hasRole('operations_factory'));
+                || $this->hasRole('operations_factory')
+                || $this->hasRole('operations_manager_factory'));
     }
 
     public function canCreateMachinery(): bool
@@ -390,7 +403,8 @@ class User extends Authenticatable
     public function canCreateProcurement(): bool
     {
         return $this->canViewProcurement() && ! $this->isAdmin()
-            && ($this->hasPermission('procurement', 'create') || $this->hasRole('procurement_operations'));
+            && ($this->hasPermission('procurement', 'create') || $this->hasRole('procurement_operations')
+            || $this->hasRole('procurement'));
     }
 
     public function canApproveProcurement(): bool
@@ -402,7 +416,8 @@ class User extends Authenticatable
     {
         return $this->hasPermission('procurement', 'edit')
             || $this->hasRole('company_manager')
-            || $this->hasRole('procurement_operations');
+            || $this->hasRole('procurement_operations')
+            || $this->hasRole('procurement');
     }
 
     public function canViewInstallation(): bool
@@ -411,15 +426,19 @@ class User extends Authenticatable
             && ($this->hasPermission('installation', 'view')
                 || $this->canViewProcurement()
                 || $this->hasRole('procurement_operations')
-                || $this->hasRole('operations_customer'));
+                || $this->hasRole('procurement')
+                || $this->hasRole('operations_customer')
+                || $this->hasRole('operations_manager_showroom'));
     }
 
     public function canEditInstallation(): bool
     {
         return $this->hasPermission('installation', 'edit')
             || $this->hasRole('procurement_operations')
+            || $this->hasRole('procurement')
             || $this->hasRole('company_manager')
-            || $this->hasRole('operations_customer');
+            || $this->hasRole('operations_customer')
+            || $this->hasRole('operations_manager_showroom');
     }
 
     public function canViewProjects(): bool
@@ -606,10 +625,12 @@ class User extends Authenticatable
      */
     public function preferredHomeRouteName(): string
     {
-        if ($this->hasRole('operations_factory') && Route::has('production.index')) {
+        if (($this->hasRole('operations_factory') || $this->hasRole('operations_manager_factory'))
+            && Route::has('production.index')) {
             return 'production.index';
         }
-        if ($this->hasRole('operations_customer') && Route::has('production.deliveries')) {
+        if (($this->hasRole('operations_customer') || $this->hasRole('operations_manager_showroom'))
+            && Route::has('production.deliveries')) {
             return 'production.deliveries';
         }
         if ($this->isSalesRep() && Route::has('sales.dashboard')) {

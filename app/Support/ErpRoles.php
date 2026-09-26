@@ -30,14 +30,15 @@ class ErpRoles
                 'marketing_manager',
                 'sales_supervisor',
                 'sales',
-                'operations_customer',
-                'procurement_operations',
+                'operations_manager_showroom',
+                'procurement',
                 'inventory',
             ],
             'Production Division' => [
                 'product_manager',
                 'designer',
-                'operations_factory',
+                'operations_manager_factory',
+                'assembler',
             ],
         ];
     }
@@ -59,6 +60,9 @@ class ErpRoles
             'sales_lead_gen',
             'pm',
             'production',
+            'operations_customer',
+            'operations_factory',
+            'procurement_operations',
         ];
     }
 
@@ -77,6 +81,9 @@ class ErpRoles
             'sales_lead_gen' => 'sales_supervisor',
             'pm' => 'product_manager',
             'production' => 'product_manager',
+            'operations_customer' => 'operations_manager_showroom',
+            'operations_factory' => 'operations_manager_factory',
+            'procurement_operations' => 'procurement',
         ];
     }
 
@@ -138,6 +145,22 @@ class ErpRoles
         }
 
         return array_values(array_unique($names));
+    }
+
+    /**
+     * Role names allowed on the admin create/update forms (catalog + other non-admin DB roles).
+     *
+     * @return list<string>
+     */
+    public static function assignableNames(): array
+    {
+        self::syncCatalog();
+
+        return Role::query()
+            ->whereRaw('LOWER(name) != ?', ['admin'])
+            ->orderBy('name')
+            ->pluck('name')
+            ->all();
     }
 
     public static function syncCatalog(): void

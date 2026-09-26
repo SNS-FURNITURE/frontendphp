@@ -96,13 +96,13 @@ class Organization
                     [
                         'name' => 'Customer Operations',
                         'description' => 'Customer deliveries, site installation coordination, and order fulfillment.',
-                        'roleKey' => 'operations_customer',
+                        'roleKey' => 'operations_manager_showroom',
                         'subPositions' => ['Customer Operations Officer', 'Delivery Coordinator'],
                     ],
                     [
                         'name' => 'Purchasing Unit',
                         'description' => 'Market price research, supplier sourcing, external carpenter directory, and site installation dispatch.',
-                        'roleKey' => 'procurement_operations',
+                        'roleKey' => 'procurement',
                         'subPositions' => ['Purchasing Officer', 'Sourcing Specialist'],
                     ],
                     [
@@ -130,7 +130,7 @@ class Organization
                     [
                         'name' => 'Factory Operations',
                         'description' => 'Workshop production runs, manufacturing orders, stock movements, and machinery upkeep.',
-                        'roleKey' => 'operations_factory',
+                        'roleKey' => 'operations_manager_factory',
                         'subPositions' => ['Factory Operator', 'Production Technician'],
                     ],
                     [
