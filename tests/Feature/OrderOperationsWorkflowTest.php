@@ -58,7 +58,7 @@ class OrderOperationsWorkflowTest extends FeatureTestCase
         $cm = $this->createUserWithRole(OrderOperations::ROLE_COMPANY_MANAGER);
         $accepted = app(OrderIntakeService::class)->approveByCompanyManager($awaiting->fresh(), $cm);
         $this->assertSame(OrderOperations::INTAKE_ACCEPTED, $accepted->status);
-        $this->assertCount(4, $accepted->phases);
+        $this->assertCount(5, $accepted->phases);
     }
 
     public function test_design_checkpoints_and_procurement_approval_gate(): void
@@ -100,7 +100,7 @@ class OrderOperationsWorkflowTest extends FeatureTestCase
 
         $design = $intake->fresh(['phases.checkpoints'])->phase(OrderOperations::PHASE_DESIGN);
         $this->assertNotNull($design);
-        $this->assertCount(2, $design->checkpoints);
+        $this->assertCount(3, $design->checkpoints);
 
         $workflow = app(OrderWorkflowService::class);
         foreach ($design->checkpoints as $checkpoint) {
@@ -256,5 +256,224 @@ class OrderOperationsWorkflowTest extends FeatureTestCase
         $this->actingAs($oms)
             ->get(route('operations.oms.dashboard'))
             ->assertOk();
+    }
+
+    public function test_dual_snapshots_preserve_issued_when_approved(): void
+    {
+        $supervisor = $this->createUserWithRole('sales_supervisor');
+        $oms = $this->createUserWithRole(OrderOperations::ROLE_OMS);
+
+        $invoice = Invoice::query()->create([
+            'invoice_number' => 'INV-2026-050',
+            'amount' => 300,
+            'status' => 'issued',
+            'snapshot_json' => [
+                'doc_number' => 'INV-2026-050',
+                'totals' => ['grand_total' => 300],
+                'customer' => ['name' => 'Issued Co'],
+            ],
+            'created_by' => $supervisor->id,
+        ]);
+
+        $intake = app(OrderIntakeService::class)->enqueueFromSalesSupervisorIssue($invoice, $supervisor);
+        $this->assertNotNull($intake);
+        $this->assertSame(300.0, (float) ($intake->issued_snapshot_json['totals']['grand_total'] ?? 0));
+        $this->assertNull($intake->approved_snapshot_json);
+
+        $invoice->status = 'approved';
+        $invoice->snapshot_json = [
+            'doc_number' => 'INV-2026-050',
+            'totals' => ['grand_total' => 350],
+            'customer' => ['name' => 'Approved Co'],
+        ];
+        $invoice->save();
+
+        $updated = app(OrderIntakeService::class)->enqueueFromApproval($invoice->fresh(), $oms);
+        $this->assertSame(300.0, (float) ($updated->issued_snapshot_json['totals']['grand_total'] ?? 0));
+        $this->assertSame(350.0, (float) ($updated->approved_snapshot_json['totals']['grand_total'] ?? 0));
+    }
+
+    public function test_oms_assigns_designer_and_product_manager_omf_cannot(): void
+    {
+        $oms = $this->createUserWithRole(OrderOperations::ROLE_OMS);
+        $omf = $this->createUserWithRole(OrderOperations::ROLE_OMF);
+        $cm = $this->createUserWithRole(OrderOperations::ROLE_COMPANY_MANAGER);
+        $designer = $this->createUserWithRole(OrderOperations::ROLE_DESIGNER);
+        $pm = $this->createUserWithRole(OrderOperations::ROLE_PRODUCT_MANAGER);
+        $supervisor = $this->createUserWithRole('sales_supervisor');
+
+        $invoice = Invoice::query()->create([
+            'invoice_number' => 'INV-2026-060',
+            'amount' => 400,
+            'status' => 'approved',
+            'snapshot_json' => ['totals' => ['grand_total' => 400]],
+            'created_by' => $supervisor->id,
+        ]);
+
+        $intake = app(OrderIntakeService::class)->enqueueFromApproval($invoice, $oms);
+        $intake = app(OrderIntakeService::class)->sendToCompanyManager($intake, $oms, null, Carbon::now()->addDays(1));
+        $intake = app(OrderIntakeService::class)->approveByCompanyManager($intake, $cm);
+
+        app(OrderScheduleService::class)->setPhaseDeadline(
+            $intake->phase(OrderOperations::PHASE_DESIGN),
+            $oms,
+            Carbon::now()->addDays(3),
+        );
+        app(OrderScheduleService::class)->setPhaseDeadline(
+            $intake->fresh(['phases'])->phase(OrderOperations::PHASE_FACTORY_COLORING),
+            $oms,
+            Carbon::now()->addDays(7),
+        );
+
+        app(OrderScheduleService::class)->assignUser(
+            $intake->fresh(['phases']),
+            $oms,
+            $designer,
+            OrderOperations::ROLE_DESIGNER
+        );
+        app(OrderScheduleService::class)->assignUser(
+            $intake->fresh(['phases']),
+            $oms,
+            $pm,
+            OrderOperations::ROLE_PRODUCT_MANAGER
+        );
+
+        $this->assertDatabaseHas('order_assignments', [
+            'order_intake_id' => $intake->id,
+            'role_key' => OrderOperations::ROLE_DESIGNER,
+            'user_id' => $designer->id,
+        ]);
+        $this->assertDatabaseHas('order_assignments', [
+            'order_intake_id' => $intake->id,
+            'role_key' => OrderOperations::ROLE_PRODUCT_MANAGER,
+            'user_id' => $pm->id,
+        ]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        app(OrderScheduleService::class)->assignUser(
+            $intake->fresh(['phases']),
+            $omf,
+            $pm,
+            OrderOperations::ROLE_PRODUCT_MANAGER
+        );
+    }
+
+    public function test_oms_can_add_custom_phase_omf_cannot(): void
+    {
+        $oms = $this->createUserWithRole(OrderOperations::ROLE_OMS);
+        $omf = $this->createUserWithRole(OrderOperations::ROLE_OMF);
+        $cm = $this->createUserWithRole(OrderOperations::ROLE_COMPANY_MANAGER);
+        $supervisor = $this->createUserWithRole('sales_supervisor');
+
+        $invoice = Invoice::query()->create([
+            'invoice_number' => 'INV-2026-070',
+            'amount' => 120,
+            'status' => 'approved',
+            'snapshot_json' => ['totals' => ['grand_total' => 120]],
+            'created_by' => $supervisor->id,
+        ]);
+
+        $intake = app(OrderIntakeService::class)->enqueueFromApproval($invoice, $oms);
+        $intake = app(OrderIntakeService::class)->sendToCompanyManager($intake, $oms, null, Carbon::now()->addDays(1));
+        $intake = app(OrderIntakeService::class)->approveByCompanyManager($intake, $cm);
+
+        $custom = app(OrderScheduleService::class)->addCustomPhase($intake, $oms, 'Quality check', Carbon::now()->addDays(10));
+        $this->assertSame('Quality check', $custom->label);
+        $this->assertSame('quality_check', $custom->phase_key);
+
+        $this->expectException(\InvalidArgumentException::class);
+        app(OrderScheduleService::class)->addCustomPhase($intake->fresh(), $omf, 'Should fail');
+    }
+
+    public function test_designer_invoice_document_hides_prices(): void
+    {
+        $oms = $this->createUserWithRole(OrderOperations::ROLE_OMS);
+        $cm = $this->createUserWithRole(OrderOperations::ROLE_COMPANY_MANAGER);
+        $designer = $this->createUserWithRole(OrderOperations::ROLE_DESIGNER);
+        $supervisor = $this->createUserWithRole('sales_supervisor');
+
+        $invoice = Invoice::query()->create([
+            'invoice_number' => 'INV-2026-080',
+            'amount' => 999,
+            'status' => 'approved',
+            'snapshot_json' => [
+                'doc_number' => 'INV-2026-080',
+                'doc_type' => 'PROFORMA',
+                'totals' => [
+                    'subtotal' => 999,
+                    'discount_amount' => 0,
+                    'taxable' => 999,
+                    'tax_amount' => 0,
+                    'grand_total' => 999,
+                ],
+                'customer' => ['name' => 'Hide Prices Co'],
+                'lines' => [
+                    ['description' => 'Table', 'qty' => 1, 'unit_price' => 999, 'line_total' => 999],
+                ],
+            ],
+            'created_by' => $supervisor->id,
+        ]);
+
+        $intake = app(OrderIntakeService::class)->enqueueFromApproval($invoice, $oms);
+        $intake = app(OrderIntakeService::class)->sendToCompanyManager($intake, $oms, null, Carbon::now()->addDays(1));
+        $intake = app(OrderIntakeService::class)->approveByCompanyManager($intake, $cm);
+
+        $html = $this->actingAs($designer)
+            ->get(route('operations.orders.invoice-document', $intake))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString('999.00', $html);
+        $this->assertStringContainsString('Table', $html);
+    }
+
+    public function test_checkpoint_notifies_sales_source_user(): void
+    {
+        $oms = $this->createUserWithRole(OrderOperations::ROLE_OMS);
+        $cm = $this->createUserWithRole(OrderOperations::ROLE_COMPANY_MANAGER);
+        $designer = $this->createUserWithRole(OrderOperations::ROLE_DESIGNER);
+        $sales = $this->createUserWithRole('sales');
+        $this->createUserWithRole(OrderOperations::ROLE_OMF);
+        $this->createUserWithRole('admin');
+        $this->createUserWithRole('sales_supervisor');
+
+        $invoice = Invoice::query()->create([
+            'invoice_number' => 'INV-2026-090',
+            'amount' => 80,
+            'status' => 'approved',
+            'snapshot_json' => ['totals' => ['grand_total' => 80]],
+            'created_by' => $sales->id,
+        ]);
+
+        $intake = app(OrderIntakeService::class)->enqueueFromApproval($invoice, $oms);
+        $intake = app(OrderIntakeService::class)->sendToCompanyManager($intake, $oms, null, Carbon::now()->addDays(1));
+        $intake = app(OrderIntakeService::class)->approveByCompanyManager($intake, $cm);
+
+        app(OrderScheduleService::class)->setPhaseDeadline(
+            $intake->phase(OrderOperations::PHASE_DESIGN),
+            $oms,
+            Carbon::now()->addDays(2),
+        );
+        app(OrderScheduleService::class)->assignUser(
+            $intake->fresh(['phases']),
+            $oms,
+            $designer,
+            OrderOperations::ROLE_DESIGNER
+        );
+
+        $checkpoint = $intake->fresh(['phases.checkpoints'])
+            ->phase(OrderOperations::PHASE_DESIGN)
+            ->checkpoints
+            ->firstWhere('checkpoint_key', OrderOperations::CHECKPOINT_MEASUREMENT);
+
+        $this->assertNotNull($checkpoint);
+        app(OrderWorkflowService::class)->toggleCheckpoint($checkpoint, $designer, true);
+
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $sales->id,
+            'type' => 'order_checkpoint',
+            'entity_type' => 'order_intake',
+            'entity_id' => $intake->id,
+        ]);
     }
 }
