@@ -97,7 +97,7 @@ class Organization
                         'name' => 'Customer Operations',
                         'description' => 'Customer deliveries, site installation coordination, and order fulfillment.',
                         'roleKey' => 'operations_manager_showroom',
-                        'subPositions' => ['Customer Operations Officer', 'Delivery Coordinator'],
+                        'subPositions' => ['Operation Manager Showroom (OMS)', 'Delivery Coordinator'],
                     ],
                     [
                         'name' => 'Purchasing Unit',
@@ -131,7 +131,7 @@ class Organization
                         'name' => 'Factory Operations',
                         'description' => 'Workshop production runs, manufacturing orders, stock movements, and machinery upkeep.',
                         'roleKey' => 'operations_manager_factory',
-                        'subPositions' => ['Factory Operator', 'Production Technician'],
+                        'subPositions' => ['Operation Manager Factory (OMF)', 'Assembler'],
                     ],
                     [
                         'name' => 'Production Management & Quality Control',

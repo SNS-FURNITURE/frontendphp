@@ -47,10 +47,19 @@ class InvoicePolicy
     public function update(User $user, ?Invoice $invoice = null): bool
     {
         if ($user->isAdmin() || $user->hasRole('finance') || $user->hasRole('marketing_manager')) {
+            // Marketing/admin may amend only when OMS rejected the linked intake.
+            if ($invoice && $this->hasRejectedIntake($invoice) && ($user->isAdmin() || $user->hasRole('marketing_manager'))) {
+                return $invoice->status !== 'paid' && $invoice->status !== 'cancelled';
+            }
+
             return false;
         }
 
         if ($invoice && in_array($invoice->status, ['approved', 'paid', 'cancelled'], true)) {
+            if ($this->hasRejectedIntake($invoice) && $invoice->isOwnedBy($user)) {
+                return $user->hasPermission('finance', 'create') || $user->hasPermission('finance', 'edit');
+            }
+
             return false;
         }
 
@@ -59,6 +68,13 @@ class InvoicePolicy
         }
 
         return $user->hasInvoiceLaunchRole() && $user->hasPermission('finance', 'edit');
+    }
+
+    private function hasRejectedIntake(Invoice $invoice): bool
+    {
+        return $invoice->orderIntakes()
+            ->where('status', 'rejected')
+            ->exists();
     }
 
     public function delete(User $user, Invoice $invoice): bool

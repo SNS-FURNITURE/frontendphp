@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Support\OrderOperations;
+use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -9,6 +12,9 @@ use Illuminate\Support\Facades\Route;
 
 class User extends Authenticatable
 {
+    /** @use HasFactory<UserFactory> */
+    use HasFactory;
+
     use Notifiable;
 
     protected ?array $cachedPermissionPairs = null;
@@ -58,14 +64,90 @@ class User extends Authenticatable
 
     public function hasRole(string $roleName): bool
     {
+        $aliases = OrderOperations::roleAliases($roleName);
+
         return $this->roles->contains(
-            fn (Role $role) => strtolower($role->name) === strtolower($roleName)
+            fn (Role $role) => in_array(strtolower($role->name), array_map('strtolower', $aliases), true)
         );
     }
 
     public function isAdmin(): bool
     {
         return $this->hasRole('admin');
+    }
+
+    public function isOms(): bool
+    {
+        return $this->hasRole(OrderOperations::ROLE_OMS);
+    }
+
+    public function isOmf(): bool
+    {
+        return $this->hasRole(OrderOperations::ROLE_OMF);
+    }
+
+    public function isAssembler(): bool
+    {
+        return $this->hasRole(OrderOperations::ROLE_ASSEMBLER);
+    }
+
+    public function isDesigner(): bool
+    {
+        return $this->hasRole(OrderOperations::ROLE_DESIGNER);
+    }
+
+    public function isProcurement(): bool
+    {
+        return $this->hasRole(OrderOperations::ROLE_PROCUREMENT);
+    }
+
+    public function canViewOrderOperations(): bool
+    {
+        return $this->hasPermission('order_operations', 'view')
+            || $this->isOms()
+            || $this->isOmf()
+            || $this->isAssembler()
+            || $this->isDesigner()
+            || $this->isProcurement()
+            || $this->hasRole('company_manager')
+            || $this->isAdmin()
+            || $this->isSalesSupervisor()
+            || $this->isMarketingManager();
+    }
+
+    public function canReviewOrderIntake(): bool
+    {
+        return $this->isOms() || $this->hasPermission('order_operations', 'approve');
+    }
+
+    public function canManageOrderSchedule(): bool
+    {
+        return $this->isOms() || $this->hasPermission('order_operations', 'edit');
+    }
+
+    public function canAssignDesigner(): bool
+    {
+        return $this->isOms();
+    }
+
+    public function canAssignAssembler(): bool
+    {
+        return $this->isOmf();
+    }
+
+    public function canMonitorProductionDelivery(): bool
+    {
+        return $this->isOms() || $this->isOmf() || $this->isAdmin() || $this->hasRole('company_manager');
+    }
+
+    public function canMessageOpsPeer(): bool
+    {
+        return $this->isOms() || $this->isOmf() || $this->isAdmin();
+    }
+
+    public function canApproveOrderProcurement(): bool
+    {
+        return $this->hasRole('company_manager') || $this->hasPermission('order_operations', 'approve');
     }
 
     public function hasInvoiceLaunchRole(): bool
@@ -122,7 +204,6 @@ class User extends Authenticatable
             || $this->hasRole('marketing_manager')
             || $this->isSalesSupervisor()
             || $this->isSalesRep()
-            || $this->hasRole('operations_customer')
             || $this->hasRole('operations_manager_showroom');
     }
 
@@ -131,9 +212,7 @@ class User extends Authenticatable
         if ($this->isAdmin()
             || $this->hasRole('marketing_manager')
             || $this->isSalesRep()
-            || $this->hasRole('operations_customer')
             || $this->hasRole('operations_manager_showroom')
-            || $this->hasRole('operations_factory')
             || $this->hasRole('operations_manager_factory')) {
             return false;
         }
@@ -263,9 +342,7 @@ class User extends Authenticatable
             || $this->hasRole('company_manager')
             || $this->hasRole('finance')
             || $this->isMarketingManager()
-            || $this->hasRole('operations_customer')
             || $this->hasRole('operations_manager_showroom')
-            || $this->hasRole('operations_factory')
             || $this->hasRole('operations_manager_factory');
     }
 
@@ -277,7 +354,6 @@ class User extends Authenticatable
 
         return $this->hasPermission('inventory', 'create')
             || $this->hasRole('company_manager')
-            || $this->hasRole('operations_factory')
             || $this->hasRole('operations_manager_factory');
     }
 
@@ -290,7 +366,6 @@ class User extends Authenticatable
 
         return $this->hasPermission('production', 'view')
             || $this->hasPermission('manufacturing', 'view')
-            || $this->hasRole('operations_factory')
             || $this->hasRole('operations_manager_factory')
             || $this->canViewInventory();
     }
@@ -303,7 +378,6 @@ class User extends Authenticatable
 
         return $this->hasPermission('production', 'create')
             || $this->hasPermission('manufacturing', 'create')
-            || $this->hasRole('operations_factory')
             || $this->hasRole('operations_manager_factory')
             || $this->canCreateInventory();
     }
@@ -319,9 +393,7 @@ class User extends Authenticatable
             || $this->isAdmin()
             || $this->hasRole('company_manager')
             || $this->hasRole('finance')
-            || $this->hasRole('operations_customer')
             || $this->hasRole('operations_manager_showroom')
-            || $this->hasRole('operations_factory')
             || $this->hasRole('operations_manager_factory');
     }
 
@@ -333,7 +405,6 @@ class User extends Authenticatable
 
         return $this->hasPermission('deliveries', 'create')
             || $this->hasRole('company_manager')
-            || $this->hasRole('operations_customer')
             || $this->hasRole('operations_manager_showroom');
     }
 
@@ -348,14 +419,17 @@ class User extends Authenticatable
             || $this->hasPermission('deliveries', 'edit')
             || $this->hasRole('company_manager')
             || $this->hasRole('finance')
-            || $this->hasRole('operations_customer')
             || $this->hasRole('operations_manager_showroom');
     }
 
     public function canViewDesigns(): bool
     {
         return $this->hasInvoiceLaunchRole()
-            && ($this->hasPermission('designs', 'view') || $this->isAdmin() || $this->hasRole('company_manager'));
+            && ($this->hasPermission('designs', 'view')
+                || $this->isAdmin()
+                || $this->hasRole('company_manager')
+                || $this->isDesigner()
+                || $this->isOms());
     }
 
     public function canCreateDesigns(): bool
@@ -376,7 +450,6 @@ class User extends Authenticatable
             && ($this->hasPermission('machinery', 'view')
                 || $this->isAdmin()
                 || $this->hasRole('company_manager')
-                || $this->hasRole('operations_factory')
                 || $this->hasRole('operations_manager_factory'));
     }
 
@@ -397,14 +470,17 @@ class User extends Authenticatable
     public function canViewProcurement(): bool
     {
         return $this->hasInvoiceLaunchRole()
-            && ($this->hasPermission('procurement', 'view') || $this->isAdmin() || $this->hasRole('company_manager'));
+            && ($this->hasPermission('procurement', 'view')
+                || $this->isAdmin()
+                || $this->hasRole('company_manager')
+                || $this->isProcurement()
+                || $this->isOms());
     }
 
     public function canCreateProcurement(): bool
     {
         return $this->canViewProcurement() && ! $this->isAdmin()
-            && ($this->hasPermission('procurement', 'create') || $this->hasRole('procurement_operations')
-            || $this->hasRole('procurement'));
+            && ($this->hasPermission('procurement', 'create') || $this->hasRole('procurement'));
     }
 
     public function canApproveProcurement(): bool
@@ -416,7 +492,6 @@ class User extends Authenticatable
     {
         return $this->hasPermission('procurement', 'edit')
             || $this->hasRole('company_manager')
-            || $this->hasRole('procurement_operations')
             || $this->hasRole('procurement');
     }
 
@@ -425,19 +500,15 @@ class User extends Authenticatable
         return $this->hasInvoiceLaunchRole()
             && ($this->hasPermission('installation', 'view')
                 || $this->canViewProcurement()
-                || $this->hasRole('procurement_operations')
                 || $this->hasRole('procurement')
-                || $this->hasRole('operations_customer')
                 || $this->hasRole('operations_manager_showroom'));
     }
 
     public function canEditInstallation(): bool
     {
         return $this->hasPermission('installation', 'edit')
-            || $this->hasRole('procurement_operations')
             || $this->hasRole('procurement')
             || $this->hasRole('company_manager')
-            || $this->hasRole('operations_customer')
             || $this->hasRole('operations_manager_showroom');
     }
 
@@ -625,13 +696,23 @@ class User extends Authenticatable
      */
     public function preferredHomeRouteName(): string
     {
-        if (($this->hasRole('operations_factory') || $this->hasRole('operations_manager_factory'))
-            && Route::has('production.index')) {
-            return 'production.index';
+        if ($this->isOms() && Route::has('operations.oms.dashboard')) {
+            return 'operations.oms.dashboard';
         }
-        if (($this->hasRole('operations_customer') || $this->hasRole('operations_manager_showroom'))
-            && Route::has('production.deliveries')) {
-            return 'production.deliveries';
+        if ($this->isOmf() && Route::has('operations.omf.dashboard')) {
+            return 'operations.omf.dashboard';
+        }
+        if ($this->isDesigner() && Route::has('operations.designer.dashboard')) {
+            return 'operations.designer.dashboard';
+        }
+        if ($this->isProcurement() && Route::has('operations.procurement.dashboard')) {
+            return 'operations.procurement.dashboard';
+        }
+        if ($this->hasRole('company_manager') && Route::has('operations.manager.dashboard')) {
+            return 'operations.manager.dashboard';
+        }
+        if ($this->isAssembler() && Route::has('operations.omf.dashboard')) {
+            return 'operations.omf.dashboard';
         }
         if ($this->isSalesRep() && Route::has('sales.dashboard')) {
             return 'sales.dashboard';

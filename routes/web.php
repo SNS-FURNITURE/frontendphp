@@ -23,6 +23,7 @@ use App\Http\Controllers\Web\LeaveWebController;
 use App\Http\Controllers\Web\LoginController;
 use App\Http\Controllers\Web\MachineryWebController;
 use App\Http\Controllers\Web\MaterialRequestWebController;
+use App\Http\Controllers\Web\OperationsWebController;
 use App\Http\Controllers\Web\OrgChartWebController;
 use App\Http\Controllers\Web\OutboundWebController;
 use App\Http\Controllers\Web\PaymentWebController;
@@ -216,4 +217,37 @@ Route::middleware(['auth', EnsureWebInvoiceAccess::class])->group(function () {
     Route::patch('/admin/users/{user}', [AdminUserWebController::class, 'update'])->name('admin.users.update');
     Route::delete('/admin/users/{user}', [AdminUserWebController::class, 'destroy'])->name('admin.users.destroy');
     Route::get('/admin/audit-log', [AdminAuditWebController::class, 'index'])->name('admin.audit');
+
+    Route::prefix('operations')->name('operations.')->group(function () {
+        Route::get('/oms', [OperationsWebController::class, 'omsDashboard'])->name('oms.dashboard');
+        Route::get('/omf', [OperationsWebController::class, 'omfDashboard'])->name('omf.dashboard');
+        Route::get('/manager', [OperationsWebController::class, 'managerDashboard'])->name('manager.dashboard');
+        Route::get('/designer', [OperationsWebController::class, 'designerDashboard'])->name('designer.dashboard');
+        Route::get('/procurement', [OperationsWebController::class, 'procurementDashboard'])->name('procurement.dashboard');
+        Route::get('/orders/{intake}', [OperationsWebController::class, 'show'])->name('orders.show');
+
+        Route::post('/orders/{intake}/start-review', [OperationsWebController::class, 'startReview'])->name('orders.start-review');
+        Route::post('/orders/{intake}/accept', [OperationsWebController::class, 'accept'])->name('orders.accept');
+        Route::post('/orders/{intake}/reject', [OperationsWebController::class, 'reject'])->name('orders.reject');
+        Route::post('/orders/{intake}/resubmit', [OperationsWebController::class, 'resubmit'])->name('orders.resubmit');
+
+        Route::patch('/orders/{intake}/phases/{phase}/deadline', [OperationsWebController::class, 'updateDeadline'])->name('orders.deadlines.update');
+        Route::post('/orders/{intake}/assign-designer', [OperationsWebController::class, 'assignDesigner'])->name('orders.assign-designer');
+        Route::post('/orders/{intake}/assign-assembler', [OperationsWebController::class, 'assignAssembler'])->name('orders.assign-assembler');
+        Route::patch('/orders/{intake}/checkpoints/{checkpoint}', [OperationsWebController::class, 'toggleCheckpoint'])->name('orders.checkpoints.toggle');
+
+        Route::post('/orders/{intake}/materials', [OperationsWebController::class, 'submitMaterials'])->name('orders.materials.submit');
+        Route::post('/orders/{intake}/materials/{line}/verify', [OperationsWebController::class, 'verifyStock'])->name('orders.materials.verify');
+        Route::post('/orders/{intake}/materials/{line}/procure', [OperationsWebController::class, 'procureMaterial'])->name('orders.materials.procure');
+        Route::post('/orders/{intake}/materials/release', [OperationsWebController::class, 'releaseMaterials'])->name('orders.materials.release');
+
+        Route::post('/orders/{intake}/procurement/{procurement}/quotes', [OperationsWebController::class, 'addQuote'])->name('orders.quotes.add');
+        Route::post('/orders/{intake}/procurement/{procurement}/quotes/{quote}/recommend', [OperationsWebController::class, 'recommendQuote'])->name('orders.quotes.recommend');
+        Route::post('/orders/{intake}/procurement/{procurement}/decide', [OperationsWebController::class, 'decideProcurement'])->name('orders.procurement.decide');
+
+        Route::post('/orders/{intake}/assembly/complete', [OperationsWebController::class, 'completeAssembly'])->name('orders.assembly.complete');
+        Route::post('/orders/{intake}/delivery/complete', [OperationsWebController::class, 'completeDelivery'])->name('orders.delivery.complete');
+        Route::post('/orders/{intake}/delivery/schedule', [OperationsWebController::class, 'scheduleDelivery'])->name('orders.delivery.schedule');
+        Route::post('/orders/{intake}/messages', [OperationsWebController::class, 'sendMessage'])->name('orders.messages.send');
+    });
 });
