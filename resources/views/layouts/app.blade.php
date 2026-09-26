@@ -560,16 +560,16 @@
                 </div>
             </div>
         </div>
-        @if ($commercialReportsFirst)
+        @if ($commercialReportsFirst && \Illuminate\Support\Facades\Route::has('commercial.reports.index'))
             <div class="nav-section">Marketing</div>
             <a class="nav-link {{ request()->routeIs('commercial.reports*') ? 'active' : '' }}" href="{{ route('commercial.reports.index') }}">Commercial reports</a>
             @if (auth()->user()->isAdmin() && auth()->user()->canViewSales())
                 <a class="nav-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}" href="{{ route('invoices.index') }}">Orders</a>
             @endif
-            @if (auth()->user()->canManageCommercialTasks())
+            @if (auth()->user()->canManageCommercialTasks() && \Illuminate\Support\Facades\Route::has('commercial.tasks.index'))
                 <a class="nav-link {{ request()->routeIs('commercial.tasks*') ? 'active' : '' }}" href="{{ route('commercial.tasks.index') }}">Tasks</a>
             @endif
-            @if (auth()->user()->canManageContactQuotas())
+            @if (auth()->user()->canManageContactQuotas() && \Illuminate\Support\Facades\Route::has('sales.quota.manage'))
                 <a class="nav-link {{ request()->routeIs('sales.quota.manage') ? 'active' : '' }}" href="{{ route('sales.quota.manage') }}">Sales quotas</a>
             @endif
         @endif
@@ -588,17 +588,19 @@
         @endif
         @if (auth()->user()->isSalesRep())
             <div class="nav-section">Sales</div>
-            <a class="nav-link {{ request()->routeIs('sales.dashboard') ? 'active' : '' }}" href="{{ route('sales.dashboard') }}">Dashboard</a>
+            @if (\Illuminate\Support\Facades\Route::has('sales.dashboard'))
+                <a class="nav-link {{ request()->routeIs('sales.dashboard') ? 'active' : '' }}" href="{{ route('sales.dashboard') }}">Dashboard</a>
+            @endif
             <a class="nav-link {{ request()->routeIs('sales.customers*') ? 'active' : '' }}" href="{{ route('sales.customers') }}">My customers</a>
             <a class="nav-link {{ request()->routeIs('sales.quota') ? 'active' : '' }}" href="{{ route('sales.quota') }}">My sales quota</a>
-            @if (auth()->user()->canViewCommercialTasks())
+            @if (auth()->user()->canViewCommercialTasks() && \Illuminate\Support\Facades\Route::has('commercial.tasks.index'))
                 <a class="nav-link {{ request()->routeIs('commercial.tasks*') ? 'active' : '' }}" href="{{ route('commercial.tasks.index') }}">Tasks</a>
             @endif
         @elseif (auth()->user()->isSalesSupervisor())
             <div class="nav-section">Sales</div>
             <a class="nav-link {{ request()->routeIs('sales.customers*') ? 'active' : '' }}" href="{{ route('sales.customers') }}">Customers</a>
             <a class="nav-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}" href="{{ route('invoices.index') }}">Orders</a>
-            @if (auth()->user()->canViewCommercialTasks())
+            @if (auth()->user()->canViewCommercialTasks() && \Illuminate\Support\Facades\Route::has('commercial.tasks.index'))
                 <a class="nav-link {{ request()->routeIs('commercial.tasks*') ? 'active' : '' }}" href="{{ route('commercial.tasks.index') }}">Tasks</a>
             @endif
         @elseif (auth()->user()->canViewSales() && ! auth()->user()->isAdmin())
@@ -606,17 +608,17 @@
             <a class="nav-link {{ request()->routeIs('sales.customers*') ? 'active' : '' }}" href="{{ route('sales.customers') }}">Customers</a>
             <a class="nav-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}" href="{{ route('invoices.index') }}">Orders</a>
         @endif
-        @if (! $isMarketingManager && auth()->user()->canManageContactQuotas())
+        @if (! $isMarketingManager && auth()->user()->canManageContactQuotas() && \Illuminate\Support\Facades\Route::has('sales.quota.manage'))
             <a class="nav-link {{ request()->routeIs('sales.quota.manage') ? 'active' : '' }}" href="{{ route('sales.quota.manage') }}">Sales quotas</a>
         @endif
-        @if (! $commercialReportsFirst && auth()->user()->canViewCommercialReports())
+        @if (! $commercialReportsFirst && auth()->user()->canViewCommercialReports() && \Illuminate\Support\Facades\Route::has('commercial.reports.index'))
             <div class="nav-section">Marketing</div>
             <a class="nav-link {{ request()->routeIs('commercial.reports*') ? 'active' : '' }}" href="{{ route('commercial.reports.index') }}">Commercial reports</a>
-            @if (auth()->user()->canManageCommercialTasks())
+            @if (auth()->user()->canManageCommercialTasks() && \Illuminate\Support\Facades\Route::has('commercial.tasks.index'))
                 <a class="nav-link {{ request()->routeIs('commercial.tasks*') ? 'active' : '' }}" href="{{ route('commercial.tasks.index') }}">Tasks</a>
             @endif
         @endif
-        @if (auth()->user()->canViewProducts())
+        @if (auth()->user()->canViewProducts() && \Illuminate\Support\Facades\Route::has('products.index'))
             <div class="nav-section">Catalog</div>
             <a class="nav-link {{ request()->routeIs('products.*') ? 'active' : '' }}" href="{{ route('products.index') }}">Products</a>
         @elseif (! auth()->user()->isLimitedSalesRole() && auth()->user()->canViewInventory())

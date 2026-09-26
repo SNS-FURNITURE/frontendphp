@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 use App\Http\Controllers\Web\AdminAuditWebController;
 use App\Http\Controllers\Web\AdminUserWebController;
@@ -6,6 +6,8 @@ use App\Http\Controllers\Web\AllocationWebController;
 use App\Http\Controllers\Web\AttendanceWebController;
 use App\Http\Controllers\Web\BoardWebController;
 use App\Http\Controllers\Web\BomWebController;
+use App\Http\Controllers\Web\CommercialReportWebController;
+use App\Http\Controllers\Web\CommercialTaskWebController;
 use App\Http\Controllers\Web\CustomerWebController;
 use App\Http\Controllers\Web\DealWebController;
 use App\Http\Controllers\Web\DeliveryWebController;
@@ -23,14 +25,15 @@ use App\Http\Controllers\Web\MachineryWebController;
 use App\Http\Controllers\Web\MaterialRequestWebController;
 use App\Http\Controllers\Web\OrgChartWebController;
 use App\Http\Controllers\Web\OutboundWebController;
-use App\Http\Controllers\Web\PayrollWebController;
 use App\Http\Controllers\Web\PaymentWebController;
+use App\Http\Controllers\Web\PayrollWebController;
 use App\Http\Controllers\Web\ProcurementWebController;
 use App\Http\Controllers\Web\ProductionOrderWebController;
+use App\Http\Controllers\Web\ProductWebController;
 use App\Http\Controllers\Web\ProfileWebController;
 use App\Http\Controllers\Web\ProjectWebController;
 use App\Http\Controllers\Web\ReportWebController;
-use App\Http\Controllers\Web\SalesOrderWebController;
+use App\Http\Controllers\Web\SalesDashboardWebController;
 use App\Http\Controllers\Web\SalesQuotaWebController;
 use App\Http\Controllers\Web\TaskWebController;
 use App\Http\Middleware\EnsureWebInvoiceAccess;
@@ -160,9 +163,22 @@ Route::middleware(['auth', EnsureWebInvoiceAccess::class])->group(function () {
     Route::post('/sales/customers', [CustomerWebController::class, 'store'])->name('sales.customers.store');
     Route::patch('/sales/customers/{party}/approve', [CustomerWebController::class, 'approve'])->name('sales.customers.approve');
 
-
+    Route::get('/sales/dashboard', [SalesDashboardWebController::class, 'index'])->name('sales.dashboard');
+    Route::get('/sales/dashboard/reps/{user}', [SalesDashboardWebController::class, 'repReport'])->name('sales.dashboard.rep')->whereNumber('user');
 
     Route::get('/sales/quota', [SalesQuotaWebController::class, 'show'])->name('sales.quota');
+    Route::get('/sales/quota/manage', [SalesQuotaWebController::class, 'manage'])->name('sales.quota.manage');
+    Route::post('/sales/quota', [SalesQuotaWebController::class, 'store'])->name('sales.quota.store');
+
+    Route::get('/commercial/reports', [CommercialReportWebController::class, 'index'])->name('commercial.reports.index');
+    Route::post('/commercial/reports/generate/{cadence}', [CommercialReportWebController::class, 'generate'])->name('commercial.reports.generate');
+    Route::get('/commercial/tasks', [CommercialTaskWebController::class, 'index'])->name('commercial.tasks.index');
+    Route::post('/commercial/tasks', [CommercialTaskWebController::class, 'store'])->name('commercial.tasks.store');
+    Route::patch('/commercial/tasks/{task}', [CommercialTaskWebController::class, 'update'])->name('commercial.tasks.update');
+
+    Route::get('/products', [ProductWebController::class, 'index'])->name('products.index');
+    Route::post('/products', [ProductWebController::class, 'store'])->name('products.store');
+    Route::put('/products/{product}', [ProductWebController::class, 'update'])->name('products.update');
 
     Route::get('/leads', [LeadWebController::class, 'index'])->name('leads.index');
     Route::post('/leads', [LeadWebController::class, 'store'])->name('leads.store');
