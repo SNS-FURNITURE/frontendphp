@@ -11,7 +11,7 @@
     <link rel="apple-touch-icon" href="{{ asset('sns-logo.png') }}?v=2">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
     <script>
-        if (localStorage.getItem('theme') === 'dark') {
+        if (localStorage.getItem('theme') !== 'light') {
             document.documentElement.setAttribute('data-theme', 'dark');
         }
     </script>
@@ -560,16 +560,16 @@
                 </div>
             </div>
         </div>
-        @if ($commercialReportsFirst)
+        @if ($commercialReportsFirst && \Illuminate\Support\Facades\Route::has('commercial.reports.index'))
             <div class="nav-section">Marketing</div>
             <a class="nav-link {{ request()->routeIs('commercial.reports*') ? 'active' : '' }}" href="{{ route('commercial.reports.index') }}">Commercial reports</a>
             @if (auth()->user()->isAdmin() && auth()->user()->canViewSales())
                 <a class="nav-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}" href="{{ route('invoices.index') }}">Orders</a>
             @endif
-            @if (auth()->user()->canManageCommercialTasks())
+            @if (auth()->user()->canManageCommercialTasks() && \Illuminate\Support\Facades\Route::has('commercial.tasks.index'))
                 <a class="nav-link {{ request()->routeIs('commercial.tasks*') ? 'active' : '' }}" href="{{ route('commercial.tasks.index') }}">Tasks</a>
             @endif
-            @if (auth()->user()->canManageContactQuotas())
+            @if (auth()->user()->canManageContactQuotas() && \Illuminate\Support\Facades\Route::has('sales.quota.manage'))
                 <a class="nav-link {{ request()->routeIs('sales.quota.manage') ? 'active' : '' }}" href="{{ route('sales.quota.manage') }}">Sales quotas</a>
             @endif
         @endif
@@ -588,17 +588,19 @@
         @endif
         @if (auth()->user()->isSalesRep())
             <div class="nav-section">Sales</div>
-            <a class="nav-link {{ request()->routeIs('sales.dashboard') ? 'active' : '' }}" href="{{ route('sales.dashboard') }}">Dashboard</a>
+            @if (\Illuminate\Support\Facades\Route::has('sales.dashboard'))
+                <a class="nav-link {{ request()->routeIs('sales.dashboard') ? 'active' : '' }}" href="{{ route('sales.dashboard') }}">Dashboard</a>
+            @endif
             <a class="nav-link {{ request()->routeIs('sales.customers*') ? 'active' : '' }}" href="{{ route('sales.customers') }}">My customers</a>
             <a class="nav-link {{ request()->routeIs('sales.quota') ? 'active' : '' }}" href="{{ route('sales.quota') }}">My sales quota</a>
-            @if (auth()->user()->canViewCommercialTasks())
+            @if (auth()->user()->canViewCommercialTasks() && \Illuminate\Support\Facades\Route::has('commercial.tasks.index'))
                 <a class="nav-link {{ request()->routeIs('commercial.tasks*') ? 'active' : '' }}" href="{{ route('commercial.tasks.index') }}">Tasks</a>
             @endif
         @elseif (auth()->user()->isSalesSupervisor())
             <div class="nav-section">Sales</div>
             <a class="nav-link {{ request()->routeIs('sales.customers*') ? 'active' : '' }}" href="{{ route('sales.customers') }}">Customers</a>
             <a class="nav-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}" href="{{ route('invoices.index') }}">Orders</a>
-            @if (auth()->user()->canViewCommercialTasks())
+            @if (auth()->user()->canViewCommercialTasks() && \Illuminate\Support\Facades\Route::has('commercial.tasks.index'))
                 <a class="nav-link {{ request()->routeIs('commercial.tasks*') ? 'active' : '' }}" href="{{ route('commercial.tasks.index') }}">Tasks</a>
             @endif
         @elseif (auth()->user()->canViewSales() && ! auth()->user()->isAdmin())
@@ -606,17 +608,17 @@
             <a class="nav-link {{ request()->routeIs('sales.customers*') ? 'active' : '' }}" href="{{ route('sales.customers') }}">Customers</a>
             <a class="nav-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}" href="{{ route('invoices.index') }}">Orders</a>
         @endif
-        @if (! $isMarketingManager && auth()->user()->canManageContactQuotas())
+        @if (! $isMarketingManager && auth()->user()->canManageContactQuotas() && \Illuminate\Support\Facades\Route::has('sales.quota.manage'))
             <a class="nav-link {{ request()->routeIs('sales.quota.manage') ? 'active' : '' }}" href="{{ route('sales.quota.manage') }}">Sales quotas</a>
         @endif
-        @if (! $commercialReportsFirst && auth()->user()->canViewCommercialReports())
+        @if (! $commercialReportsFirst && auth()->user()->canViewCommercialReports() && \Illuminate\Support\Facades\Route::has('commercial.reports.index'))
             <div class="nav-section">Marketing</div>
             <a class="nav-link {{ request()->routeIs('commercial.reports*') ? 'active' : '' }}" href="{{ route('commercial.reports.index') }}">Commercial reports</a>
-            @if (auth()->user()->canManageCommercialTasks())
+            @if (auth()->user()->canManageCommercialTasks() && \Illuminate\Support\Facades\Route::has('commercial.tasks.index'))
                 <a class="nav-link {{ request()->routeIs('commercial.tasks*') ? 'active' : '' }}" href="{{ route('commercial.tasks.index') }}">Tasks</a>
             @endif
         @endif
-        @if (auth()->user()->canViewProducts())
+        @if (auth()->user()->canViewProducts() && \Illuminate\Support\Facades\Route::has('products.index'))
             <div class="nav-section">Catalog</div>
             <a class="nav-link {{ request()->routeIs('products.*') ? 'active' : '' }}" href="{{ route('products.index') }}">Products</a>
         @elseif (! auth()->user()->isLimitedSalesRole() && auth()->user()->canViewInventory())
@@ -640,6 +642,29 @@
         @if (! auth()->user()->isLimitedSalesRole() && auth()->user()->canViewDeliveries())
             <div class="nav-section">Ops</div>
             <a class="nav-link {{ request()->routeIs('production.deliveries*') ? 'active' : '' }}" href="{{ route('production.deliveries') }}">Deliveries</a>
+        @endif
+        @if (auth()->user()->canViewOrderOperations() || auth()->user()->isOms() || auth()->user()->isOmf() || auth()->user()->isDesigner() || auth()->user()->isProductManager() || auth()->user()->isProcurement() || auth()->user()->isAssembler() || auth()->user()->hasRole('company_manager'))
+            <div class="nav-section">Order ops</div>
+            @if (auth()->user()->canReviewOrderIntake() || auth()->user()->isOms())
+                <a class="nav-link {{ request()->routeIs('operations.oms.check-invoice') || request()->routeIs('operations.oms.dashboard') ? 'active' : '' }}" href="{{ route('operations.oms.check-invoice') }}">Check invoice</a>
+                <a class="nav-link {{ request()->routeIs('operations.oms.schedule') ? 'active' : '' }}" href="{{ route('operations.oms.schedule') }}">Schedule production</a>
+                <a class="nav-link {{ request()->routeIs('operations.oms.pipeline*') ? 'active' : '' }}" href="{{ route('operations.oms.pipeline') }}">OMS live</a>
+            @endif
+            @if (auth()->user()->isOmf() || auth()->user()->isAssembler() || auth()->user()->canMonitorProductionDelivery())
+                <a class="nav-link {{ request()->routeIs('operations.omf.*') ? 'active' : '' }}" href="{{ route('operations.omf.dashboard') }}">OMF board</a>
+            @endif
+            @if (auth()->user()->hasRole('company_manager') || auth()->user()->canApproveOrderProcurement())
+                <a class="nav-link {{ request()->routeIs('operations.manager.*') ? 'active' : '' }}" href="{{ route('operations.manager.dashboard') }}">Manager board</a>
+            @endif
+            @if (auth()->user()->isDesigner() || auth()->user()->isOms())
+                <a class="nav-link {{ request()->routeIs('operations.designer.*') ? 'active' : '' }}" href="{{ route('operations.designer.dashboard') }}">Design tasks</a>
+            @endif
+            @if (auth()->user()->isProductManager() || auth()->user()->isOmf() || auth()->user()->isOms())
+                <a class="nav-link {{ request()->routeIs('operations.product-manager.*') ? 'active' : '' }}" href="{{ route('operations.product-manager.dashboard') }}">PM tasks</a>
+            @endif
+            @if (auth()->user()->isProcurement() || auth()->user()->canApproveOrderProcurement())
+                <a class="nav-link {{ request()->routeIs('operations.procurement.*') ? 'active' : '' }}" href="{{ route('operations.procurement.dashboard') }}">Order procurement</a>
+            @endif
         @endif
         @if (auth()->user()->canViewDesigns() || auth()->user()->canViewMachinery() || auth()->user()->canViewProcurement())
             <div class="nav-section">Design &amp; make</div>
@@ -724,10 +749,10 @@
             </div>
             <div class="topbar-actions">
                 <button type="button" class="btn ghost" id="theme-toggle" aria-label="Toggle Theme" style="padding: 0.35rem 0.5rem;" title="Toggle Dark/Light Mode">
-                    <svg id="theme-icon-dark" style="display:none; width: 18px; height: 18px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <svg id="theme-icon-dark" style="display:block; width: 18px; height: 18px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
                     </svg>
-                    <svg id="theme-icon-light" style="display:block; width: 18px; height: 18px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <svg id="theme-icon-light" style="display:none; width: 18px; height: 18px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
                     </svg>
                 </button>
@@ -802,8 +827,10 @@
 (function () {
     
     var savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
+    if (savedTheme !== 'light') {
         document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+        document.documentElement.removeAttribute('data-theme');
     }
     
     var appBackBtn = document.getElementById('app-back-btn');

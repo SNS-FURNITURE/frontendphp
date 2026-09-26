@@ -9,6 +9,7 @@ use App\Models\SalesOrder;
 use App\Services\AuditService;
 use App\Services\DocumentService;
 use App\Services\InvoiceNumberService;
+use App\Services\OrderIntakeService;
 use App\Support\UnitOfMeasure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -22,6 +23,7 @@ class InvoiceWebController extends Controller
         private InvoiceNumberService $numbers,
         private DocumentService $documents,
         private AuditService $audit,
+        private OrderIntakeService $orderIntakes,
     ) {}
 
     public function index(): View
@@ -205,6 +207,10 @@ class InvoiceWebController extends Controller
             'status' => $invoiceStatus,
         ], $request);
 
+        if ($invoiceStatus === 'issued') {
+            $this->orderIntakes->enqueueFromSalesSupervisorIssue($invoice, auth()->user(), $request);
+        }
+
         return redirect()
             ->route('invoices.index')
             ->with('status', $invoiceStatus === 'issued'
@@ -223,7 +229,10 @@ class InvoiceWebController extends Controller
         }
 
         $canEdit = auth()->user()->can('update', $invoice)
-            && ! in_array($invoice->status, ['approved', 'paid', 'cancelled'], true);
+            && (
+                ! in_array($invoice->status, ['approved', 'paid', 'cancelled'], true)
+                || $invoice->orderIntakes()->where('status', 'rejected')->exists()
+            );
         $canApprove = auth()->user()->can('approve', $invoice);
 
         return view('invoices.show', compact('invoice', 'document', 'canEdit', 'canApprove'));
@@ -233,7 +242,8 @@ class InvoiceWebController extends Controller
     {
         $this->authorize('update', $invoice);
 
-        if (in_array($invoice->status, ['approved', 'paid', 'cancelled'], true)) {
+        if (in_array($invoice->status, ['approved', 'paid', 'cancelled'], true)
+            && ! $invoice->orderIntakes()->where('status', 'rejected')->exists()) {
             return redirect()->route('invoices.show', $invoice)
                 ->withErrors(['status' => 'Approved, paid, or cancelled invoices cannot be edited']);
         }
@@ -253,7 +263,8 @@ class InvoiceWebController extends Controller
     {
         $this->authorize('update', $invoice);
 
-        if (in_array($invoice->status, ['approved', 'paid', 'cancelled'], true)) {
+        if (in_array($invoice->status, ['approved', 'paid', 'cancelled'], true)
+            && ! $invoice->orderIntakes()->where('status', 'rejected')->exists()) {
             return back()->withErrors(['status' => 'Approved, paid, or cancelled invoices cannot be edited']);
         }
 
@@ -351,6 +362,10 @@ class InvoiceWebController extends Controller
             'invoice_number' => $invoice->invoice_number,
             'status' => $nextStatus,
         ], $request);
+
+        if ($nextStatus === 'issued') {
+            $this->orderIntakes->enqueueFromSalesSupervisorIssue($invoice->fresh(), auth()->user(), $request);
+        }
 
         return redirect()
             ->route('invoices.index')
@@ -511,6 +526,10 @@ class InvoiceWebController extends Controller
             'status' => $status,
         ], $request);
 
+        if ($status === 'issued') {
+            $this->orderIntakes->enqueueFromSalesSupervisorIssue($invoice->fresh(), auth()->user(), $request);
+        }
+
         return back()->with('status', 'Order status updated');
     }
 
@@ -551,6 +570,9 @@ class InvoiceWebController extends Controller
             'approved_by_name' => $approverName,
         ];
 
+        // Keep the pre-approval document for OMS side-by-side check (SS saved/issued vs approved).
+        $issuedSnapshot = is_array($invoice->snapshot_json) ? $invoice->snapshot_json : null;
+
         $invoice->status = 'approved';
         $invoice->amount = (float) ($snapshot['totals']['grand_total'] ?? $invoice->amount);
         $invoice->snapshot_json = $snapshot;
@@ -563,6 +585,8 @@ class InvoiceWebController extends Controller
             'invoice_number' => $invoice->invoice_number,
             'approved_by' => $approverName,
         ], $request);
+
+        $this->orderIntakes->enqueueFromApproval($invoice->fresh(), $user, $request, $issuedSnapshot);
 
         return redirect()
             ->route('invoices.show', $invoice)

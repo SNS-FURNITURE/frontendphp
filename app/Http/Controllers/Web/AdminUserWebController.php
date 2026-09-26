@@ -38,7 +38,7 @@ class AdminUserWebController extends Controller
         $data = $request->validate([
             'full_name' => ['required', 'string', 'min:2', 'max:255'],
             'phone' => ['nullable', 'string', 'max:64'],
-            'role' => ['required', 'string', Rule::in(ErpRoles::catalogNames())],
+            'role' => ['required', 'string', Rule::in(ErpRoles::assignableNames())],
         ]);
 
         if (strtolower($data['role']) === 'admin') {
@@ -98,7 +98,7 @@ class AdminUserWebController extends Controller
         $data = $request->validate([
             'full_name' => ['required', 'string', 'min:2', 'max:255'],
             'phone' => ['nullable', 'string', 'max:64'],
-            'role' => ['nullable', 'string', Rule::in(ErpRoles::catalogNames())],
+            'role' => ['nullable', 'string', Rule::in(ErpRoles::assignableNames())],
         ]);
 
         $fullName = trim($data['full_name']);

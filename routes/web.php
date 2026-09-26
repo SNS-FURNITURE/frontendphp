@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 use App\Http\Controllers\Web\AdminAuditWebController;
 use App\Http\Controllers\Web\AdminUserWebController;
@@ -6,6 +6,8 @@ use App\Http\Controllers\Web\AllocationWebController;
 use App\Http\Controllers\Web\AttendanceWebController;
 use App\Http\Controllers\Web\BoardWebController;
 use App\Http\Controllers\Web\BomWebController;
+use App\Http\Controllers\Web\CommercialReportWebController;
+use App\Http\Controllers\Web\CommercialTaskWebController;
 use App\Http\Controllers\Web\CustomerWebController;
 use App\Http\Controllers\Web\DealWebController;
 use App\Http\Controllers\Web\DeliveryWebController;
@@ -21,16 +23,18 @@ use App\Http\Controllers\Web\LeaveWebController;
 use App\Http\Controllers\Web\LoginController;
 use App\Http\Controllers\Web\MachineryWebController;
 use App\Http\Controllers\Web\MaterialRequestWebController;
+use App\Http\Controllers\Web\OperationsWebController;
 use App\Http\Controllers\Web\OrgChartWebController;
 use App\Http\Controllers\Web\OutboundWebController;
-use App\Http\Controllers\Web\PayrollWebController;
 use App\Http\Controllers\Web\PaymentWebController;
+use App\Http\Controllers\Web\PayrollWebController;
 use App\Http\Controllers\Web\ProcurementWebController;
 use App\Http\Controllers\Web\ProductionOrderWebController;
+use App\Http\Controllers\Web\ProductWebController;
 use App\Http\Controllers\Web\ProfileWebController;
 use App\Http\Controllers\Web\ProjectWebController;
 use App\Http\Controllers\Web\ReportWebController;
-use App\Http\Controllers\Web\SalesOrderWebController;
+use App\Http\Controllers\Web\SalesDashboardWebController;
 use App\Http\Controllers\Web\SalesQuotaWebController;
 use App\Http\Controllers\Web\TaskWebController;
 use App\Http\Middleware\EnsureWebInvoiceAccess;
@@ -160,9 +164,22 @@ Route::middleware(['auth', EnsureWebInvoiceAccess::class])->group(function () {
     Route::post('/sales/customers', [CustomerWebController::class, 'store'])->name('sales.customers.store');
     Route::patch('/sales/customers/{party}/approve', [CustomerWebController::class, 'approve'])->name('sales.customers.approve');
 
-
+    Route::get('/sales/dashboard', [SalesDashboardWebController::class, 'index'])->name('sales.dashboard');
+    Route::get('/sales/dashboard/reps/{user}', [SalesDashboardWebController::class, 'repReport'])->name('sales.dashboard.rep')->whereNumber('user');
 
     Route::get('/sales/quota', [SalesQuotaWebController::class, 'show'])->name('sales.quota');
+    Route::get('/sales/quota/manage', [SalesQuotaWebController::class, 'manage'])->name('sales.quota.manage');
+    Route::post('/sales/quota', [SalesQuotaWebController::class, 'store'])->name('sales.quota.store');
+
+    Route::get('/commercial/reports', [CommercialReportWebController::class, 'index'])->name('commercial.reports.index');
+    Route::post('/commercial/reports/generate/{cadence}', [CommercialReportWebController::class, 'generate'])->name('commercial.reports.generate');
+    Route::get('/commercial/tasks', [CommercialTaskWebController::class, 'index'])->name('commercial.tasks.index');
+    Route::post('/commercial/tasks', [CommercialTaskWebController::class, 'store'])->name('commercial.tasks.store');
+    Route::patch('/commercial/tasks/{task}', [CommercialTaskWebController::class, 'update'])->name('commercial.tasks.update');
+
+    Route::get('/products', [ProductWebController::class, 'index'])->name('products.index');
+    Route::post('/products', [ProductWebController::class, 'store'])->name('products.store');
+    Route::put('/products/{product}', [ProductWebController::class, 'update'])->name('products.update');
 
     Route::get('/leads', [LeadWebController::class, 'index'])->name('leads.index');
     Route::post('/leads', [LeadWebController::class, 'store'])->name('leads.store');
@@ -200,4 +217,51 @@ Route::middleware(['auth', EnsureWebInvoiceAccess::class])->group(function () {
     Route::patch('/admin/users/{user}', [AdminUserWebController::class, 'update'])->name('admin.users.update');
     Route::delete('/admin/users/{user}', [AdminUserWebController::class, 'destroy'])->name('admin.users.destroy');
     Route::get('/admin/audit-log', [AdminAuditWebController::class, 'index'])->name('admin.audit');
+
+    Route::prefix('operations')->name('operations.')->group(function () {
+        Route::get('/oms', [OperationsWebController::class, 'omsDashboard'])->name('oms.dashboard');
+        Route::get('/oms/check-invoice', [OperationsWebController::class, 'omsCheckInvoice'])->name('oms.check-invoice');
+        Route::get('/oms/schedule', [OperationsWebController::class, 'omsSchedule'])->name('oms.schedule');
+        Route::get('/oms/pipeline', [OperationsWebController::class, 'omsPipeline'])->name('oms.pipeline');
+        Route::get('/oms/pipeline.json', [OperationsWebController::class, 'omsPipelineJson'])->name('oms.pipeline.json');
+        Route::get('/omf', [OperationsWebController::class, 'omfDashboard'])->name('omf.dashboard');
+        Route::get('/manager', [OperationsWebController::class, 'managerDashboard'])->name('manager.dashboard');
+        Route::get('/designer', [OperationsWebController::class, 'designerDashboard'])->name('designer.dashboard');
+        Route::get('/product-manager', [OperationsWebController::class, 'productManagerDashboard'])->name('product-manager.dashboard');
+        Route::get('/procurement', [OperationsWebController::class, 'procurementDashboard'])->name('procurement.dashboard');
+        Route::get('/orders/{intake}', [OperationsWebController::class, 'show'])->name('orders.show');
+        Route::get('/orders/{intake}/invoice-document', [OperationsWebController::class, 'invoiceDocument'])->name('orders.invoice-document');
+
+        Route::post('/orders/{intake}/start-review', [OperationsWebController::class, 'startReview'])->name('orders.start-review');
+        Route::post('/orders/{intake}/accept', [OperationsWebController::class, 'accept'])->name('orders.accept');
+        Route::post('/orders/{intake}/send-to-cm', [OperationsWebController::class, 'sendToCompanyManager'])->name('orders.send-to-cm');
+        Route::post('/orders/{intake}/cm-approve', [OperationsWebController::class, 'cmApprove'])->name('orders.cm-approve');
+        Route::post('/orders/{intake}/cm-reject', [OperationsWebController::class, 'cmReject'])->name('orders.cm-reject');
+        Route::post('/orders/{intake}/reject', [OperationsWebController::class, 'reject'])->name('orders.reject');
+        Route::post('/orders/{intake}/resubmit', [OperationsWebController::class, 'resubmit'])->name('orders.resubmit');
+
+        Route::patch('/orders/{intake}/phases/{phase}/deadline', [OperationsWebController::class, 'updateDeadline'])->name('orders.deadlines.update');
+        Route::patch('/orders/{intake}/phases/{phase}/label', [OperationsWebController::class, 'updatePhaseLabel'])->name('orders.phases.label');
+        Route::post('/orders/{intake}/phases', [OperationsWebController::class, 'addPhase'])->name('orders.phases.add');
+        Route::post('/orders/{intake}/schedule', [OperationsWebController::class, 'saveSchedule'])->name('orders.schedule.save');
+        Route::post('/orders/{intake}/phases/{phase}/complete', [OperationsWebController::class, 'completePhase'])->name('orders.phases.complete');
+        Route::post('/orders/{intake}/assign-designer', [OperationsWebController::class, 'assignDesigner'])->name('orders.assign-designer');
+        Route::post('/orders/{intake}/assign-product-manager', [OperationsWebController::class, 'assignProductManager'])->name('orders.assign-product-manager');
+        Route::post('/orders/{intake}/assign-assembler', [OperationsWebController::class, 'assignAssembler'])->name('orders.assign-assembler');
+        Route::patch('/orders/{intake}/checkpoints/{checkpoint}', [OperationsWebController::class, 'toggleCheckpoint'])->name('orders.checkpoints.toggle');
+
+        Route::post('/orders/{intake}/materials', [OperationsWebController::class, 'submitMaterials'])->name('orders.materials.submit');
+        Route::post('/orders/{intake}/materials/{line}/verify', [OperationsWebController::class, 'verifyStock'])->name('orders.materials.verify');
+        Route::post('/orders/{intake}/materials/{line}/procure', [OperationsWebController::class, 'procureMaterial'])->name('orders.materials.procure');
+        Route::post('/orders/{intake}/materials/release', [OperationsWebController::class, 'releaseMaterials'])->name('orders.materials.release');
+
+        Route::post('/orders/{intake}/procurement/{procurement}/quotes', [OperationsWebController::class, 'addQuote'])->name('orders.quotes.add');
+        Route::post('/orders/{intake}/procurement/{procurement}/quotes/{quote}/recommend', [OperationsWebController::class, 'recommendQuote'])->name('orders.quotes.recommend');
+        Route::post('/orders/{intake}/procurement/{procurement}/decide', [OperationsWebController::class, 'decideProcurement'])->name('orders.procurement.decide');
+
+        Route::post('/orders/{intake}/assembly/complete', [OperationsWebController::class, 'completeAssembly'])->name('orders.assembly.complete');
+        Route::post('/orders/{intake}/delivery/complete', [OperationsWebController::class, 'completeDelivery'])->name('orders.delivery.complete');
+        Route::post('/orders/{intake}/delivery/schedule', [OperationsWebController::class, 'scheduleDelivery'])->name('orders.delivery.schedule');
+        Route::post('/orders/{intake}/messages', [OperationsWebController::class, 'sendMessage'])->name('orders.messages.send');
+    });
 });

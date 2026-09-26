@@ -38,7 +38,7 @@ class ErpDemoSeeder extends Seeder
             'admin', 'leads', 'deals', 'order_requests', 'funding', 'production',
             'inventory', 'finance', 'hr', 'designs', 'reports', 'boards',
             'deliveries', 'machinery', 'procurement', 'installation', 'sales',
-            'manufacturing', 'projects', 'tasks',
+            'manufacturing', 'projects', 'tasks', 'order_operations',
         ];
         $actions = ['view', 'create', 'edit', 'delete', 'approve', 'verify', 'post_report'];
 
@@ -107,30 +107,59 @@ class ErpDemoSeeder extends Seeder
         ];
         $this->syncRolePermissions($roleIds['sales'], $salesRepKeys, $permissionIds);
 
-        $customerOpsKeys = [
+        $omsKeys = [
             'finance.view',
             'order_requests.view', 'order_requests.create',
+            'order_operations.view', 'order_operations.create', 'order_operations.edit', 'order_operations.approve',
             'leads.view',
             'deals.view',
             'sales.view',
             'deliveries.view', 'deliveries.create', 'deliveries.edit', 'deliveries.approve',
             'installation.view', 'installation.edit',
             'inventory.view',
+            'designs.view',
+            'procurement.view',
         ];
-        foreach ($customerOpsKeys as $key) {
-            $this->grantRolePermission($roleIds['operations_customer'], $key, $permissionIds);
+        foreach ($omsKeys as $key) {
+            $this->grantRolePermission($roleIds['operations_manager_showroom'], $key, $permissionIds);
         }
 
-        $factoryOpsKeys = [
+        $omfKeys = [
             'production.view', 'production.create', 'production.edit',
             'manufacturing.view', 'manufacturing.create', 'manufacturing.edit',
             'inventory.view', 'inventory.create', 'inventory.edit',
             'order_requests.view',
+            'order_operations.view', 'order_operations.create', 'order_operations.edit',
             'machinery.view',
             'deliveries.view',
         ];
-        foreach ($factoryOpsKeys as $key) {
-            $this->grantRolePermission($roleIds['operations_factory'], $key, $permissionIds);
+        foreach ($omfKeys as $key) {
+            $this->grantRolePermission($roleIds['operations_manager_factory'], $key, $permissionIds);
+        }
+
+        $procurementKeys = [
+            'procurement.view', 'procurement.create', 'procurement.edit',
+            'order_operations.view', 'order_operations.create', 'order_operations.edit',
+            'inventory.view',
+        ];
+        foreach ($procurementKeys as $key) {
+            $this->grantRolePermission($roleIds['procurement'], $key, $permissionIds);
+        }
+
+        $designerKeys = [
+            'designs.view', 'designs.create', 'designs.edit',
+            'order_operations.view', 'order_operations.edit',
+        ];
+        foreach ($designerKeys as $key) {
+            $this->grantRolePermission($roleIds['designer'], $key, $permissionIds);
+        }
+
+        $assemblerKeys = [
+            'order_operations.view', 'order_operations.edit',
+            'production.view',
+        ];
+        foreach ($assemblerKeys as $key) {
+            $this->grantRolePermission($roleIds['assembler'], $key, $permissionIds);
         }
 
         $managerViewKeys = array_map(fn (string $module) => "{$module}.view", $modules);
@@ -150,12 +179,13 @@ class ErpDemoSeeder extends Seeder
             ['full_name' => 'Marta Marketing', 'email' => 'mktmanager@sns.com', 'role' => 'marketing_manager', 'phone' => '+251911000003'],
             ['full_name' => 'Alex Supervisor', 'email' => 'advisor@sns.com', 'role' => 'sales_supervisor', 'phone' => '+251911000012'],
             ['full_name' => 'Sam Sales', 'email' => 'sales@sns.com', 'role' => 'sales', 'phone' => '+251911000013'],
-            ['full_name' => 'Olivia Customer Ops', 'email' => 'opscustomer@sns.com', 'role' => 'operations_customer', 'phone' => '+251911000014'],
-            ['full_name' => 'Frank Factory Ops', 'email' => 'opsfactory@sns.com', 'role' => 'operations_factory', 'phone' => '+251911000015'],
-            ['full_name' => 'Paul Procurement', 'email' => 'procurement@sns.com', 'role' => 'procurement_operations', 'phone' => '+251911000011'],
+            ['full_name' => 'Olivia OMS', 'email' => 'opscustomer@sns.com', 'role' => 'operations_manager_showroom', 'phone' => '+251911000014'],
+            ['full_name' => 'Frank OMF', 'email' => 'opsfactory@sns.com', 'role' => 'operations_manager_factory', 'phone' => '+251911000015'],
+            ['full_name' => 'Paul Procurement', 'email' => 'procurement@sns.com', 'role' => 'procurement', 'phone' => '+251911000011'],
             ['full_name' => 'Ivan Inventory', 'email' => 'inventory@sns.com', 'role' => 'inventory', 'phone' => '+251911000007'],
             ['full_name' => 'Pete Products', 'email' => 'pm@sns.com', 'role' => 'product_manager', 'phone' => '+251911000005'],
             ['full_name' => 'Daniel Designer', 'email' => 'designer@sns.com', 'role' => 'designer', 'phone' => '+251911000010'],
+            ['full_name' => 'Amy Assembler', 'email' => 'assembler@sns.com', 'role' => 'assembler', 'phone' => '+251911000016'],
         ];
 
         foreach ($users as $u) {

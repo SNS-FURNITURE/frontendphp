@@ -17,7 +17,10 @@ return [
         'marketing_manager',
         'sales_supervisor',
         'sales',
-        'operations_customer',
-        'operations_factory',
+        'operations_manager_showroom',
+        'operations_manager_factory',
+        'assembler',
+        'procurement',
+        'designer',
     ],
 ];

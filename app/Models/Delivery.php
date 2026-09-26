@@ -24,6 +24,7 @@ class Delivery extends Model
     ];
 
     protected $fillable = [
+        'order_intake_id',
         'product_name',
         'quantity',
         'quantity_dispatched',
@@ -50,6 +51,11 @@ class Delivery extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function orderIntake(): BelongsTo
+    {
+        return $this->belongsTo(OrderIntake::class, 'order_intake_id');
     }
 
     public function dispatcher(): BelongsTo
