@@ -297,6 +297,16 @@ class OperationsWebController extends Controller
             $daysLeft = (int) now()->startOfDay()->diffInDays($design->due_at->copy()->startOfDay(), false);
         }
 
+        $issuedSnapshot = $intake->issued_snapshot_json;
+        if (blank($issuedSnapshot) && is_array($intake->approved_snapshot_json) && $intake->approved_snapshot_json !== []) {
+            $issuedSnapshot = $intake->approved_snapshot_json;
+            unset($issuedSnapshot['approval']);
+            if ($user->canReviewOrderIntake()) {
+                $intake->issued_snapshot_json = $issuedSnapshot;
+                $intake->save();
+            }
+        }
+
         return view('operations.show', [
             'intake' => $intake,
             'designers' => $this->usersWithRole(OrderOperations::ROLE_DESIGNER),
@@ -305,7 +315,7 @@ class OperationsWebController extends Controller
             'destinations' => Delivery::DESTINATIONS,
             'hidePrices' => $hidePrices,
             'designDaysLeft' => $daysLeft,
-            'issuedHtml' => $this->snapshotHtml($intake->issued_snapshot_json ?? null, ! $hidePrices),
+            'issuedHtml' => $this->snapshotHtml($issuedSnapshot, ! $hidePrices),
             'approvedHtml' => $this->snapshotHtml($intake->approved_snapshot_json ?? null, ! $hidePrices),
         ]);
     }
