@@ -84,7 +84,16 @@
                 <button class="btn ghost" type="submit">Start review</button>
             </form>
         @endif
-        <form method="POST" action="{{ route('operations.orders.send-to-cm', $intake) }}">@csrf
+        <form method="POST" action="{{ route('operations.orders.send-to-cm', $intake) }}" style="display:flex;gap:0.5rem;align-items:end;margin:0;flex-wrap:wrap">
+            @csrf
+            <div>
+                <label for="cm_due_at">Company manager deadline *</label>
+                <input id="cm_due_at" type="datetime-local" name="cm_due_at" required value="{{ old('cm_due_at') }}">
+            </div>
+            <div>
+                <label for="cm_reminder_hours_before">Remind (hours before)</label>
+                <input id="cm_reminder_hours_before" type="number" min="1" name="cm_reminder_hours_before" value="{{ old('cm_reminder_hours_before', 24) }}">
+            </div>
             <button class="btn" type="submit">Send to company manager</button>
         </form>
         <form method="POST" action="{{ route('operations.orders.reject', $intake) }}" style="display:flex;gap:0.5rem;align-items:end;margin:0">
@@ -102,7 +111,11 @@
 @if (($user->hasRole('company_manager') || $user->isAdmin()) && $intake->status === \App\Support\OrderOperations::INTAKE_AWAITING_CM)
 <div class="card" style="margin-bottom:1.25rem">
     <h2 style="margin:0 0 1rem;font-size:1.1rem">Company manager approval</h2>
-    <p class="muted">OMS sent this order for your approval. Approving unlocks designer assignment.</p>
+    <p class="muted">
+        OMS deadline:
+        <strong>{{ optional($intake->cm_due_at)->format('Y-m-d H:i') ?? '—' }}</strong>
+        — approve before this time so design can start.
+    </p>
     <div class="toolbar" style="flex-wrap:wrap">
         <form method="POST" action="{{ route('operations.orders.cm-approve', $intake) }}">@csrf
             <button class="btn" type="submit">Approve for production</button>
@@ -122,7 +135,11 @@
 @if ($user->canReviewOrderIntake() && $intake->status === \App\Support\OrderOperations::INTAKE_AWAITING_CM)
 <div class="card" style="margin-bottom:1.25rem">
     <h2 style="margin:0 0 0.5rem;font-size:1.1rem">Waiting on company manager</h2>
-    <p class="muted" style="margin:0">Designer assignment unlocks after company manager approves.</p>
+    <p class="muted" style="margin:0">
+        Approval deadline you set:
+        <strong>{{ optional($intake->cm_due_at)->format('Y-m-d H:i') ?? '—' }}</strong>.
+        Designer assignment unlocks after approval.
+    </p>
 </div>
 @endif
 
@@ -197,7 +214,7 @@
     </table>
     <div class="toolbar" style="flex-wrap:wrap;gap:1rem">
         @if ($user->canAssignDesigner())
-            <form method="POST" action="{{ route('operations.orders.assign-designer', $intake) }}" style="display:flex;gap:0.5rem;align-items:end;margin:0">
+            <form method="POST" action="{{ route('operations.orders.assign-designer', $intake) }}" style="display:flex;gap:0.5rem;align-items:end;margin:0;flex-wrap:wrap">
                 @csrf
                 <div>
                     <label>Designer</label>
@@ -207,6 +224,14 @@
                             <option value="{{ $designer->id }}">{{ $designer->full_name }}</option>
                         @endforeach
                     </select>
+                </div>
+                <div>
+                    <label>Designer deadline *</label>
+                    <input type="datetime-local" name="due_at" required value="{{ old('due_at', optional($design?->due_at)->format('Y-m-d\TH:i')) }}">
+                </div>
+                <div>
+                    <label>Remind (h before)</label>
+                    <input type="number" min="1" name="reminder_hours_before" value="{{ old('reminder_hours_before', $design?->reminder_hours_before ?? 24) }}">
                 </div>
                 <button class="btn" type="submit">Assign designer</button>
             </form>

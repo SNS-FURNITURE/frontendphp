@@ -20,8 +20,8 @@
             <tr>
                 <th>Invoice</th>
                 <th>Source</th>
+                <th>OMS deadline</th>
                 <th>Reviewed by</th>
-                <th>Sent</th>
                 <th></th>
             </tr>
             </thead>
@@ -30,8 +30,8 @@
                 <tr>
                     <td>{{ $intake->invoice_number }}</td>
                     <td>{{ $intake->source_type }}</td>
+                    <td>{{ optional($intake->cm_due_at)->format('Y-m-d H:i') ?? '—' }}</td>
                     <td>{{ $intake->reviewer?->full_name ?? '—' }}</td>
-                    <td>{{ optional($intake->company_manager_notified_at ?? $intake->reviewed_at)->format('Y-m-d H:i') ?? '—' }}</td>
                     <td class="toolbar" style="justify-content:flex-end;margin:0;flex-wrap:wrap">
                         <a class="btn ghost" href="{{ route('operations.orders.show', $intake) }}">Open</a>
                         <form method="POST" action="{{ route('operations.orders.cm-approve', $intake) }}" style="margin:0">@csrf

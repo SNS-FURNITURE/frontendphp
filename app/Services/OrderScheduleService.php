@@ -102,6 +102,12 @@ class OrderScheduleService
         if ($roleKey === OrderOperations::ROLE_DESIGNER && $intake->status !== OrderOperations::INTAKE_ACCEPTED) {
             throw new InvalidArgumentException('Company manager must approve before a designer can be assigned.');
         }
+        if ($roleKey === OrderOperations::ROLE_DESIGNER) {
+            $design = $intake->phase(OrderOperations::PHASE_DESIGN) ?? $intake->phases()->where('phase_key', OrderOperations::PHASE_DESIGN)->first();
+            if (! $design || $design->due_at === null) {
+                throw new InvalidArgumentException('OMS must set the designer deadline before assigning.');
+            }
+        }
 
         if ($roleKey === OrderOperations::ROLE_DESIGNER) {
             OrderAssignment::query()

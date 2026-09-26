@@ -263,15 +263,26 @@ class OperationsWebController extends Controller
     {
         abort_unless(auth()->user()?->canReviewOrderIntake(), 403);
 
+        $validated = $request->validate([
+            'cm_due_at' => ['required', 'date', 'after:now'],
+            'cm_reminder_hours_before' => ['nullable', 'integer', 'min:1'],
+        ]);
+
         try {
-            $this->intakeService->sendToCompanyManager($intake, auth()->user(), $request);
+            $this->intakeService->sendToCompanyManager(
+                $intake,
+                auth()->user(),
+                $request,
+                Carbon::parse($validated['cm_due_at']),
+                (int) ($validated['cm_reminder_hours_before'] ?? 24),
+            );
         } catch (InvalidArgumentException $e) {
-            return back()->withErrors(['status' => $e->getMessage()]);
+            return back()->withErrors(['status' => $e->getMessage()])->withInput();
         }
 
         return redirect()
             ->route('operations.orders.show', $intake)
-            ->with('status', 'Order sent to company manager for approval');
+            ->with('status', 'Order sent to company manager with approval deadline');
     }
 
     public function cmApprove(Request $request, OrderIntake $intake): RedirectResponse
@@ -371,23 +382,41 @@ class OperationsWebController extends Controller
 
         $validated = $request->validate([
             'user_id' => ['required', 'integer', 'exists:users,id'],
+            'due_at' => ['required', 'date', 'after:now'],
+            'reminder_hours_before' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $assignee = User::query()->findOrFail($validated['user_id']);
 
         try {
+            $design = $intake->phase(OrderOperations::PHASE_DESIGN)
+                ?? $intake->phases()->where('phase_key', OrderOperations::PHASE_DESIGN)->first();
+            if (! $design) {
+                $this->scheduleService->initializePhases($intake);
+                $intake->load('phases');
+                $design = $intake->phase(OrderOperations::PHASE_DESIGN);
+            }
+
+            $this->scheduleService->setPhaseDeadline(
+                $design,
+                auth()->user(),
+                Carbon::parse($validated['due_at']),
+                (int) ($validated['reminder_hours_before'] ?? 24),
+                $request,
+            );
+
             $this->scheduleService->assignUser(
-                $intake,
+                $intake->fresh(['phases']),
                 auth()->user(),
                 $assignee,
                 OrderOperations::ROLE_DESIGNER,
                 $request,
             );
         } catch (InvalidArgumentException $e) {
-            return back()->withErrors(['status' => $e->getMessage()]);
+            return back()->withErrors(['status' => $e->getMessage()])->withInput();
         }
 
-        return back()->with('status', 'Designer assigned');
+        return back()->with('status', 'Designer assigned with deadline');
     }
 
     public function assignAssembler(Request $request, OrderIntake $intake): RedirectResponse

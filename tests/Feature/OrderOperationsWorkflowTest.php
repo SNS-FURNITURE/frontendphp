@@ -46,7 +46,12 @@ class OrderOperationsWorkflowTest extends FeatureTestCase
         $resubmitted = app(OrderIntakeService::class)->resubmit($rejected->fresh(), $supervisor, 'Fixed quantities');
         $this->assertSame(OrderOperations::INTAKE_RESUBMITTED, $resubmitted->status);
 
-        $awaiting = app(OrderIntakeService::class)->sendToCompanyManager($resubmitted->fresh(), $oms);
+        $awaiting = app(OrderIntakeService::class)->sendToCompanyManager(
+            $resubmitted->fresh(),
+            $oms,
+            null,
+            Carbon::now()->addDays(2)
+        );
         $this->assertSame(OrderOperations::INTAKE_AWAITING_CM, $awaiting->status);
         $this->assertCount(0, $awaiting->phases);
 
@@ -75,7 +80,12 @@ class OrderOperationsWorkflowTest extends FeatureTestCase
         ]);
 
         $intake = app(OrderIntakeService::class)->enqueueFromApproval($invoice, $oms);
-        $intake = app(OrderIntakeService::class)->sendToCompanyManager($intake, $oms);
+        $intake = app(OrderIntakeService::class)->sendToCompanyManager(
+            $intake,
+            $oms,
+            null,
+            Carbon::now()->addDays(1)
+        );
         $intake = app(OrderIntakeService::class)->approveByCompanyManager($intake, $cm);
 
         app(OrderScheduleService::class)->setPhaseDeadline(
@@ -168,8 +178,14 @@ class OrderOperationsWorkflowTest extends FeatureTestCase
         ]);
 
         $intake = app(OrderIntakeService::class)->enqueueFromApproval($invoice, $oms);
-        $intake = app(OrderIntakeService::class)->sendToCompanyManager($intake, $oms);
+        $intake = app(OrderIntakeService::class)->sendToCompanyManager(
+            $intake,
+            $oms,
+            null,
+            Carbon::now()->addDays(1)
+        );
         $this->assertSame(OrderOperations::INTAKE_AWAITING_CM, $intake->status);
+        $this->assertNotNull($intake->cm_due_at);
 
         try {
             app(OrderScheduleService::class)->assignUser($intake, $oms, $designer, OrderOperations::ROLE_DESIGNER);
@@ -179,8 +195,23 @@ class OrderOperationsWorkflowTest extends FeatureTestCase
         }
 
         $accepted = app(OrderIntakeService::class)->approveByCompanyManager($intake->fresh(), $cm);
+
+        try {
+            app(OrderScheduleService::class)->assignUser($accepted, $oms, $designer, OrderOperations::ROLE_DESIGNER);
+            $this->fail('Designer assign should fail without deadline');
+        } catch (\InvalidArgumentException $e) {
+            $this->assertStringContainsString('deadline', strtolower($e->getMessage()));
+        }
+
+        app(OrderScheduleService::class)->setPhaseDeadline(
+            $accepted->fresh(['phases'])->phase(OrderOperations::PHASE_DESIGN),
+            $oms,
+            Carbon::now()->addDays(5),
+            24
+        );
+
         $assignment = app(OrderScheduleService::class)->assignUser(
-            $accepted,
+            $accepted->fresh(['phases']),
             $oms,
             $designer,
             OrderOperations::ROLE_DESIGNER

@@ -23,6 +23,10 @@ class OrderIntake extends Model
         'reviewed_at',
         'accepted_at',
         'company_manager_notified_at',
+        'cm_due_at',
+        'cm_reminder_hours_before',
+        'cm_reminder_sent_at',
+        'cm_overdue_sent_at',
     ];
 
     protected function casts(): array
@@ -32,6 +36,9 @@ class OrderIntake extends Model
             'reviewed_at' => 'datetime',
             'accepted_at' => 'datetime',
             'company_manager_notified_at' => 'datetime',
+            'cm_due_at' => 'datetime',
+            'cm_reminder_sent_at' => 'datetime',
+            'cm_overdue_sent_at' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];

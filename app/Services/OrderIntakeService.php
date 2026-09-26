@@ -8,6 +8,7 @@ use App\Models\OrderIntakeReview;
 use App\Models\User;
 use App\Support\OrderOperations;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -114,15 +115,28 @@ class OrderIntakeService
     /**
      * OMS evaluates and forwards to Company Manager (does not unlock designer assignment yet).
      */
-    public function sendToCompanyManager(OrderIntake $intake, User $actor, ?Request $request = null): OrderIntake
-    {
+    public function sendToCompanyManager(
+        OrderIntake $intake,
+        User $actor,
+        ?Request $request = null,
+        ?Carbon $cmDueAt = null,
+        int $reminderHoursBefore = 24,
+    ): OrderIntake {
         $this->assertOms($actor);
 
         if (! in_array($intake->status, [OrderOperations::INTAKE_PENDING, OrderOperations::INTAKE_UNDER_REVIEW, OrderOperations::INTAKE_RESUBMITTED], true)) {
             throw new InvalidArgumentException('Intake cannot be sent to company manager in its current status.');
         }
 
-        return DB::transaction(function () use ($intake, $actor, $request) {
+        if ($cmDueAt === null) {
+            throw new InvalidArgumentException('OMS must set a company manager approval deadline.');
+        }
+
+        if ($cmDueAt->lessThanOrEqualTo(now())) {
+            throw new InvalidArgumentException('Company manager deadline must be in the future.');
+        }
+
+        return DB::transaction(function () use ($intake, $actor, $request, $cmDueAt, $reminderHoursBefore) {
             if ($intake->invoice) {
                 $intake->snapshot_json = $intake->invoice->snapshot_json;
                 $intake->invoice_number = $intake->invoice->invoice_number;
@@ -134,15 +148,20 @@ class OrderIntakeService
             $intake->reviewed_at = now();
             $intake->rejection_reason = null;
             $intake->company_manager_notified_at = now();
+            $intake->cm_due_at = $cmDueAt;
+            $intake->cm_reminder_hours_before = max(1, $reminderHoursBefore);
+            $intake->cm_reminder_sent_at = null;
+            $intake->cm_overdue_sent_at = null;
             $intake->save();
 
-            $this->recordReview($intake, $actor, 'sent_to_cm', $from, OrderOperations::INTAKE_AWAITING_CM, null);
+            $this->recordReview($intake, $actor, 'sent_to_cm', $from, OrderOperations::INTAKE_AWAITING_CM, 'CM deadline '.$cmDueAt->toDateTimeString());
 
+            $dueLabel = $cmDueAt->timezone(config('app.timezone'))->format('Y-m-d H:i');
             foreach ($this->notify->activeUserIdsWithRoles([OrderOperations::ROLE_COMPANY_MANAGER]) as $userId) {
                 $this->notify->notifyUser($userId, [
                     'type' => 'order_intake_awaiting_cm',
                     'title' => 'Order needs your approval',
-                    'message' => "Invoice {$intake->invoice_number} was sent by OMS and needs company manager approval before design can start.",
+                    'message' => "Invoice {$intake->invoice_number} needs approval by {$dueLabel} (deadline set by OMS).",
                     'entityType' => 'order_intake',
                     'entityId' => (int) $intake->id,
                 ]);
@@ -150,6 +169,7 @@ class OrderIntakeService
 
             $this->audit->log($actor, 'order_intake', (int) $intake->id, 'SEND_ORDER_INTAKE_TO_CM', [
                 'invoice_number' => $intake->invoice_number,
+                'cm_due_at' => $cmDueAt->toIso8601String(),
             ], $request);
 
             return $intake->fresh();
@@ -161,7 +181,13 @@ class OrderIntakeService
      */
     public function accept(OrderIntake $intake, User $actor, ?Request $request = null): OrderIntake
     {
-        return $this->sendToCompanyManager($intake, $actor, $request);
+        return $this->sendToCompanyManager(
+            $intake,
+            $actor,
+            $request,
+            now()->addDays(2),
+            24,
+        );
     }
 
     public function approveByCompanyManager(OrderIntake $intake, User $actor, ?Request $request = null): OrderIntake
