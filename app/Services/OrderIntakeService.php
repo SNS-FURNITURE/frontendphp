@@ -45,12 +45,19 @@ class OrderIntakeService
             ->first();
 
         if ($existing) {
-            return $existing;
+            if ($sourceType === 'approved_invoice') {
+                $existing->source_type = 'approved_invoice';
+                $existing->snapshot_json = $invoice->snapshot_json;
+                $existing->invoice_number = $invoice->invoice_number;
+                $existing->save();
+            }
+
+            return $existing->fresh();
         }
 
         if (OrderIntake::query()
             ->where('invoice_id', $invoice->id)
-            ->where('status', OrderOperations::INTAKE_ACCEPTED)
+            ->whereIn('status', OrderOperations::intakePostReviewStatuses())
             ->exists()) {
             return null;
         }
@@ -104,45 +111,130 @@ class OrderIntakeService
         return $intake->fresh();
     }
 
-    public function accept(OrderIntake $intake, User $actor, ?Request $request = null): OrderIntake
+    /**
+     * OMS evaluates and forwards to Company Manager (does not unlock designer assignment yet).
+     */
+    public function sendToCompanyManager(OrderIntake $intake, User $actor, ?Request $request = null): OrderIntake
     {
         $this->assertOms($actor);
 
         if (! in_array($intake->status, [OrderOperations::INTAKE_PENDING, OrderOperations::INTAKE_UNDER_REVIEW, OrderOperations::INTAKE_RESUBMITTED], true)) {
-            throw new InvalidArgumentException('Intake cannot be accepted in its current status.');
+            throw new InvalidArgumentException('Intake cannot be sent to company manager in its current status.');
         }
 
         return DB::transaction(function () use ($intake, $actor, $request) {
+            if ($intake->invoice) {
+                $intake->snapshot_json = $intake->invoice->snapshot_json;
+                $intake->invoice_number = $intake->invoice->invoice_number;
+            }
+
             $from = $intake->status;
-            $intake->status = OrderOperations::INTAKE_ACCEPTED;
+            $intake->status = OrderOperations::INTAKE_AWAITING_CM;
             $intake->reviewed_by = $actor->id;
             $intake->reviewed_at = now();
-            $intake->accepted_at = now();
             $intake->rejection_reason = null;
+            $intake->company_manager_notified_at = now();
             $intake->save();
 
-            $this->schedule->initializePhases($intake);
-            $this->recordReview($intake, $actor, 'accepted', $from, OrderOperations::INTAKE_ACCEPTED, null);
+            $this->recordReview($intake, $actor, 'sent_to_cm', $from, OrderOperations::INTAKE_AWAITING_CM, null);
 
             foreach ($this->notify->activeUserIdsWithRoles([OrderOperations::ROLE_COMPANY_MANAGER]) as $userId) {
                 $this->notify->notifyUser($userId, [
-                    'type' => 'order_intake_accepted',
-                    'title' => 'Order accepted by OMS',
-                    'message' => "Invoice {$intake->invoice_number} passed OMS review (visibility only).",
+                    'type' => 'order_intake_awaiting_cm',
+                    'title' => 'Order needs your approval',
+                    'message' => "Invoice {$intake->invoice_number} was sent by OMS and needs company manager approval before design can start.",
                     'entityType' => 'order_intake',
                     'entityId' => (int) $intake->id,
                 ]);
             }
 
-            $intake->company_manager_notified_at = now();
+            $this->audit->log($actor, 'order_intake', (int) $intake->id, 'SEND_ORDER_INTAKE_TO_CM', [
+                'invoice_number' => $intake->invoice_number,
+            ], $request);
+
+            return $intake->fresh();
+        });
+    }
+
+    /**
+     * @deprecated Use sendToCompanyManager(); kept as alias for older callers/tests.
+     */
+    public function accept(OrderIntake $intake, User $actor, ?Request $request = null): OrderIntake
+    {
+        return $this->sendToCompanyManager($intake, $actor, $request);
+    }
+
+    public function approveByCompanyManager(OrderIntake $intake, User $actor, ?Request $request = null): OrderIntake
+    {
+        $this->assertCompanyManager($actor);
+
+        if ($intake->status !== OrderOperations::INTAKE_AWAITING_CM) {
+            throw new InvalidArgumentException('Intake is not awaiting company manager approval.');
+        }
+
+        return DB::transaction(function () use ($intake, $actor, $request) {
+            $from = $intake->status;
+            $intake->status = OrderOperations::INTAKE_ACCEPTED;
+            $intake->accepted_at = now();
+            $intake->rejection_reason = null;
             $intake->save();
 
-            $this->audit->log($actor, 'order_intake', (int) $intake->id, 'ACCEPT_ORDER_INTAKE', [
+            $this->schedule->initializePhases($intake);
+            $this->recordReview($intake, $actor, 'cm_approved', $from, OrderOperations::INTAKE_ACCEPTED, null);
+
+            foreach ($this->notify->activeUserIdsWithRoles([OrderOperations::ROLE_OMS]) as $omsUserId) {
+                $this->notify->notifyUser($omsUserId, [
+                    'type' => 'order_intake_cm_approved',
+                    'title' => 'Ready to assign designer',
+                    'message' => "Company manager approved {$intake->invoice_number}. You can assign a designer.",
+                    'entityType' => 'order_intake',
+                    'entityId' => (int) $intake->id,
+                ]);
+            }
+
+            $this->audit->log($actor, 'order_intake', (int) $intake->id, 'CM_APPROVE_ORDER_INTAKE', [
                 'invoice_number' => $intake->invoice_number,
             ], $request);
 
             return $intake->fresh(['phases.checkpoints']);
         });
+    }
+
+    public function rejectByCompanyManager(OrderIntake $intake, User $actor, string $reason, ?Request $request = null): OrderIntake
+    {
+        $this->assertCompanyManager($actor);
+
+        $reason = trim($reason);
+        if ($reason === '') {
+            throw new InvalidArgumentException('Rejection reason is required.');
+        }
+
+        if ($intake->status !== OrderOperations::INTAKE_AWAITING_CM) {
+            throw new InvalidArgumentException('Intake is not awaiting company manager approval.');
+        }
+
+        $from = $intake->status;
+        $intake->status = OrderOperations::INTAKE_UNDER_REVIEW;
+        $intake->rejection_reason = $reason;
+        $intake->save();
+
+        $this->recordReview($intake, $actor, 'cm_rejected', $from, OrderOperations::INTAKE_UNDER_REVIEW, $reason);
+
+        foreach ($this->notify->activeUserIdsWithRoles([OrderOperations::ROLE_OMS]) as $omsUserId) {
+            $this->notify->notifyUser($omsUserId, [
+                'type' => 'order_intake_cm_rejected',
+                'title' => 'Company manager returned order',
+                'message' => "Invoice {$intake->invoice_number} was returned: {$reason}",
+                'entityType' => 'order_intake',
+                'entityId' => (int) $intake->id,
+            ]);
+        }
+
+        $this->audit->log($actor, 'order_intake', (int) $intake->id, 'CM_REJECT_ORDER_INTAKE', [
+            'reason' => $reason,
+        ], $request);
+
+        return $intake->fresh();
     }
 
     public function reject(OrderIntake $intake, User $actor, string $reason, ?Request $request = null): OrderIntake
@@ -229,6 +321,13 @@ class OrderIntakeService
     {
         if (! $actor->canReviewOrderIntake()) {
             throw new InvalidArgumentException('Only OMS can perform this action.');
+        }
+    }
+
+    private function assertCompanyManager(User $actor): void
+    {
+        if (! $actor->hasRole(OrderOperations::ROLE_COMPANY_MANAGER) && ! $actor->isAdmin()) {
+            throw new InvalidArgumentException('Only company manager can perform this action.');
         }
     }
 

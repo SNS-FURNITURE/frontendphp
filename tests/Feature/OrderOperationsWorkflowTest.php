@@ -46,7 +46,12 @@ class OrderOperationsWorkflowTest extends FeatureTestCase
         $resubmitted = app(OrderIntakeService::class)->resubmit($rejected->fresh(), $supervisor, 'Fixed quantities');
         $this->assertSame(OrderOperations::INTAKE_RESUBMITTED, $resubmitted->status);
 
-        $accepted = app(OrderIntakeService::class)->accept($resubmitted->fresh(), $oms);
+        $awaiting = app(OrderIntakeService::class)->sendToCompanyManager($resubmitted->fresh(), $oms);
+        $this->assertSame(OrderOperations::INTAKE_AWAITING_CM, $awaiting->status);
+        $this->assertCount(0, $awaiting->phases);
+
+        $cm = $this->createUserWithRole(OrderOperations::ROLE_COMPANY_MANAGER);
+        $accepted = app(OrderIntakeService::class)->approveByCompanyManager($awaiting->fresh(), $cm);
         $this->assertSame(OrderOperations::INTAKE_ACCEPTED, $accepted->status);
         $this->assertCount(4, $accepted->phases);
     }
@@ -70,7 +75,8 @@ class OrderOperationsWorkflowTest extends FeatureTestCase
         ]);
 
         $intake = app(OrderIntakeService::class)->enqueueFromApproval($invoice, $oms);
-        $intake = app(OrderIntakeService::class)->accept($intake, $oms);
+        $intake = app(OrderIntakeService::class)->sendToCompanyManager($intake, $oms);
+        $intake = app(OrderIntakeService::class)->approveByCompanyManager($intake, $cm);
 
         app(OrderScheduleService::class)->setPhaseDeadline(
             $intake->phase(OrderOperations::PHASE_DESIGN),
@@ -143,7 +149,64 @@ class OrderOperationsWorkflowTest extends FeatureTestCase
         $intake = app(OrderIntakeService::class)->enqueueFromSalesSupervisorIssue($invoice, $supervisor);
 
         $this->expectException(\InvalidArgumentException::class);
-        app(OrderIntakeService::class)->accept($intake, $omf);
+        app(OrderIntakeService::class)->sendToCompanyManager($intake, $omf);
+    }
+
+    public function test_designer_assign_requires_company_manager_approval(): void
+    {
+        $oms = $this->createUserWithRole(OrderOperations::ROLE_OMS);
+        $cm = $this->createUserWithRole(OrderOperations::ROLE_COMPANY_MANAGER);
+        $designer = $this->createUserWithRole(OrderOperations::ROLE_DESIGNER);
+        $supervisor = $this->createUserWithRole('sales_supervisor');
+
+        $invoice = Invoice::query()->create([
+            'invoice_number' => 'INV-2026-040',
+            'amount' => 200,
+            'status' => 'approved',
+            'snapshot_json' => ['totals' => ['grand_total' => 200]],
+            'created_by' => $supervisor->id,
+        ]);
+
+        $intake = app(OrderIntakeService::class)->enqueueFromApproval($invoice, $oms);
+        $intake = app(OrderIntakeService::class)->sendToCompanyManager($intake, $oms);
+        $this->assertSame(OrderOperations::INTAKE_AWAITING_CM, $intake->status);
+
+        try {
+            app(OrderScheduleService::class)->assignUser($intake, $oms, $designer, OrderOperations::ROLE_DESIGNER);
+            $this->fail('Designer assign should fail before CM approval');
+        } catch (\InvalidArgumentException $e) {
+            $this->assertStringContainsString('company manager', strtolower($e->getMessage()));
+        }
+
+        $accepted = app(OrderIntakeService::class)->approveByCompanyManager($intake->fresh(), $cm);
+        $assignment = app(OrderScheduleService::class)->assignUser(
+            $accepted,
+            $oms,
+            $designer,
+            OrderOperations::ROLE_DESIGNER
+        );
+
+        $this->assertSame(OrderOperations::ROLE_DESIGNER, $assignment->role_key);
+        $this->assertSame($designer->id, (int) $assignment->user_id);
+    }
+
+    public function test_oms_pipeline_json_requires_authorization(): void
+    {
+        $sales = $this->createUserWithRole('sales');
+
+        $this->actingAs($sales)
+            ->get(route('operations.oms.pipeline.json'))
+            ->assertRedirect();
+    }
+
+    public function test_oms_can_open_pipeline_json(): void
+    {
+        $oms = $this->createUserWithRole(OrderOperations::ROLE_OMS);
+
+        $this->actingAs($oms)
+            ->get(route('operations.oms.pipeline.json'))
+            ->assertOk()
+            ->assertJsonStructure(['generated_at', 'rows']);
     }
 
     public function test_oms_dashboard_requires_authorization(): void

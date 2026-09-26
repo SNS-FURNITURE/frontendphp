@@ -36,16 +36,56 @@
 </div>
 
 @if ($user->canReviewOrderIntake() && in_array($intake->status, [\App\Support\OrderOperations::INTAKE_PENDING, \App\Support\OrderOperations::INTAKE_UNDER_REVIEW, \App\Support\OrderOperations::INTAKE_RESUBMITTED], true))
+@php
+    $snapshot = is_array($intake->snapshot_json) ? $intake->snapshot_json : (json_decode((string) $intake->snapshot_json, true) ?: []);
+    $live = $intake->invoice;
+    $liveSnapshot = is_array($live?->snapshot_json) ? $live->snapshot_json : (json_decode((string) ($live?->snapshot_json ?? ''), true) ?: []);
+    $snapTotal = $snapshot['totals']['grand_total'] ?? ($snapshot['grand_total'] ?? null);
+    $liveTotal = $liveSnapshot['totals']['grand_total'] ?? ($live?->amount);
+    $snapCustomer = $snapshot['customer']['name'] ?? ($snapshot['customer_name'] ?? '—');
+    $liveCustomer = $liveSnapshot['customer']['name'] ?? ($liveSnapshot['customer_name'] ?? '—');
+    $approvedAfterSnap = $live && $live->status === 'approved' && $intake->source_type !== 'approved_invoice';
+@endphp
 <div class="card" style="margin-bottom:1.25rem">
-    <h2 style="margin:0 0 1rem;font-size:1.1rem">OMS review</h2>
+    <h2 style="margin:0 0 1rem;font-size:1.1rem">OMS cross-check</h2>
+    <p class="muted" style="margin:0 0 1rem">
+        Source: <strong>{{ $intake->source_type }}</strong>
+        @if ($approvedAfterSnap)
+            <span class="badge" style="margin-left:0.5rem">Live invoice is now approved — snapshot may be outdated</span>
+        @endif
+    </p>
+    <div class="grid-2" style="gap:1rem;margin-bottom:1rem">
+        <div style="border:1px solid var(--border, #333);padding:0.75rem;border-radius:8px">
+            <h3 style="margin:0 0 0.5rem;font-size:0.95rem">Frozen at intake</h3>
+            <p style="margin:0.25rem 0">Invoice {{ $intake->invoice_number }}</p>
+            <p style="margin:0.25rem 0">Customer: {{ $snapCustomer }}</p>
+            <p style="margin:0.25rem 0">Total: {{ $snapTotal !== null ? number_format((float) $snapTotal, 2) : '—' }}</p>
+        </div>
+        <div style="border:1px solid var(--border, #333);padding:0.75rem;border-radius:8px">
+            <h3 style="margin:0 0 0.5rem;font-size:0.95rem">Live invoice</h3>
+            @if ($live)
+                <p style="margin:0.25rem 0">
+                    <a href="{{ route('invoices.show', $live) }}">{{ $live->invoice_number }}</a>
+                    <span class="badge">{{ $live->status }}</span>
+                </p>
+                <p style="margin:0.25rem 0">Customer: {{ $liveCustomer }}</p>
+                <p style="margin:0.25rem 0">Total: {{ $liveTotal !== null ? number_format((float) $liveTotal, 2) : '—' }}</p>
+            @else
+                <p class="muted" style="margin:0">No linked invoice</p>
+            @endif
+        </div>
+    </div>
+    @if ($intake->rejection_reason)
+        <p class="muted" style="margin:0 0 1rem">Last return note: {{ $intake->rejection_reason }}</p>
+    @endif
     <div class="toolbar" style="flex-wrap:wrap">
         @if (in_array($intake->status, [\App\Support\OrderOperations::INTAKE_PENDING, \App\Support\OrderOperations::INTAKE_RESUBMITTED], true))
             <form method="POST" action="{{ route('operations.orders.start-review', $intake) }}">@csrf
                 <button class="btn ghost" type="submit">Start review</button>
             </form>
         @endif
-        <form method="POST" action="{{ route('operations.orders.accept', $intake) }}">@csrf
-            <button class="btn" type="submit">Accept</button>
+        <form method="POST" action="{{ route('operations.orders.send-to-cm', $intake) }}">@csrf
+            <button class="btn" type="submit">Send to company manager</button>
         </form>
         <form method="POST" action="{{ route('operations.orders.reject', $intake) }}" style="display:flex;gap:0.5rem;align-items:end;margin:0">
             @csrf
@@ -56,6 +96,33 @@
             <button class="btn ghost" type="submit">Reject</button>
         </form>
     </div>
+</div>
+@endif
+
+@if (($user->hasRole('company_manager') || $user->isAdmin()) && $intake->status === \App\Support\OrderOperations::INTAKE_AWAITING_CM)
+<div class="card" style="margin-bottom:1.25rem">
+    <h2 style="margin:0 0 1rem;font-size:1.1rem">Company manager approval</h2>
+    <p class="muted">OMS sent this order for your approval. Approving unlocks designer assignment.</p>
+    <div class="toolbar" style="flex-wrap:wrap">
+        <form method="POST" action="{{ route('operations.orders.cm-approve', $intake) }}">@csrf
+            <button class="btn" type="submit">Approve for production</button>
+        </form>
+        <form method="POST" action="{{ route('operations.orders.cm-reject', $intake) }}" style="display:flex;gap:0.5rem;align-items:end;margin:0">
+            @csrf
+            <div>
+                <label for="cm_rejection_reason">Return reason</label>
+                <input id="cm_rejection_reason" name="rejection_reason" required minlength="3" value="{{ old('rejection_reason') }}">
+            </div>
+            <button class="btn ghost" type="submit">Return to OMS</button>
+        </form>
+    </div>
+</div>
+@endif
+
+@if ($user->canReviewOrderIntake() && $intake->status === \App\Support\OrderOperations::INTAKE_AWAITING_CM)
+<div class="card" style="margin-bottom:1.25rem">
+    <h2 style="margin:0 0 0.5rem;font-size:1.1rem">Waiting on company manager</h2>
+    <p class="muted" style="margin:0">Designer assignment unlocks after company manager approves.</p>
 </div>
 @endif
 

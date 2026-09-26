@@ -99,6 +99,9 @@ class OrderScheduleService
         if (! $assignee->hasRole($roleKey)) {
             throw new InvalidArgumentException('Assignee does not have the required role.');
         }
+        if ($roleKey === OrderOperations::ROLE_DESIGNER && $intake->status !== OrderOperations::INTAKE_ACCEPTED) {
+            throw new InvalidArgumentException('Company manager must approve before a designer can be assigned.');
+        }
 
         if ($roleKey === OrderOperations::ROLE_DESIGNER) {
             OrderAssignment::query()

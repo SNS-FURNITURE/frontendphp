@@ -3,10 +3,12 @@
 @section('title', 'OMS queue')
 
 @section('content')
+@include('operations._oms-tabs', ['tab' => 'queue'])
+
 <div class="page-head">
     <div>
         <h1>OMS incoming queue</h1>
-        <p class="muted" style="margin:0.35rem 0 0">Review approved and issued orders before production scheduling.</p>
+        <p class="muted" style="margin:0.35rem 0 0">Cross-check issued and approved orders, then send to company manager.</p>
     </div>
 </div>
 

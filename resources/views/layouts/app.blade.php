@@ -646,13 +646,14 @@
         @if (auth()->user()->canViewOrderOperations() || auth()->user()->isOms() || auth()->user()->isOmf() || auth()->user()->isDesigner() || auth()->user()->isProcurement() || auth()->user()->isAssembler() || auth()->user()->hasRole('company_manager'))
             <div class="nav-section">Order ops</div>
             @if (auth()->user()->canReviewOrderIntake() || auth()->user()->isOms())
-                <a class="nav-link {{ request()->routeIs('operations.oms.*') ? 'active' : '' }}" href="{{ route('operations.oms.dashboard') }}">OMS queue</a>
+                <a class="nav-link {{ request()->routeIs('operations.oms.dashboard') ? 'active' : '' }}" href="{{ route('operations.oms.dashboard') }}">OMS queue</a>
+                <a class="nav-link {{ request()->routeIs('operations.oms.pipeline*') ? 'active' : '' }}" href="{{ route('operations.oms.pipeline') }}">OMS live</a>
             @endif
             @if (auth()->user()->isOmf() || auth()->user()->isAssembler() || auth()->user()->canMonitorProductionDelivery())
                 <a class="nav-link {{ request()->routeIs('operations.omf.*') ? 'active' : '' }}" href="{{ route('operations.omf.dashboard') }}">OMF board</a>
             @endif
             @if (auth()->user()->hasRole('company_manager') || auth()->user()->canApproveOrderProcurement())
-                <a class="nav-link {{ request()->routeIs('operations.manager.*') ? 'active' : '' }}" href="{{ route('operations.manager.dashboard') }}">Materials approval</a>
+                <a class="nav-link {{ request()->routeIs('operations.manager.*') ? 'active' : '' }}" href="{{ route('operations.manager.dashboard') }}">Manager board</a>
             @endif
             @if (auth()->user()->isDesigner() || auth()->user()->isOms())
                 <a class="nav-link {{ request()->routeIs('operations.designer.*') ? 'active' : '' }}" href="{{ route('operations.designer.dashboard') }}">Design tasks</a>

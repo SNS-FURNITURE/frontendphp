@@ -17,6 +17,7 @@ use App\Services\OrderProcurementService;
 use App\Services\OrderScheduleService;
 use App\Services\OrderWorkflowService;
 use App\Support\OrderOperations;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -46,6 +47,72 @@ class OperationsWebController extends Controller
 
         return view('operations.oms-dashboard', [
             'intakes' => $intakes,
+            'tab' => 'queue',
+        ]);
+    }
+
+    public function omsPipeline(): View
+    {
+        abort_unless(auth()->user()?->canReviewOrderIntake() || auth()->user()?->canViewOrderOperations(), 403);
+
+        return view('operations.oms-pipeline', [
+            'tab' => 'pipeline',
+            'pipelineUrl' => route('operations.oms.pipeline.json'),
+        ]);
+    }
+
+    public function omsPipelineJson(): JsonResponse
+    {
+        abort_unless(auth()->user()?->canReviewOrderIntake() || auth()->user()?->canViewOrderOperations(), 403);
+
+        $intakes = OrderIntake::query()
+            ->with([
+                'phases.checkpoints',
+                'assignments.user',
+                'materialLines',
+                'procurementRequests',
+                'deliveries',
+            ])
+            ->whereIn('status', OrderOperations::intakePipelineStatuses())
+            ->latest('id')
+            ->get();
+
+        $rows = $intakes->map(function (OrderIntake $intake): array {
+            $phaseSummary = [];
+            foreach (OrderOperations::phaseKeys() as $key) {
+                $phase = $intake->phases->firstWhere('phase_key', $key);
+                $phaseSummary[$key] = [
+                    'status' => $phase?->status ?? '—',
+                    'due_at' => optional($phase?->due_at)->toIso8601String(),
+                    'checkpoints_done' => $phase
+                        ? $phase->checkpoints->where('is_completed', true)->count()
+                        : 0,
+                    'checkpoints_total' => $phase ? $phase->checkpoints->count() : 0,
+                ];
+            }
+
+            $designer = $intake->assignments->firstWhere('role_key', OrderOperations::ROLE_DESIGNER);
+
+            return [
+                'id' => (int) $intake->id,
+                'invoice_number' => $intake->invoice_number,
+                'status' => $intake->status,
+                'designer' => $designer?->user?->full_name,
+                'materials_pending' => $intake->materialLines->where('stock_status', OrderOperations::STOCK_PENDING)->count(),
+                'procurement_open' => $intake->procurementRequests->whereIn('status', [
+                    OrderOperations::PROCUREMENT_OPEN,
+                    OrderOperations::PROCUREMENT_QUOTED,
+                    OrderOperations::PROCUREMENT_PENDING_APPROVAL,
+                ])->count(),
+                'delivery_status' => optional($intake->deliveries->sortByDesc('id')->first())->status,
+                'phases' => $phaseSummary,
+                'url' => route('operations.orders.show', $intake),
+            ];
+        })->values();
+
+        return response()->json([
+            'generated_at' => now()->toIso8601String(),
+            'rows' => $rows,
         ]);
     }
 
@@ -71,6 +138,12 @@ class OperationsWebController extends Controller
     {
         abort_unless(auth()->user()?->canApproveOrderProcurement() || auth()->user()?->hasRole('company_manager') || auth()->user()?->canViewOrderOperations(), 403);
 
+        $awaitingCm = OrderIntake::query()
+            ->with(['invoice', 'sourceUser', 'reviewer'])
+            ->where('status', OrderOperations::INTAKE_AWAITING_CM)
+            ->latest('id')
+            ->get();
+
         $intakes = OrderIntake::query()
             ->with(['materialLines', 'procurementRequests.proposedQuote', 'phases'])
             ->where('status', OrderOperations::INTAKE_ACCEPTED)
@@ -86,6 +159,7 @@ class OperationsWebController extends Controller
             ->get();
 
         return view('operations.manager-dashboard', [
+            'awaitingCm' => $awaitingCm,
             'intakes' => $intakes,
         ]);
     }
@@ -182,17 +256,54 @@ class OperationsWebController extends Controller
 
     public function accept(Request $request, OrderIntake $intake): RedirectResponse
     {
+        return $this->sendToCompanyManager($request, $intake);
+    }
+
+    public function sendToCompanyManager(Request $request, OrderIntake $intake): RedirectResponse
+    {
         abort_unless(auth()->user()?->canReviewOrderIntake(), 403);
 
         try {
-            $this->intakeService->accept($intake, auth()->user(), $request);
+            $this->intakeService->sendToCompanyManager($intake, auth()->user(), $request);
         } catch (InvalidArgumentException $e) {
             return back()->withErrors(['status' => $e->getMessage()]);
         }
 
         return redirect()
             ->route('operations.orders.show', $intake)
-            ->with('status', 'Order accepted and phases initialized');
+            ->with('status', 'Order sent to company manager for approval');
+    }
+
+    public function cmApprove(Request $request, OrderIntake $intake): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasRole(OrderOperations::ROLE_COMPANY_MANAGER) || auth()->user()?->isAdmin(), 403);
+
+        try {
+            $this->intakeService->approveByCompanyManager($intake, auth()->user(), $request);
+        } catch (InvalidArgumentException $e) {
+            return back()->withErrors(['status' => $e->getMessage()]);
+        }
+
+        return redirect()
+            ->route('operations.orders.show', $intake)
+            ->with('status', 'Order approved — OMS can assign a designer');
+    }
+
+    public function cmReject(Request $request, OrderIntake $intake): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasRole(OrderOperations::ROLE_COMPANY_MANAGER) || auth()->user()?->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'rejection_reason' => ['required', 'string', 'min:3'],
+        ]);
+
+        try {
+            $this->intakeService->rejectByCompanyManager($intake, auth()->user(), $validated['rejection_reason'], $request);
+        } catch (InvalidArgumentException $e) {
+            return back()->withErrors(['status' => $e->getMessage()]);
+        }
+
+        return back()->with('status', 'Order returned to OMS');
     }
 
     public function reject(Request $request, OrderIntake $intake): RedirectResponse

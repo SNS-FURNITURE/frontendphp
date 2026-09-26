@@ -220,6 +220,8 @@ Route::middleware(['auth', EnsureWebInvoiceAccess::class])->group(function () {
 
     Route::prefix('operations')->name('operations.')->group(function () {
         Route::get('/oms', [OperationsWebController::class, 'omsDashboard'])->name('oms.dashboard');
+        Route::get('/oms/pipeline', [OperationsWebController::class, 'omsPipeline'])->name('oms.pipeline');
+        Route::get('/oms/pipeline.json', [OperationsWebController::class, 'omsPipelineJson'])->name('oms.pipeline.json');
         Route::get('/omf', [OperationsWebController::class, 'omfDashboard'])->name('omf.dashboard');
         Route::get('/manager', [OperationsWebController::class, 'managerDashboard'])->name('manager.dashboard');
         Route::get('/designer', [OperationsWebController::class, 'designerDashboard'])->name('designer.dashboard');
@@ -228,6 +230,9 @@ Route::middleware(['auth', EnsureWebInvoiceAccess::class])->group(function () {
 
         Route::post('/orders/{intake}/start-review', [OperationsWebController::class, 'startReview'])->name('orders.start-review');
         Route::post('/orders/{intake}/accept', [OperationsWebController::class, 'accept'])->name('orders.accept');
+        Route::post('/orders/{intake}/send-to-cm', [OperationsWebController::class, 'sendToCompanyManager'])->name('orders.send-to-cm');
+        Route::post('/orders/{intake}/cm-approve', [OperationsWebController::class, 'cmApprove'])->name('orders.cm-approve');
+        Route::post('/orders/{intake}/cm-reject', [OperationsWebController::class, 'cmReject'])->name('orders.cm-reject');
         Route::post('/orders/{intake}/reject', [OperationsWebController::class, 'reject'])->name('orders.reject');
         Route::post('/orders/{intake}/resubmit', [OperationsWebController::class, 'resubmit'])->name('orders.resubmit');
 

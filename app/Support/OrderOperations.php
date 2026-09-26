@@ -20,6 +20,8 @@ final class OrderOperations
 
     public const INTAKE_UNDER_REVIEW = 'under_review';
 
+    public const INTAKE_AWAITING_CM = 'awaiting_cm';
+
     public const INTAKE_ACCEPTED = 'accepted';
 
     public const INTAKE_REJECTED = 'rejected';
@@ -65,6 +67,8 @@ final class OrderOperations
     public const PROCUREMENT_FINALIZED = 'finalized';
 
     /**
+     * Intakes still on the OMS review queue (not yet with CM or in production).
+     *
      * @return list<string>
      */
     public static function intakeOpenStatuses(): array
@@ -74,6 +78,31 @@ final class OrderOperations
             self::INTAKE_UNDER_REVIEW,
             self::INTAKE_RESUBMITTED,
             self::INTAKE_REJECTED,
+        ];
+    }
+
+    /**
+     * Intakes that already left the OMS queue (CM or production).
+     *
+     * @return list<string>
+     */
+    public static function intakePostReviewStatuses(): array
+    {
+        return [
+            self::INTAKE_AWAITING_CM,
+            self::INTAKE_ACCEPTED,
+        ];
+    }
+
+    /**
+     * Intakes visible on the OMS live pipeline board.
+     *
+     * @return list<string>
+     */
+    public static function intakePipelineStatuses(): array
+    {
+        return [
+            self::INTAKE_ACCEPTED,
         ];
     }
 
