@@ -224,7 +224,7 @@ class OperationsWebController extends Controller
         abort_unless($user?->isProductManager() || $user?->isOmf() || $user?->isOms() || $user?->canViewOrderOperations(), 403);
 
         $query = OrderIntake::query()
-            ->with(['phases', 'assignments.user'])
+            ->with(['phases', 'assignments.user', 'materialLines'])
             ->where('status', OrderOperations::INTAKE_ACCEPTED);
 
         if ($user->isProductManager() && ! $user->isOmf() && ! $user->isOms() && ! $user->isAdmin()) {
@@ -316,6 +316,7 @@ class OperationsWebController extends Controller
             'intake' => $intake,
             'designers' => $this->usersWithRole(OrderOperations::ROLE_DESIGNER),
             'productManagers' => $this->usersWithRole(OrderOperations::ROLE_PRODUCT_MANAGER),
+            'soleProductManager' => User::soleProductManager(),
             'assemblers' => $this->usersWithRole(OrderOperations::ROLE_ASSEMBLER),
             'destinations' => Delivery::DESTINATIONS,
             'hidePrices' => $hidePrices,
@@ -545,13 +546,14 @@ class OperationsWebController extends Controller
         ]);
 
         try {
+            $solePm = User::soleProductManager();
             $this->scheduleService->saveSchedule(
                 $intake,
                 auth()->user(),
                 array_values($validated['phases'] ?? []),
                 array_values($validated['new_phases'] ?? []),
                 isset($validated['designer_user_id']) ? (int) $validated['designer_user_id'] : null,
-                isset($validated['product_manager_user_id']) ? (int) $validated['product_manager_user_id'] : null,
+                $solePm?->id ?? (isset($validated['product_manager_user_id']) ? (int) $validated['product_manager_user_id'] : null),
                 $request,
             );
         } catch (InvalidArgumentException $e) {
@@ -837,7 +839,7 @@ class OperationsWebController extends Controller
 
     public function releaseMaterials(Request $request, OrderIntake $intake): RedirectResponse
     {
-        abort_unless(auth()->user()?->hasRole('company_manager') || auth()->user()?->isOms(), 403);
+        abort_unless(auth()->user()?->canApproveMaterialRelease(), 403);
 
         try {
             $this->procurementService->releaseMaterials($intake, auth()->user(), $request);
@@ -845,7 +847,46 @@ class OperationsWebController extends Controller
             return back()->withErrors(['status' => $e->getMessage()]);
         }
 
-        return back()->with('status', 'Materials released to production');
+        return back()->with('status', 'Materials released from inventory');
+    }
+
+    public function requestMaterialRelease(Request $request, OrderIntake $intake): RedirectResponse
+    {
+        abort_unless(auth()->user()?->canRequestMaterialRelease(), 403);
+
+        $validated = $request->validate([
+            'note' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        try {
+            $this->procurementService->requestMaterialRelease(
+                $intake,
+                auth()->user(),
+                $validated['note'] ?? null,
+                $request,
+            );
+        } catch (InvalidArgumentException $e) {
+            return back()->withErrors(['status' => $e->getMessage()]);
+        }
+
+        return back()->with('status', 'Material release requested from inventory');
+    }
+
+    public function postProductionUpdate(Request $request, OrderIntake $intake): RedirectResponse
+    {
+        abort_unless(auth()->user()?->canPostProductionUpdate(), 403);
+
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'min:1', 'max:2000'],
+        ]);
+
+        try {
+            $this->messageService->postProductionUpdate($intake, auth()->user(), $validated['body'], $request);
+        } catch (InvalidArgumentException $e) {
+            return back()->withErrors(['status' => $e->getMessage()]);
+        }
+
+        return back()->with('status', 'Production update sent to OMS and OMF');
     }
 
     public function completeAssembly(Request $request, OrderIntake $intake): RedirectResponse

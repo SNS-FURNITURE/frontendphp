@@ -286,10 +286,91 @@ class OrderProcurementService
         });
     }
 
+    public function requestMaterialRelease(
+        OrderIntake $intake,
+        User $actor,
+        ?string $note = null,
+        ?Request $request = null,
+    ): OrderIntake {
+        if (! $actor->canRequestMaterialRelease()) {
+            throw new InvalidArgumentException('Only the product manager can request material release from inventory.');
+        }
+
+        if ($intake->status !== OrderOperations::INTAKE_ACCEPTED) {
+            throw new InvalidArgumentException('Materials can only be requested on accepted orders.');
+        }
+
+        $isAssigned = $intake->assignments()
+            ->where('role_key', OrderOperations::ROLE_PRODUCT_MANAGER)
+            ->where('user_id', $actor->id)
+            ->exists();
+
+        if (! $isAssigned && ! $actor->isAdmin()) {
+            throw new InvalidArgumentException('You are not the product manager for this order.');
+        }
+
+        $lines = $intake->materialLines;
+        if ($lines->isEmpty()) {
+            throw new InvalidArgumentException('No material lines to request.');
+        }
+
+        $releasable = $lines->filter(fn (OrderMaterialLine $line) => in_array($line->stock_status, [
+            OrderOperations::STOCK_AVAILABLE,
+            OrderOperations::STOCK_RELEASE_REQUESTED,
+        ], true));
+
+        if ($releasable->isEmpty()) {
+            throw new InvalidArgumentException('No available materials to request for release.');
+        }
+
+        $alreadyReleased = $lines->every(fn (OrderMaterialLine $line) => $line->stock_status === OrderOperations::STOCK_RELEASED);
+        if ($alreadyReleased) {
+            throw new InvalidArgumentException('Materials were already released.');
+        }
+
+        return DB::transaction(function () use ($intake, $actor, $releasable, $note, $request) {
+            foreach ($releasable as $line) {
+                if ($line->stock_status === OrderOperations::STOCK_AVAILABLE) {
+                    $line->stock_status = OrderOperations::STOCK_RELEASE_REQUESTED;
+                    $line->save();
+                }
+            }
+
+            $intake->materials_release_requested_at = now();
+            $intake->materials_release_requested_by = $actor->id;
+            $intake->materials_release_note = $note ? trim($note) : null;
+            $intake->save();
+
+            foreach ($this->notify->activeUserIdsWithRoles([
+                OrderOperations::ROLE_COMPANY_MANAGER,
+                OrderOperations::ROLE_OMS,
+                OrderOperations::ROLE_OMF,
+            ]) as $userId) {
+                $this->notify->notifyUser($userId, [
+                    'type' => 'material_release_requested',
+                    'title' => 'Material release requested',
+                    'message' => "Product manager requested inventory release for {$intake->invoice_number}.",
+                    'entityType' => 'order_intake',
+                    'entityId' => (int) $intake->id,
+                ]);
+            }
+
+            $this->audit->log($actor, 'order_intake', (int) $intake->id, 'REQUEST_MATERIAL_RELEASE', [
+                'note' => $note,
+            ], $request);
+
+            return $intake->fresh(['materialLines']);
+        });
+    }
+
     public function releaseMaterials(OrderIntake $intake, User $actor, ?Request $request = null): OrderIntake
     {
-        if (! $actor->hasRole('company_manager') && ! $actor->isOms()) {
-            throw new InvalidArgumentException('Not authorized to release materials.');
+        if (! $actor->canApproveMaterialRelease()) {
+            throw new InvalidArgumentException('Only company manager can release materials from inventory.');
+        }
+
+        if ($intake->materials_release_requested_at === null) {
+            throw new InvalidArgumentException('Product manager must request release from inventory first.');
         }
 
         $lines = $intake->materialLines;
@@ -300,12 +381,13 @@ class OrderProcurementService
         $blocking = $lines->first(function (OrderMaterialLine $line) {
             return ! in_array($line->stock_status, [
                 OrderOperations::STOCK_AVAILABLE,
+                OrderOperations::STOCK_RELEASE_REQUESTED,
                 OrderOperations::STOCK_RELEASED,
             ], true);
         });
 
         if ($blocking) {
-            throw new InvalidArgumentException('All materials must be available before release.');
+            throw new InvalidArgumentException('All materials must be available (or already requested) before release.');
         }
 
         $openProcurement = $intake->procurementRequests()
@@ -321,6 +403,9 @@ class OrderProcurementService
 
         return DB::transaction(function () use ($intake, $actor, $lines, $request) {
             foreach ($lines as $line) {
+                if ($line->stock_status === OrderOperations::STOCK_RELEASED) {
+                    continue;
+                }
                 $line->stock_status = OrderOperations::STOCK_RELEASED;
                 $line->save();
             }
@@ -344,11 +429,12 @@ class OrderProcurementService
             foreach ($this->notify->activeUserIdsWithRoles([
                 OrderOperations::ROLE_OMS,
                 OrderOperations::ROLE_OMF,
+                OrderOperations::ROLE_PRODUCT_MANAGER,
             ]) as $userId) {
                 $this->notify->notifyUser($userId, [
                     'type' => 'materials_released',
                     'title' => 'Materials released',
-                    'message' => "Materials released to production for {$intake->invoice_number}.",
+                    'message' => "Materials released from inventory for {$intake->invoice_number}.",
                     'entityType' => 'order_intake',
                     'entityId' => (int) $intake->id,
                 ]);

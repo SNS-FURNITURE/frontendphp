@@ -5,8 +5,8 @@
 @section('content')
 <div class="page-head">
     <div>
-        <h1>OMF — supervise product manager</h1>
-        <p class="muted" style="margin:0.35rem 0 0">OMS owns the schedule. Monitor PM progress and complete factory/production phases as supervisor.</p>
+        <h1>OMF — factory board</h1>
+        <p class="muted" style="margin:0.35rem 0 0">Product manager owns production updates. Monitor progress and supervise factory work.</p>
     </div>
 </div>
 

@@ -29,6 +29,9 @@ class OrderIntake extends Model
         'cm_reminder_hours_before',
         'cm_reminder_sent_at',
         'cm_overdue_sent_at',
+        'materials_release_requested_at',
+        'materials_release_requested_by',
+        'materials_release_note',
     ];
 
     protected function casts(): array
@@ -43,6 +46,7 @@ class OrderIntake extends Model
             'cm_due_at' => 'datetime',
             'cm_reminder_sent_at' => 'datetime',
             'cm_overdue_sent_at' => 'datetime',
+            'materials_release_requested_at' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
@@ -61,6 +65,11 @@ class OrderIntake extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function materialsReleaseRequester(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'materials_release_requested_by');
     }
 
     public function phases(): HasMany

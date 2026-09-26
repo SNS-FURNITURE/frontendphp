@@ -119,10 +119,15 @@ class OrderScheduleService
                 }
             }
 
-            if ($productManagerUserId) {
+            $pmUserId = $productManagerUserId;
+            if (! $pmUserId) {
+                $pmUserId = User::soleProductManager()?->id;
+            }
+
+            if ($pmUserId) {
                 $current = $intake->assignments->firstWhere('role_key', OrderOperations::ROLE_PRODUCT_MANAGER);
-                if (! $current || (int) $current->user_id !== $productManagerUserId) {
-                    $pm = User::query()->findOrFail($productManagerUserId);
+                if (! $current || (int) $current->user_id !== $pmUserId) {
+                    $pm = User::query()->findOrFail($pmUserId);
                     $this->assignUser($intake, $actor, $pm, OrderOperations::ROLE_PRODUCT_MANAGER, $request);
                 }
             }
@@ -130,7 +135,7 @@ class OrderScheduleService
             $this->audit->log($actor, 'order_intake', (int) $intake->id, 'SAVE_ORDER_SCHEDULE', [
                 'phase_count' => $intake->phases()->count(),
                 'designer_user_id' => $designerUserId,
-                'product_manager_user_id' => $productManagerUserId,
+                'product_manager_user_id' => $pmUserId,
             ], $request);
 
             return $intake->fresh(['phases', 'assignments.user']);

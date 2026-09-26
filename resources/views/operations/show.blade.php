@@ -190,13 +190,15 @@
                 </select>
             </div>
             <div>
-                <label for="product_manager_user_id" style="font-weight:600">Product manager</label>
-                <select id="product_manager_user_id" name="product_manager_user_id" style="width:100%">
-                    <option value="">Select product manager</option>
-                    @foreach ($productManagers as $pm)
-                        <option value="{{ $pm->id }}" @selected((string) old('product_manager_user_id', $currentPm?->user_id) === (string) $pm->id)>{{ $pm->full_name }}</option>
-                    @endforeach
-                </select>
+                <label style="font-weight:600">Product manager</label>
+                @php $solePm = $soleProductManager ?? null; @endphp
+                @if ($solePm)
+                    <input type="hidden" name="product_manager_user_id" value="{{ $solePm->id }}">
+                    <p style="margin:0.4rem 0 0"><strong>{{ $solePm->full_name }}</strong></p>
+                    <p class="muted" style="margin:0.25rem 0 0;font-size:0.85rem">Single product manager — owns production and material release requests.</p>
+                @else
+                    <p class="muted" style="margin:0.4rem 0 0">No active product manager user found. Create one product_manager role user.</p>
+                @endif
             </div>
         </div>
 
@@ -437,10 +439,26 @@
         </form>
     @endif
 
-    @if (($user->hasRole('company_manager') || $user->isOms()) && $intake->materialLines->isNotEmpty())
-        <form method="POST" action="{{ route('operations.orders.materials.release', $intake) }}" style="margin-top:1rem">@csrf
-            <button class="btn" type="submit">Release materials to production</button>
+    @if (($user->isProductManager() || $user->isAdmin()) && $intake->materialLines->isNotEmpty() && $intake->materialLines->contains(fn ($l) => in_array($l->stock_status, [\App\Support\OrderOperations::STOCK_AVAILABLE, \App\Support\OrderOperations::STOCK_RELEASE_REQUESTED], true)))
+        <form method="POST" action="{{ route('operations.orders.materials.request-release', $intake) }}" style="margin-top:1rem">
+            @csrf
+            <label for="release_note">Request note (optional)</label>
+            <input id="release_note" name="note" value="{{ old('note') }}" placeholder="Why inventory should release these materials">
+            <button class="btn" type="submit" style="margin-top:0.5rem">Request release from inventory</button>
         </form>
+        @if ($intake->materials_release_requested_at)
+            <p class="muted" style="margin:0.75rem 0 0">
+                Release requested {{ $intake->materials_release_requested_at->format('Y-m-d H:i') }}
+                @if ($intake->materials_release_note) — {{ $intake->materials_release_note }} @endif
+            </p>
+        @endif
+    @endif
+
+    @if ($user->canApproveMaterialRelease() && $intake->materials_release_requested_at && $intake->materialLines->isNotEmpty())
+        <form method="POST" action="{{ route('operations.orders.materials.release', $intake) }}" style="margin-top:1rem">@csrf
+            <button class="btn" type="submit">Release materials from inventory</button>
+        </form>
+        <p class="muted" style="margin:0.5rem 0 0">Requested by product manager. Confirm stock leave before releasing.</p>
     @endif
 </div>
 
@@ -590,11 +608,40 @@
 </div>
 @endif
 
+@if ($intake->status === \App\Support\OrderOperations::INTAKE_ACCEPTED)
+<div class="card" style="margin-bottom:1.25rem">
+    <h2 style="margin:0 0 0.5rem;font-size:1.1rem">Production updates</h2>
+    <p class="muted" style="margin:0 0 1rem">Product manager posts progress here — OMS and OMF are notified.</p>
+    <div style="margin-bottom:1rem;max-height:16rem;overflow:auto">
+        @php
+            $productionUpdates = $intake->messages->where('message_kind', \App\Support\OrderOperations::MESSAGE_PRODUCTION_UPDATE);
+        @endphp
+        @forelse ($productionUpdates as $message)
+            <p style="margin:0 0 0.65rem">
+                <strong>{{ $message->sender?->full_name ?? 'PM' }}</strong>
+                <span class="muted">{{ optional($message->created_at)->format('Y-m-d H:i') }}</span><br>
+                {{ $message->body }}
+            </p>
+        @empty
+            <p class="muted">No production updates yet</p>
+        @endforelse
+    </div>
+    @if ($user->canPostProductionUpdate() && ($user->isAdmin() || $intake->assignments->where('role_key', \App\Support\OrderOperations::ROLE_PRODUCT_MANAGER)->where('user_id', $user->id)->isNotEmpty()))
+        <form method="POST" action="{{ route('operations.orders.production-updates', $intake) }}">
+            @csrf
+            <label for="production_update_body">Update for OMS &amp; OMF</label>
+            <textarea id="production_update_body" name="body" rows="2" required>{{ old('body') }}</textarea>
+            <button class="btn" type="submit">Post production update</button>
+        </form>
+    @endif
+</div>
+@endif
+
 @if ($user->canMessageOpsPeer())
 <div class="card" style="margin-bottom:1.25rem">
     <h2 style="margin:0 0 1rem;font-size:1.1rem">OMS ↔ OMF messages</h2>
     <div style="margin-bottom:1rem;max-height:16rem;overflow:auto">
-        @forelse ($intake->messages as $message)
+        @forelse ($intake->messages->where('message_kind', \App\Support\OrderOperations::MESSAGE_OPS) as $message)
             <p style="margin:0 0 0.65rem">
                 <strong>{{ $message->sender?->full_name ?? 'User' }}</strong>
                 <span class="muted">{{ optional($message->created_at)->format('Y-m-d H:i') }}</span><br>

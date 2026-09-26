@@ -103,6 +103,20 @@ class OrderWorkflowService
             "{$phase->displayLabel()} completed for {$intake->invoice_number}."
         );
 
+        // Always ping OMS + OMF when the product manager drives production progress.
+        foreach ($this->notify->activeUserIdsWithRoles([
+            OrderOperations::ROLE_OMS,
+            OrderOperations::ROLE_OMF,
+        ]) as $userId) {
+            $this->notify->notifyUser($userId, [
+                'type' => 'pm_production_progress',
+                'title' => 'Product manager progress',
+                'message' => "{$actor->full_name} marked {$phase->displayLabel()} complete on {$intake->invoice_number}.",
+                'entityType' => 'order_intake',
+                'entityId' => (int) $intake->id,
+            ]);
+        }
+
         $this->audit->log($actor, 'order_phase', (int) $phase->id, 'COMPLETE_PRODUCTION_PHASE', [
             'phase_key' => $phase->phase_key,
         ], $request);

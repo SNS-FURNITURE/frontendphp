@@ -88,14 +88,23 @@ class OrderOperationsWorkflowTest extends FeatureTestCase
         );
         $intake = app(OrderIntakeService::class)->approveByCompanyManager($intake, $cm);
 
+        $pm = $this->createUserWithRole(OrderOperations::ROLE_PRODUCT_MANAGER);
+
         app(OrderScheduleService::class)->setPhaseDeadline(
             $intake->phase(OrderOperations::PHASE_DESIGN),
             $oms,
             Carbon::now()->addDays(3),
             12
         );
+        app(OrderScheduleService::class)->setPhaseDeadline(
+            $intake->fresh(['phases'])->phase(OrderOperations::PHASE_FACTORY_COLORING),
+            $oms,
+            Carbon::now()->addDays(7),
+            12
+        );
 
-        app(OrderScheduleService::class)->assignUser($intake, $oms, $designer, OrderOperations::ROLE_DESIGNER);
+        app(OrderScheduleService::class)->assignUser($intake->fresh(['phases']), $oms, $designer, OrderOperations::ROLE_DESIGNER);
+        app(OrderScheduleService::class)->assignUser($intake->fresh(['phases']), $oms, $pm, OrderOperations::ROLE_PRODUCT_MANAGER);
         app(OrderScheduleService::class)->assignUser($intake, $omf, $assembler, OrderOperations::ROLE_ASSEMBLER);
 
         $design = $intake->fresh(['phases.checkpoints'])->phase(OrderOperations::PHASE_DESIGN);
@@ -128,6 +137,7 @@ class OrderOperationsWorkflowTest extends FeatureTestCase
         app(OrderProcurementService::class)->recommendQuote($proc->fresh(), $quote, $procurement, 'Best quality/price trade-off');
         app(OrderProcurementService::class)->decideRecommendation($proc->fresh(), $cm, true, 'Approved');
 
+        app(OrderProcurementService::class)->requestMaterialRelease($intake->fresh(), $pm, 'Need wood for assembly');
         $released = app(OrderProcurementService::class)->releaseMaterials($intake->fresh(), $cm);
         $this->assertSame(
             OrderOperations::PHASE_COMPLETED,

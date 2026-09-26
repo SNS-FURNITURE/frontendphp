@@ -253,7 +253,9 @@ Route::middleware(['auth', EnsureWebInvoiceAccess::class])->group(function () {
         Route::post('/orders/{intake}/materials', [OperationsWebController::class, 'submitMaterials'])->name('orders.materials.submit');
         Route::post('/orders/{intake}/materials/{line}/verify', [OperationsWebController::class, 'verifyStock'])->name('orders.materials.verify');
         Route::post('/orders/{intake}/materials/{line}/procure', [OperationsWebController::class, 'procureMaterial'])->name('orders.materials.procure');
+        Route::post('/orders/{intake}/materials/request-release', [OperationsWebController::class, 'requestMaterialRelease'])->name('orders.materials.request-release');
         Route::post('/orders/{intake}/materials/release', [OperationsWebController::class, 'releaseMaterials'])->name('orders.materials.release');
+        Route::post('/orders/{intake}/production-updates', [OperationsWebController::class, 'postProductionUpdate'])->name('orders.production-updates');
 
         Route::post('/orders/{intake}/procurement/{procurement}/quotes', [OperationsWebController::class, 'addQuote'])->name('orders.quotes.add');
         Route::post('/orders/{intake}/procurement/{procurement}/quotes/{quote}/recommend', [OperationsWebController::class, 'recommendQuote'])->name('orders.quotes.recommend');
