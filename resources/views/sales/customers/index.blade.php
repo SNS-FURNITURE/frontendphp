@@ -15,7 +15,7 @@
     </div>
     <div class="toolbar">
         @if ($canCreate)
-            <button class="btn" type="button" onclick="document.getElementById('create-customer').hidden=false">Add contact</button>
+            <button class="btn" type="button" onclick="document.getElementById('create-customer').hidden=false">Add customer</button>
         @endif
     </div>
 </div>
@@ -23,7 +23,13 @@
 @if ($canCreate)
 <div class="card" id="create-customer" style="margin-bottom:1.25rem" @if(!$errors->any() || !old('name')) hidden @endif>
     <h2 style="margin:0 0 1rem;font-size:1.1rem">New customer contact</h2>
-    <p class="muted" style="margin:0 0 1rem">Submitted contacts go to a sales supervisor for approval. Each customer name and address pair must be unique.</p>
+    <p class="muted" style="margin:0 0 1rem">
+        @if (auth()->user()->canReviewCustomerContacts())
+            Add a pre-approved customer contact. Each name and address pair must be unique.
+        @else
+            Submitted contacts go to a sales supervisor for approval. Each customer name and address pair must be unique.
+        @endif
+    </p>
     <form method="POST" action="{{ route('sales.customers.store') }}">
         @csrf
         <div class="grid-2">
@@ -45,7 +51,7 @@
             </div>
         </div>
         <div class="toolbar">
-            <button class="btn" type="submit">Submit for review</button>
+            <button class="btn" type="submit">{{ auth()->user()->canReviewCustomerContacts() ? 'Add customer (Approved)' : 'Submit for review' }}</button>
             <button class="btn ghost" type="button" onclick="document.getElementById('create-customer').hidden=true">Cancel</button>
         </div>
     </form>

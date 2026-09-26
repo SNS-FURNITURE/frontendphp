@@ -31,7 +31,7 @@
         <h2 style="margin:0 0 .75rem;font-size:1rem">Quota progress</h2>
         <p style="font-size:2rem;font-weight:700;margin:0">{{ $stats['approved'] }} <span class="muted" style="font-size:1rem;font-weight:400">/ {{ (int) $stats['quota'] }} approved contacts</span></p>
         <div style="margin-top:1rem;height:10px;background:var(--border);border-radius:999px;overflow:hidden">
-            <div style="height:100%;width:{{ $stats['pct'] }}%;background:var(--accent)"></div>
+            <div style="height:100%;width:{{ min(100, $stats['pct']) }}%;background:var(--accent)"></div>
         </div>
         <p class="muted" style="margin:.75rem 0 0">{{ $stats['pct'] }}% of {{ ucfirst($periodType) }} sales quota</p>
     </div>

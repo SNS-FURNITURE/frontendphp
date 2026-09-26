@@ -596,7 +596,7 @@
             @endif
         @elseif (auth()->user()->isSalesSupervisor())
             <div class="nav-section">Sales</div>
-            <a class="nav-link {{ request()->routeIs('sales.customers*') ? 'active' : '' }}" href="{{ route('sales.customers', ['filter' => 'pending']) }}">Contact reviews</a>
+            <a class="nav-link {{ request()->routeIs('sales.customers*') ? 'active' : '' }}" href="{{ route('sales.customers') }}">Customers</a>
             <a class="nav-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}" href="{{ route('invoices.index') }}">Orders</a>
             @if (auth()->user()->canViewCommercialTasks())
                 <a class="nav-link {{ request()->routeIs('commercial.tasks*') ? 'active' : '' }}" href="{{ route('commercial.tasks.index') }}">Tasks</a>
