@@ -101,6 +101,18 @@ class User extends Authenticatable
         return $this->hasRole(OrderOperations::ROLE_PRODUCT_MANAGER);
     }
 
+    /**
+     * Business rule: there is a single active product manager who owns production.
+     */
+    public static function soleProductManager(): ?self
+    {
+        return static::query()
+            ->where('is_active', true)
+            ->whereHas('roles', fn ($q) => $q->where('name', OrderOperations::ROLE_PRODUCT_MANAGER))
+            ->orderBy('id')
+            ->first();
+    }
+
     public function isProcurement(): bool
     {
         return $this->hasRole(OrderOperations::ROLE_PROCUREMENT);
@@ -139,6 +151,21 @@ class User extends Authenticatable
     public function canAssignProductManager(): bool
     {
         return $this->isOms();
+    }
+
+    public function canRequestMaterialRelease(): bool
+    {
+        return $this->isProductManager() || $this->isAdmin();
+    }
+
+    public function canApproveMaterialRelease(): bool
+    {
+        return $this->hasRole('company_manager') || $this->isAdmin();
+    }
+
+    public function canPostProductionUpdate(): bool
+    {
+        return $this->isProductManager() || $this->isAdmin();
     }
 
     public function canAssignAssembler(): bool

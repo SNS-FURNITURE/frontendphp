@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\OrderOperations;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -15,6 +16,7 @@ class OrderMessage extends Model
         'order_intake_id',
         'sender_id',
         'body',
+        'message_kind',
         'is_read',
         'read_at',
     ];
@@ -26,6 +28,11 @@ class OrderMessage extends Model
             'read_at' => 'datetime',
             'created_at' => 'datetime',
         ];
+    }
+
+    public function isProductionUpdate(): bool
+    {
+        return $this->message_kind === OrderOperations::MESSAGE_PRODUCTION_UPDATE;
     }
 
     public function intake(): BelongsTo

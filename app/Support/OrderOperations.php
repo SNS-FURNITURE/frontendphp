@@ -58,7 +58,13 @@ final class OrderOperations
 
     public const STOCK_UNAVAILABLE = 'unavailable';
 
+    public const STOCK_RELEASE_REQUESTED = 'release_requested';
+
     public const STOCK_RELEASED = 'released';
+
+    public const MESSAGE_OPS = 'ops';
+
+    public const MESSAGE_PRODUCTION_UPDATE = 'production_update';
 
     public const PROCUREMENT_OPEN = 'open';
 
