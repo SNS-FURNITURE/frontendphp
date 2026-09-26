@@ -98,6 +98,11 @@ class OrderIntake extends Model
         return $this->hasMany(Delivery::class, 'order_intake_id');
     }
 
+    public function materialUsageLogs(): HasMany
+    {
+        return $this->hasMany(OrderMaterialUsageLog::class, 'order_intake_id');
+    }
+
     public function phase(string $phaseKey): ?OrderPhase
     {
         return $this->phases->firstWhere('phase_key', $phaseKey);
