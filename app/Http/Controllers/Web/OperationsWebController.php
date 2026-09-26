@@ -526,6 +526,41 @@ class OperationsWebController extends Controller
         return back()->with('status', 'Phase added');
     }
 
+    public function saveSchedule(Request $request, OrderIntake $intake): RedirectResponse
+    {
+        abort_unless(auth()->user()?->canManageOrderSchedule(), 403);
+
+        $validated = $request->validate([
+            'phases' => ['nullable', 'array'],
+            'phases.*.id' => ['required', 'integer'],
+            'phases.*.label' => ['required', 'string', 'min:1', 'max:120'],
+            'phases.*.due_at' => ['required', 'date'],
+            'phases.*.reminder_hours_before' => ['nullable', 'integer', 'min:1'],
+            'new_phases' => ['nullable', 'array'],
+            'new_phases.*.label' => ['nullable', 'string', 'max:120'],
+            'new_phases.*.due_at' => ['nullable', 'date'],
+            'new_phases.*.reminder_hours_before' => ['nullable', 'integer', 'min:1'],
+            'designer_user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'product_manager_user_id' => ['nullable', 'integer', 'exists:users,id'],
+        ]);
+
+        try {
+            $this->scheduleService->saveSchedule(
+                $intake,
+                auth()->user(),
+                array_values($validated['phases'] ?? []),
+                array_values($validated['new_phases'] ?? []),
+                isset($validated['designer_user_id']) ? (int) $validated['designer_user_id'] : null,
+                isset($validated['product_manager_user_id']) ? (int) $validated['product_manager_user_id'] : null,
+                $request,
+            );
+        } catch (InvalidArgumentException $e) {
+            return back()->withErrors(['status' => $e->getMessage()])->withInput();
+        }
+
+        return back()->with('status', 'Schedule saved');
+    }
+
     public function completePhase(Request $request, OrderIntake $intake, OrderPhase $phase): RedirectResponse
     {
         abort_unless(auth()->user()?->canViewOrderOperations(), 403);

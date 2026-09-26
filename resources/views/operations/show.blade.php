@@ -163,25 +163,140 @@
 @php
     $factoryPhase = $intake->phase(\App\Support\OrderOperations::PHASE_FACTORY_COLORING);
     $canSupervise = $user->canSuperviseProductManager() || $user->isProductManager() || $user->isOms() || $user->isAdmin();
+    $currentDesigner = $intake->assignments->firstWhere('role_key', \App\Support\OrderOperations::ROLE_DESIGNER);
+    $currentPm = $intake->assignments->firstWhere('role_key', \App\Support\OrderOperations::ROLE_PRODUCT_MANAGER);
 @endphp
+
+@if ($user->canManageOrderSchedule())
+<div class="card" style="margin-bottom:1.25rem" id="oms-schedule">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
+        <div>
+            <h2 style="margin:0;font-size:1.15rem">Schedule production</h2>
+            <p class="muted" style="margin:0.35rem 0 0">Set people, phase names, and deadlines — then save once.</p>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ route('operations.orders.schedule.save', $intake) }}" id="oms-schedule-form">
+        @csrf
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));gap:1rem;margin-bottom:1.25rem;padding:1rem;border:1px solid var(--border,#333);border-radius:10px">
+            <div>
+                <label for="designer_user_id" style="font-weight:600">Designer</label>
+                <select id="designer_user_id" name="designer_user_id" style="width:100%">
+                    <option value="">Select designer</option>
+                    @foreach ($designers as $designer)
+                        <option value="{{ $designer->id }}" @selected((string) old('designer_user_id', $currentDesigner?->user_id) === (string) $designer->id)>{{ $designer->full_name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label for="product_manager_user_id" style="font-weight:600">Product manager</label>
+                <select id="product_manager_user_id" name="product_manager_user_id" style="width:100%">
+                    <option value="">Select product manager</option>
+                    @foreach ($productManagers as $pm)
+                        <option value="{{ $pm->id }}" @selected((string) old('product_manager_user_id', $currentPm?->user_id) === (string) $pm->id)>{{ $pm->full_name }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+
+        <div style="overflow:auto">
+            <table class="data" id="oms-phase-table" style="margin:0">
+                <thead>
+                <tr>
+                    <th style="width:42%">Phase name</th>
+                    <th style="width:28%">Deadline</th>
+                    <th style="width:18%">Status</th>
+                    <th style="width:12%"></th>
+                </tr>
+                </thead>
+                <tbody id="oms-phase-body">
+                @foreach ($intake->phases as $index => $phase)
+                    <tr>
+                        <td>
+                            <input type="hidden" name="phases[{{ $index }}][id]" value="{{ $phase->id }}">
+                            <input type="hidden" name="phases[{{ $index }}][reminder_hours_before]" value="{{ $phase->reminder_hours_before ?? 24 }}">
+                            <input type="text" name="phases[{{ $index }}][label]" required maxlength="120" value="{{ old('phases.'.$index.'.label', $phase->displayLabel()) }}" style="width:100%">
+                        </td>
+                        <td>
+                            <input type="datetime-local" name="phases[{{ $index }}][due_at]" required value="{{ old('phases.'.$index.'.due_at', optional($phase->due_at)->format('Y-m-d\TH:i')) }}" style="width:100%">
+                        </td>
+                        <td><span class="badge">{{ $phase->status }}</span></td>
+                        <td class="muted" style="font-size:0.85rem">seeded</td>
+                    </tr>
+                @endforeach
+                </tbody>
+            </table>
+        </div>
+
+        <div class="toolbar" style="margin-top:1rem;flex-wrap:wrap;justify-content:space-between;gap:0.75rem">
+            <button class="btn ghost" type="button" id="oms-add-phase">+ Add phase</button>
+            <button class="btn" type="submit" style="min-width:10rem">Save schedule</button>
+        </div>
+    </form>
+</div>
+
+<template id="oms-new-phase-row">
+    <tr class="oms-new-phase">
+        <td>
+            <input type="hidden" data-name="reminder_hours_before" value="24">
+            <input type="text" data-name="label" maxlength="120" placeholder="New phase name" style="width:100%">
+        </td>
+        <td>
+            <input type="datetime-local" data-name="due_at" style="width:100%">
+        </td>
+        <td><span class="badge">new</span></td>
+        <td>
+            <button class="btn ghost oms-remove-phase" type="button" style="padding:0.35rem 0.6rem">Remove</button>
+        </td>
+    </tr>
+</template>
+
+<script>
+(function () {
+    const body = document.getElementById('oms-phase-body');
+    const addBtn = document.getElementById('oms-add-phase');
+    const tpl = document.getElementById('oms-new-phase-row');
+    const form = document.getElementById('oms-schedule-form');
+    if (!body || !addBtn || !tpl || !form) return;
+
+    function reindexNewPhases() {
+        body.querySelectorAll('tr.oms-new-phase').forEach(function (row, i) {
+            row.querySelectorAll('[data-name]').forEach(function (input) {
+                input.name = 'new_phases[' + i + '][' + input.getAttribute('data-name') + ']';
+            });
+        });
+    }
+
+    addBtn.addEventListener('click', function () {
+        body.appendChild(tpl.content.cloneNode(true));
+        reindexNewPhases();
+        const last = body.querySelector('tr.oms-new-phase:last-child input[data-name="label"]');
+        if (last) last.focus();
+    });
+
+    body.addEventListener('click', function (e) {
+        const btn = e.target.closest('.oms-remove-phase');
+        if (!btn) return;
+        const row = btn.closest('tr');
+        if (row) row.remove();
+        reindexNewPhases();
+    });
+
+    form.addEventListener('submit', reindexNewPhases);
+})();
+</script>
+@else
 <div class="card" style="margin-bottom:1.25rem">
-    <h2 style="margin:0 0 1rem;font-size:1.1rem">
-        @if ($user->canManageOrderSchedule())
-            Schedule production
-        @else
-            Schedule (OMS-owned, read-only)
-        @endif
-    </h2>
+    <h2 style="margin:0 0 1rem;font-size:1.1rem">Schedule (OMS-owned, read-only)</h2>
     <table class="data">
         <thead>
         <tr>
             <th>Phase</th>
             <th>Status</th>
             <th>Due</th>
-            @if ($user->canManageOrderSchedule())
-                <th>Rename / deadline</th>
-            @elseif ($canSupervise)
-                <th>Supervise</th>
+            @if ($canSupervise)
+                <th></th>
             @endif
         </tr>
         </thead>
@@ -191,23 +306,7 @@
                 <td>{{ $phase->displayLabel() }}</td>
                 <td><span class="badge">{{ $phase->status }}</span></td>
                 <td>{{ optional($phase->due_at)->format('Y-m-d H:i') ?? '—' }}</td>
-                @if ($user->canManageOrderSchedule())
-                    <td>
-                        <form method="POST" action="{{ route('operations.orders.phases.label', [$intake, $phase]) }}" style="display:flex;gap:0.35rem;align-items:end;margin:0 0 0.4rem;flex-wrap:wrap">
-                            @csrf
-                            @method('PATCH')
-                            <input type="text" name="label" required value="{{ $phase->displayLabel() }}" style="min-width:8rem">
-                            <button class="btn ghost" type="submit" style="padding:0.35rem 0.6rem">Rename</button>
-                        </form>
-                        <form method="POST" action="{{ route('operations.orders.deadlines.update', [$intake, $phase]) }}" style="display:flex;gap:0.4rem;align-items:end;margin:0;flex-wrap:wrap">
-                            @csrf
-                            @method('PATCH')
-                            <input type="datetime-local" name="due_at" required value="{{ optional($phase->due_at)->format('Y-m-d\TH:i') }}">
-                            <input type="number" name="reminder_hours_before" min="1" value="{{ $phase->reminder_hours_before ?? 24 }}" style="width:5rem" title="Reminder hours">
-                            <button class="btn ghost" type="submit" style="padding:0.35rem 0.6rem">Save due</button>
-                        </form>
-                    </td>
-                @elseif ($canSupervise && $phase->phase_key !== \App\Support\OrderOperations::PHASE_DESIGN && $phase->status !== \App\Support\OrderOperations::PHASE_COMPLETED)
+                @if ($canSupervise && $phase->phase_key !== \App\Support\OrderOperations::PHASE_DESIGN && $phase->status !== \App\Support\OrderOperations::PHASE_COMPLETED)
                     <td>
                         <form method="POST" action="{{ route('operations.orders.phases.complete', [$intake, $phase]) }}" style="margin:0">@csrf
                             <button class="btn ghost" type="submit" style="padding:0.35rem 0.6rem">Mark complete</button>
@@ -220,103 +319,34 @@
         @endforeach
         </tbody>
     </table>
-    @if ($user->canManageOrderSchedule())
-        <form method="POST" action="{{ route('operations.orders.phases.add', $intake) }}" style="display:flex;gap:0.5rem;align-items:end;margin-top:1rem;flex-wrap:wrap">
-            @csrf
-            <div>
-                <label>New phase name</label>
-                <input type="text" name="label" required maxlength="120" placeholder="Phase name" value="{{ old('label') }}">
-            </div>
-            <div>
-                <label>Deadline</label>
-                <input type="datetime-local" name="due_at" value="{{ old('due_at') }}">
-            </div>
-            <button class="btn" type="submit">+ Add phase</button>
-        </form>
+    @if ($currentDesigner || $currentPm)
+        <p class="muted" style="margin:1rem 0 0">
+            @if ($currentDesigner) Designer: <strong>{{ $currentDesigner->user?->full_name }}</strong> @endif
+            @if ($currentDesigner && $currentPm) · @endif
+            @if ($currentPm) Product manager: <strong>{{ $currentPm->user?->full_name }}</strong> @endif
+        </p>
     @endif
 </div>
+@endif
 
+@if ($user->canAssignAssembler())
 <div class="card" style="margin-bottom:1.25rem">
-    <h2 style="margin:0 0 1rem;font-size:1.1rem">Assignments</h2>
-    <table class="data" style="margin-bottom:1rem">
-        <thead><tr><th>Role</th><th>User</th><th>Assigned by</th><th>At</th></tr></thead>
-        <tbody>
-        @forelse ($intake->assignments as $assignment)
-            <tr>
-                <td>{{ $assignment->role_key }}</td>
-                <td>{{ $assignment->user?->full_name ?? '—' }}</td>
-                <td>{{ $assignment->assignedByUser?->full_name ?? '—' }}</td>
-                <td>{{ optional($assignment->assigned_at)->format('Y-m-d H:i') }}</td>
-            </tr>
-        @empty
-            <tr><td colspan="4" class="muted">No assignments yet</td></tr>
-        @endforelse
-        </tbody>
-    </table>
-    <div class="toolbar" style="flex-wrap:wrap;gap:1rem">
-        @if ($user->canAssignDesigner())
-            <form method="POST" action="{{ route('operations.orders.assign-designer', $intake) }}" style="display:flex;gap:0.5rem;align-items:end;margin:0;flex-wrap:wrap">
-                @csrf
-                <div>
-                    <label>Designer</label>
-                    <select name="user_id" required>
-                        <option value="">Select</option>
-                        @foreach ($designers as $designer)
-                            <option value="{{ $designer->id }}">{{ $designer->full_name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label>Designer deadline *</label>
-                    <input type="datetime-local" name="due_at" required value="{{ old('due_at', optional($design?->due_at)->format('Y-m-d\TH:i')) }}">
-                </div>
-                <div>
-                    <label>Remind (h before)</label>
-                    <input type="number" min="1" name="reminder_hours_before" value="{{ old('reminder_hours_before', $design?->reminder_hours_before ?? 24) }}">
-                </div>
-                <button class="btn" type="submit">Assign designer</button>
-            </form>
-        @endif
-        @if ($user->canAssignProductManager())
-            <form method="POST" action="{{ route('operations.orders.assign-product-manager', $intake) }}" style="display:flex;gap:0.5rem;align-items:end;margin:0;flex-wrap:wrap">
-                @csrf
-                <div>
-                    <label>Product manager</label>
-                    <select name="user_id" required>
-                        <option value="">Select</option>
-                        @foreach ($productManagers as $pm)
-                            <option value="{{ $pm->id }}">{{ $pm->full_name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label>Factory coloring deadline *</label>
-                    <input type="datetime-local" name="due_at" required value="{{ old('pm_due_at', optional($factoryPhase?->due_at)->format('Y-m-d\TH:i')) }}">
-                </div>
-                <div>
-                    <label>Remind (h before)</label>
-                    <input type="number" min="1" name="reminder_hours_before" value="{{ old('pm_reminder_hours_before', $factoryPhase?->reminder_hours_before ?? 24) }}">
-                </div>
-                <button class="btn" type="submit">Assign product manager</button>
-            </form>
-        @endif
-        @if ($user->canAssignAssembler())
-            <form method="POST" action="{{ route('operations.orders.assign-assembler', $intake) }}" style="display:flex;gap:0.5rem;align-items:end;margin:0">
-                @csrf
-                <div>
-                    <label>Assembler</label>
-                    <select name="user_id" required>
-                        <option value="">Select</option>
-                        @foreach ($assemblers as $assembler)
-                            <option value="{{ $assembler->id }}">{{ $assembler->full_name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <button class="btn" type="submit">Assign assembler</button>
-            </form>
-        @endif
-    </div>
+    <h2 style="margin:0 0 1rem;font-size:1.1rem">Assembler</h2>
+    <form method="POST" action="{{ route('operations.orders.assign-assembler', $intake) }}" style="display:flex;gap:0.5rem;align-items:end;margin:0;flex-wrap:wrap">
+        @csrf
+        <div>
+            <label>Assembler</label>
+            <select name="user_id" required>
+                <option value="">Select</option>
+                @foreach ($assemblers as $assembler)
+                    <option value="{{ $assembler->id }}">{{ $assembler->full_name }}</option>
+                @endforeach
+            </select>
+        </div>
+        <button class="btn" type="submit">Assign assembler</button>
+    </form>
 </div>
+@endif
 
 @if ($design)
 <div class="card" style="margin-bottom:1.25rem">

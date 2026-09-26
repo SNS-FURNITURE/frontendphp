@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Support\OrderOperations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
@@ -19,6 +20,122 @@ class OrderScheduleService
         private AuditService $audit,
         private NotifyService $notify,
     ) {}
+
+    /**
+     * Save the full OMS schedule in one shot: phase names/deadlines, new phases, designer + PM.
+     *
+     * @param  list<array{id?:int|string|null, label:string, due_at?:string|null, reminder_hours_before?:int|string|null}>  $phases
+     * @param  list<array{label:string, due_at?:string|null, reminder_hours_before?:int|string|null}>  $newPhases
+     */
+    public function saveSchedule(
+        OrderIntake $intake,
+        User $actor,
+        array $phases,
+        array $newPhases = [],
+        ?int $designerUserId = null,
+        ?int $productManagerUserId = null,
+        ?Request $request = null,
+    ): OrderIntake {
+        if (! $actor->canManageOrderSchedule()) {
+            throw new InvalidArgumentException('Only OMS can save the schedule.');
+        }
+
+        if ($intake->status !== OrderOperations::INTAKE_ACCEPTED) {
+            throw new InvalidArgumentException('Schedule can only be saved after company manager approval.');
+        }
+
+        if ($intake->phases()->count() === 0) {
+            $this->initializePhases($intake);
+            $intake->load('phases');
+        }
+
+        return DB::transaction(function () use ($intake, $actor, $phases, $newPhases, $designerUserId, $productManagerUserId, $request) {
+            foreach ($phases as $row) {
+                $phaseId = (int) ($row['id'] ?? 0);
+                if ($phaseId < 1) {
+                    continue;
+                }
+
+                $phase = OrderPhase::query()
+                    ->where('order_intake_id', $intake->id)
+                    ->where('id', $phaseId)
+                    ->first();
+
+                if (! $phase) {
+                    continue;
+                }
+
+                $label = trim((string) ($row['label'] ?? ''));
+                if ($label === '') {
+                    throw new InvalidArgumentException('Every phase needs a name.');
+                }
+
+                $dueRaw = $row['due_at'] ?? null;
+                if (blank($dueRaw)) {
+                    throw new InvalidArgumentException("Set a deadline for \"{$label}\".");
+                }
+
+                $dueAt = Carbon::parse((string) $dueRaw);
+                $reminder = max(1, (int) ($row['reminder_hours_before'] ?? 24));
+
+                $phase->label = $label;
+                $phase->due_at = $dueAt;
+                $phase->reminder_hours_before = $reminder;
+                $phase->reminder_sent_at = null;
+                $phase->overdue_sent_at = null;
+                $phase->save();
+            }
+
+            foreach ($newPhases as $row) {
+                $label = trim((string) ($row['label'] ?? ''));
+                if ($label === '') {
+                    continue;
+                }
+
+                $dueRaw = $row['due_at'] ?? null;
+                $dueAt = blank($dueRaw) ? null : Carbon::parse((string) $dueRaw);
+                if ($dueAt === null) {
+                    throw new InvalidArgumentException("Set a deadline for new phase \"{$label}\".");
+                }
+
+                $this->addCustomPhase(
+                    $intake,
+                    $actor,
+                    $label,
+                    $dueAt,
+                    max(1, (int) ($row['reminder_hours_before'] ?? 24)),
+                    $request,
+                );
+            }
+
+            $intake = $intake->fresh(['phases', 'assignments']);
+
+            if ($designerUserId) {
+                $current = $intake->assignments->firstWhere('role_key', OrderOperations::ROLE_DESIGNER);
+                if (! $current || (int) $current->user_id !== $designerUserId) {
+                    $designer = User::query()->findOrFail($designerUserId);
+                    $this->assignUser($intake, $actor, $designer, OrderOperations::ROLE_DESIGNER, $request);
+                    $intake = $intake->fresh(['phases', 'assignments']);
+                }
+            }
+
+            if ($productManagerUserId) {
+                $current = $intake->assignments->firstWhere('role_key', OrderOperations::ROLE_PRODUCT_MANAGER);
+                if (! $current || (int) $current->user_id !== $productManagerUserId) {
+                    $pm = User::query()->findOrFail($productManagerUserId);
+                    $this->assignUser($intake, $actor, $pm, OrderOperations::ROLE_PRODUCT_MANAGER, $request);
+                }
+            }
+
+            $this->audit->log($actor, 'order_intake', (int) $intake->id, 'SAVE_ORDER_SCHEDULE', [
+                'phase_count' => $intake->phases()->count(),
+                'designer_user_id' => $designerUserId,
+                'product_manager_user_id' => $productManagerUserId,
+            ], $request);
+
+            return $intake->fresh(['phases', 'assignments.user']);
+        });
+    }
 
     public function initializePhases(OrderIntake $intake): void
     {

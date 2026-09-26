@@ -243,6 +243,7 @@ Route::middleware(['auth', EnsureWebInvoiceAccess::class])->group(function () {
         Route::patch('/orders/{intake}/phases/{phase}/deadline', [OperationsWebController::class, 'updateDeadline'])->name('orders.deadlines.update');
         Route::patch('/orders/{intake}/phases/{phase}/label', [OperationsWebController::class, 'updatePhaseLabel'])->name('orders.phases.label');
         Route::post('/orders/{intake}/phases', [OperationsWebController::class, 'addPhase'])->name('orders.phases.add');
+        Route::post('/orders/{intake}/schedule', [OperationsWebController::class, 'saveSchedule'])->name('orders.schedule.save');
         Route::post('/orders/{intake}/phases/{phase}/complete', [OperationsWebController::class, 'completePhase'])->name('orders.phases.complete');
         Route::post('/orders/{intake}/assign-designer', [OperationsWebController::class, 'assignDesigner'])->name('orders.assign-designer');
         Route::post('/orders/{intake}/assign-product-manager', [OperationsWebController::class, 'assignProductManager'])->name('orders.assign-product-manager');

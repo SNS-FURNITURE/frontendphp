@@ -350,6 +350,64 @@ class OrderOperationsWorkflowTest extends FeatureTestCase
             ->assertSee('INV-2026-110');
     }
 
+    public function test_oms_saves_full_schedule_once(): void
+    {
+        $oms = $this->createUserWithRole(OrderOperations::ROLE_OMS);
+        $cm = $this->createUserWithRole(OrderOperations::ROLE_COMPANY_MANAGER);
+        $designer = $this->createUserWithRole(OrderOperations::ROLE_DESIGNER);
+        $pm = $this->createUserWithRole(OrderOperations::ROLE_PRODUCT_MANAGER);
+        $supervisor = $this->createUserWithRole('sales_supervisor');
+
+        $invoice = Invoice::query()->create([
+            'invoice_number' => 'INV-2026-120',
+            'amount' => 200,
+            'status' => 'approved',
+            'snapshot_json' => ['totals' => ['grand_total' => 200]],
+            'created_by' => $supervisor->id,
+        ]);
+
+        $intake = app(OrderIntakeService::class)->enqueueFromApproval($invoice, $oms);
+        $intake = app(OrderIntakeService::class)->sendToCompanyManager($intake, $oms, null, Carbon::now()->addDays(1));
+        $intake = app(OrderIntakeService::class)->approveByCompanyManager($intake, $cm);
+
+        $phases = $intake->fresh(['phases'])->phases->sortBy('sort_order')->values()->map(fn ($phase) => [
+            'id' => $phase->id,
+            'label' => $phase->displayLabel(),
+            'due_at' => Carbon::now()->addDays(3)->format('Y-m-d H:i:s'),
+            'reminder_hours_before' => 24,
+        ])->all();
+
+        foreach ($phases as &$row) {
+            $phase = $intake->phases->firstWhere('id', $row['id']);
+            if ($phase?->phase_key === OrderOperations::PHASE_DESIGN) {
+                $row['label'] = 'Design work';
+            }
+        }
+        unset($row);
+
+        $saved = app(OrderScheduleService::class)->saveSchedule(
+            $intake,
+            $oms,
+            $phases,
+            [['label' => 'Quality check', 'due_at' => Carbon::now()->addDays(8)->format('Y-m-d H:i:s')]],
+            $designer->id,
+            $pm->id,
+        );
+
+        $this->assertSame('Design work', $saved->phase(OrderOperations::PHASE_DESIGN)?->displayLabel());
+        $this->assertTrue($saved->phases->contains(fn ($p) => $p->label === 'Quality check'));
+        $this->assertDatabaseHas('order_assignments', [
+            'order_intake_id' => $saved->id,
+            'role_key' => OrderOperations::ROLE_DESIGNER,
+            'user_id' => $designer->id,
+        ]);
+        $this->assertDatabaseHas('order_assignments', [
+            'order_intake_id' => $saved->id,
+            'role_key' => OrderOperations::ROLE_PRODUCT_MANAGER,
+            'user_id' => $pm->id,
+        ]);
+    }
+
     public function test_oms_can_open_dashboard(): void
     {
         $oms = $this->createUserWithRole(OrderOperations::ROLE_OMS);
