@@ -100,12 +100,26 @@
 @if (($user->hasRole('company_manager') || $user->isAdmin()) && $intake->status === \App\Support\OrderOperations::INTAKE_AWAITING_CM)
 <div class="card" style="margin-bottom:1.25rem">
     <h2 style="margin:0 0 1rem;font-size:1.1rem">Company manager approval</h2>
-    <p class="muted">
-        OMS deadline:
-        <strong>{{ optional($intake->cm_due_at)->format('Y-m-d H:i') ?? '—' }}</strong>
-        — approve before this time so design can start.
+    <p class="muted" style="margin:0 0 1rem">
+        OMS checked this invoice and set deadline
+        <strong>{{ optional($intake->cm_due_at)->format('Y-m-d H:i') ?? '—' }}</strong>.
+        Review the document below, then approve for production or return to OMS.
     </p>
+    <div style="border:1px solid var(--border, #333);padding:0.75rem;border-radius:8px;max-height:36rem;overflow:auto;margin-bottom:1rem;background:var(--panel, #111)">
+        @if (! empty($cmInvoiceHtml))
+            {!! $cmInvoiceHtml !!}
+        @elseif (! empty($approvedHtml))
+            {!! $approvedHtml !!}
+        @elseif (! empty($issuedHtml))
+            {!! $issuedHtml !!}
+        @else
+            <p class="muted" style="margin:0">Invoice document not available.
+                <a href="{{ route('operations.orders.invoice-document', $intake) }}" target="_blank" rel="noopener">Open invoice document</a>
+            </p>
+        @endif
+    </div>
     <div class="toolbar" style="flex-wrap:wrap">
+        <a class="btn ghost" href="{{ route('operations.orders.invoice-document', $intake) }}" target="_blank" rel="noopener">Open full invoice</a>
         <form method="POST" action="{{ route('operations.orders.cm-approve', $intake) }}">@csrf
             <button class="btn" type="submit">Approve for production</button>
         </form>

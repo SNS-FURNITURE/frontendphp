@@ -294,6 +294,62 @@ class OrderOperationsWorkflowTest extends FeatureTestCase
         $this->assertSame('After Approve', $intake->approved_snapshot_json['customer']['name'] ?? null);
     }
 
+    public function test_company_manager_sees_invoice_when_awaiting_approval(): void
+    {
+        $oms = $this->createUserWithRole(OrderOperations::ROLE_OMS);
+        $cm = $this->createUserWithRole(OrderOperations::ROLE_COMPANY_MANAGER);
+        $supervisor = $this->createUserWithRole('sales_supervisor');
+
+        $invoice = Invoice::query()->create([
+            'invoice_number' => 'INV-2026-110',
+            'amount' => 450,
+            'status' => 'approved',
+            'snapshot_json' => [
+                'doc_number' => 'INV-2026-110',
+                'doc_type' => 'PROFORMA',
+                'totals' => [
+                    'subtotal' => 450,
+                    'discount_amount' => 0,
+                    'taxable' => 450,
+                    'tax_amount' => 0,
+                    'grand_total' => 450,
+                ],
+                'customer' => ['name' => 'CM Visible Co'],
+                'lines' => [
+                    ['description' => 'Oak desk', 'qty' => 1, 'unit_price' => 450, 'line_total' => 450],
+                ],
+            ],
+            'created_by' => $supervisor->id,
+        ]);
+
+        $intake = app(OrderIntakeService::class)->enqueueFromApproval(
+            $invoice,
+            $oms,
+            null,
+            $invoice->snapshot_json
+        );
+        $intake = app(OrderIntakeService::class)->sendToCompanyManager(
+            $intake,
+            $oms,
+            null,
+            Carbon::now()->addDays(2)
+        );
+
+        $this->actingAs($cm)
+            ->get(route('operations.orders.show', $intake))
+            ->assertOk()
+            ->assertSee('Company manager approval')
+            ->assertSee('CM Visible Co')
+            ->assertSee('Oak desk')
+            ->assertSee('Approve for production');
+
+        $this->actingAs($cm)
+            ->get(route('operations.manager.dashboard'))
+            ->assertOk()
+            ->assertSee('Review invoice')
+            ->assertSee('INV-2026-110');
+    }
+
     public function test_oms_can_open_dashboard(): void
     {
         $oms = $this->createUserWithRole(OrderOperations::ROLE_OMS);

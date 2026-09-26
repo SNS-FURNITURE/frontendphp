@@ -307,6 +307,11 @@ class OperationsWebController extends Controller
             }
         }
 
+        $cmSnapshot = $intake->approved_snapshot_json
+            ?? $intake->snapshot_json
+            ?? $issuedSnapshot
+            ?? $intake->invoice?->snapshot_json;
+
         return view('operations.show', [
             'intake' => $intake,
             'designers' => $this->usersWithRole(OrderOperations::ROLE_DESIGNER),
@@ -317,6 +322,7 @@ class OperationsWebController extends Controller
             'designDaysLeft' => $daysLeft,
             'issuedHtml' => $this->snapshotHtml($issuedSnapshot, ! $hidePrices),
             'approvedHtml' => $this->snapshotHtml($intake->approved_snapshot_json ?? null, ! $hidePrices),
+            'cmInvoiceHtml' => $this->snapshotHtml($cmSnapshot, true),
         ]);
     }
 

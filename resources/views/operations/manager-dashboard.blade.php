@@ -33,20 +33,14 @@
                     <td>{{ optional($intake->cm_due_at)->format('Y-m-d H:i') ?? '—' }}</td>
                     <td>{{ $intake->reviewer?->full_name ?? '—' }}</td>
                     <td class="toolbar" style="justify-content:flex-end;margin:0;flex-wrap:wrap">
-                        <a class="btn ghost" href="{{ route('operations.orders.show', $intake) }}">Open</a>
-                        <form method="POST" action="{{ route('operations.orders.cm-approve', $intake) }}" style="margin:0">@csrf
-                            <button class="btn" type="submit">Approve</button>
-                        </form>
-                        <form method="POST" action="{{ route('operations.orders.cm-reject', $intake) }}" style="display:flex;gap:0.35rem;align-items:center;margin:0">
-                            @csrf
-                            <input name="rejection_reason" required minlength="3" placeholder="Return reason" style="margin:0;max-width:12rem">
-                            <button class="btn ghost" type="submit">Return</button>
-                        </form>
+                        <a class="btn" href="{{ route('operations.orders.show', $intake) }}">Review invoice</a>
+                        <a class="btn ghost" href="{{ route('operations.orders.invoice-document', $intake) }}" target="_blank" rel="noopener">Open document</a>
                     </td>
                 </tr>
             @endforeach
             </tbody>
         </table>
+        <p class="muted" style="margin:1rem 0 0">Open <strong>Review invoice</strong> to see the full document, then approve or return to OMS.</p>
     @endif
 </div>
 
