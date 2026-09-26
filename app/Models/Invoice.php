@@ -52,4 +52,9 @@ class Invoice extends Model
     {
         return $this->hasMany(Payment::class, 'invoice_id');
     }
+
+    public function orderIntakes(): HasMany
+    {
+        return $this->hasMany(OrderIntake::class, 'invoice_id');
+    }
 }
