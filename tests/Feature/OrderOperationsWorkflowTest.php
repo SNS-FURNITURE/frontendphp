@@ -249,6 +249,51 @@ class OrderOperationsWorkflowTest extends FeatureTestCase
             ->assertRedirect();
     }
 
+    public function test_approval_captures_pre_approval_as_issued_snapshot(): void
+    {
+        $supervisor = $this->createUserWithRole('sales_supervisor');
+        $approver = $this->createUserWithRole('marketing_manager');
+
+        $invoice = Invoice::query()->create([
+            'invoice_number' => 'INV-2026-100',
+            'amount' => 300,
+            'status' => 'issued',
+            'snapshot_json' => [
+                'doc_number' => 'INV-2026-100',
+                'totals' => ['grand_total' => 300],
+                'customer' => ['name' => 'Before Approve'],
+                'lines' => [['description' => 'Chair', 'qty' => 1]],
+            ],
+            'created_by' => $supervisor->id,
+            'issued_at' => now(),
+        ]);
+
+        $issuedBefore = $invoice->snapshot_json;
+        $approved = [
+            'doc_number' => 'INV-2026-100',
+            'totals' => ['grand_total' => 350],
+            'customer' => ['name' => 'After Approve'],
+            'lines' => [['description' => 'Chair', 'qty' => 1]],
+            'approval' => ['status' => 'approved'],
+        ];
+
+        $invoice->status = 'approved';
+        $invoice->snapshot_json = $approved;
+        $invoice->amount = 350;
+        $invoice->save();
+
+        $intake = app(OrderIntakeService::class)->enqueueFromApproval(
+            $invoice->fresh(),
+            $approver,
+            null,
+            $issuedBefore
+        );
+
+        $this->assertNotNull($intake);
+        $this->assertSame('Before Approve', $intake->issued_snapshot_json['customer']['name'] ?? null);
+        $this->assertSame('After Approve', $intake->approved_snapshot_json['customer']['name'] ?? null);
+    }
+
     public function test_oms_can_open_dashboard(): void
     {
         $oms = $this->createUserWithRole(OrderOperations::ROLE_OMS);

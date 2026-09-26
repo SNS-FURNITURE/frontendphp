@@ -20,9 +20,13 @@ class OrderIntakeService
         private OrderScheduleService $schedule,
     ) {}
 
-    public function enqueueFromApproval(Invoice $invoice, User $actor, ?Request $request = null): ?OrderIntake
-    {
-        return $this->enqueue($invoice, $actor, 'approved_invoice', $request);
+    public function enqueueFromApproval(
+        Invoice $invoice,
+        User $actor,
+        ?Request $request = null,
+        ?array $issuedSnapshot = null,
+    ): ?OrderIntake {
+        return $this->enqueue($invoice, $actor, 'approved_invoice', $request, $issuedSnapshot);
     }
 
     public function enqueueFromSalesSupervisorIssue(Invoice $invoice, User $actor, ?Request $request = null): ?OrderIntake
@@ -38,8 +42,13 @@ class OrderIntakeService
         return $this->enqueue($invoice, $actor, 'sales_supervisor_issue', $request);
     }
 
-    public function enqueue(Invoice $invoice, User $actor, string $sourceType, ?Request $request = null): ?OrderIntake
-    {
+    public function enqueue(
+        Invoice $invoice,
+        User $actor,
+        string $sourceType,
+        ?Request $request = null,
+        ?array $issuedSnapshot = null,
+    ): ?OrderIntake {
         $existing = OrderIntake::query()
             ->where('invoice_id', $invoice->id)
             ->whereIn('status', OrderOperations::intakeOpenStatuses())
@@ -51,9 +60,14 @@ class OrderIntakeService
                 $existing->snapshot_json = $invoice->snapshot_json;
                 $existing->approved_snapshot_json = $invoice->snapshot_json;
                 $existing->invoice_number = $invoice->invoice_number;
+                if (blank($existing->issued_snapshot_json) && $this->isUsableSnapshot($issuedSnapshot)) {
+                    $existing->issued_snapshot_json = $issuedSnapshot;
+                }
                 $existing->save();
-            } elseif ($sourceType === 'sales_supervisor_issue' && blank($existing->issued_snapshot_json)) {
-                $existing->issued_snapshot_json = $invoice->snapshot_json;
+            } elseif ($sourceType === 'sales_supervisor_issue') {
+                if (blank($existing->issued_snapshot_json)) {
+                    $existing->issued_snapshot_json = $invoice->snapshot_json;
+                }
                 $existing->snapshot_json = $invoice->snapshot_json;
                 $existing->save();
             }
@@ -83,6 +97,9 @@ class OrderIntakeService
 
         if ($sourceType === 'approved_invoice') {
             $payload['approved_snapshot_json'] = $invoice->snapshot_json;
+            if ($this->isUsableSnapshot($issuedSnapshot)) {
+                $payload['issued_snapshot_json'] = $issuedSnapshot;
+            }
         }
 
         $intake = OrderIntake::query()->create($payload);
@@ -389,5 +406,10 @@ class OrderIntakeService
             'actor_user_id' => $actor->id,
             'actor_role' => $actor->roles->first()?->name,
         ]);
+    }
+
+    private function isUsableSnapshot(mixed $snapshot): bool
+    {
+        return is_array($snapshot) && $snapshot !== [];
     }
 }

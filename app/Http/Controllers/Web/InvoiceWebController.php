@@ -526,6 +526,10 @@ class InvoiceWebController extends Controller
             'status' => $status,
         ], $request);
 
+        if ($status === 'issued') {
+            $this->orderIntakes->enqueueFromSalesSupervisorIssue($invoice->fresh(), auth()->user(), $request);
+        }
+
         return back()->with('status', 'Order status updated');
     }
 
@@ -566,6 +570,9 @@ class InvoiceWebController extends Controller
             'approved_by_name' => $approverName,
         ];
 
+        // Keep the pre-approval document for OMS side-by-side check (SS saved/issued vs approved).
+        $issuedSnapshot = is_array($invoice->snapshot_json) ? $invoice->snapshot_json : null;
+
         $invoice->status = 'approved';
         $invoice->amount = (float) ($snapshot['totals']['grand_total'] ?? $invoice->amount);
         $invoice->snapshot_json = $snapshot;
@@ -579,7 +586,7 @@ class InvoiceWebController extends Controller
             'approved_by' => $approverName,
         ], $request);
 
-        $this->orderIntakes->enqueueFromApproval($invoice->fresh(), $user, $request);
+        $this->orderIntakes->enqueueFromApproval($invoice->fresh(), $user, $request, $issuedSnapshot);
 
         return redirect()
             ->route('invoices.show', $invoice)

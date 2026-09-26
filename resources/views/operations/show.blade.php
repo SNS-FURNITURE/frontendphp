@@ -48,11 +48,11 @@
     <p class="muted" style="margin:0 0 1rem">Sales supervisor issued document vs marketing/admin approved document.</p>
     <div class="grid-2" style="gap:1rem;margin-bottom:1rem">
         <div style="border:1px solid var(--border, #333);padding:0.75rem;border-radius:8px;max-height:28rem;overflow:auto">
-            <h3 style="margin:0 0 0.5rem;font-size:0.95rem">Sales supervisor — issued</h3>
+            <h3 style="margin:0 0 0.5rem;font-size:0.95rem">Sales supervisor — issued / saved</h3>
             @if (! empty($issuedHtml))
                 {!! $issuedHtml !!}
             @else
-                <p class="muted" style="margin:0">No issued snapshot on file</p>
+                <p class="muted" style="margin:0">No sales-supervisor issued/saved document was captured before approval. New approvals keep both copies automatically.</p>
             @endif
         </div>
         <div style="border:1px solid var(--border, #333);padding:0.75rem;border-radius:8px;max-height:28rem;overflow:auto">
